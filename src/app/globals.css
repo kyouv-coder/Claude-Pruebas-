@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #faf7f1;
+  --paper: #ffffff;
   --surface: #ffffff;
-  --ink: #201d18;
-  --muted: #6f6a5f;
-  --accent: #58694a;
-  --accent-soft: #e6ead9;
-  --border: #e6e0d2;
+  --ink: #0a0a0a;
+  --muted: #6b6b6b;
+  --accent: #0a0a0a;
+  --accent-soft: #f0f0f0;
+  --border: #dedede;
   --danger: #b3261e;
   --danger-soft: #f8e8e6;
-  --success: #3f6b4b;
+  --success: #2f6b3f;
 }
 
 @theme inline {
@@ -43,4 +43,13 @@ body {
 :focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Con --accent igual a --ink (paleta blanco y negro), el color solo ya no
+   alcanza para distinguir un link/acción de texto normal — se agrega
+   subrayado siempre, no solo al hacer hover, para no depender del color
+   como única señal (WCAG 1.4.1). */
+a, .text-accent {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

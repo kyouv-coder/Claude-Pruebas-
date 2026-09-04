@@ -19,7 +19,7 @@ const statusLabel: Record<string, string> = {
 // statuses use text-muted so they don't read as an alert.
 const statusColor: Record<string, string> = {
   PENDING: "text-muted",
-  CONFIRMED: "text-accent",
+  CONFIRMED: "text-ink font-medium",
   COMPLETED: "text-success",
   CANCELLED: "text-muted",
   NO_SHOW: "text-muted",
@@ -97,6 +97,11 @@ export default async function ReservasPage() {
                       {statusLabel[b.status]}
                     </span>
                   </div>
+                  {b.productRequests.length > 0 && (
+                    <div className="text-xs text-muted mt-0.5">
+                      🛍 Pidió: {b.productRequests.map((r) => `${r.quantity}x ${r.product.name}`).join(", ")}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   {b.startTime < now && (b.status === "PENDING" || b.status === "CONFIRMED") && (

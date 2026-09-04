@@ -19,6 +19,13 @@ export async function listPublicServices(businessId: string) {
   return services.map((s) => ({ ...s, hasImage: s.imageMimeType != null }));
 }
 
+export async function listPublicProducts(businessId: string) {
+  return prisma.product.findMany({
+    where: { businessId, active: true, stock: { gt: 0 } },
+    orderBy: { name: "asc" },
+  });
+}
+
 export async function listPublicStaff(businessId: string) {
   return prisma.user.findMany({
     where: { businessId, role: "STAFF", active: true },

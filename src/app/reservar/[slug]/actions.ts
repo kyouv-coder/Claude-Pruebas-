@@ -42,6 +42,7 @@ export async function createPublicBookingAction(
   const date = String(formData.get("date") || "");
   const time = String(formData.get("time") || "");
   const notes = String(formData.get("notes") || "").trim();
+  const productRequestsRaw = String(formData.get("productRequests") || "[]");
 
   if (!clientName) return { error: "Ingresá tu nombre." };
   if (!clientPhone && !clientEmail) {
@@ -63,6 +64,21 @@ export async function createPublicBookingAction(
     return { error: "No se encontró el negocio." };
   }
 
+  let productRequests: { productId: string; quantity: number }[] = [];
+  try {
+    const parsed = JSON.parse(productRequestsRaw);
+    if (Array.isArray(parsed)) {
+      productRequests = parsed
+        .filter(
+          (r): r is { productId: string; quantity: number } =>
+            r && typeof r.productId === "string" && Number.isInteger(r.quantity)
+        )
+        .map((r) => ({ productId: r.productId, quantity: r.quantity }));
+    }
+  } catch {
+    // Ignorar: sin productos pedidos.
+  }
+
   const bookingInput = {
     clientName,
     clientPhone: clientPhone || undefined,
@@ -70,6 +86,7 @@ export async function createPublicBookingAction(
     serviceId,
     startTime,
     notes: notes || undefined,
+    productRequests,
   };
 
   const service = await prisma.service.findFirst({
@@ -111,12 +128,16 @@ export async function createPublicBookingAction(
       }
     }
 
+    const productsNote =
+      booking.productRequests.length > 0
+        ? ` + ${booking.productRequests.map((r) => `${r.quantity}x ${r.product.name}`).join(", ")}`
+        : "";
     await sendSlackNotification(
       business.slackWebhookUrl,
       `📅 Nueva reserva online: *${booking.client.name}* — ${booking.service.name} con ${booking.staff.name}, ${booking.startTime.toLocaleString("es-AR", {
         dateStyle: "short",
         timeStyle: "short",
-      })}`
+      })}${productsNote}`
     );
 
     return {

@@ -14,6 +14,7 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
   let businessId: string;
   let staffId: string;
   let serviceId: string;
+  let productId: string;
 
   beforeAll(async () => {
     const business = await prisma.business.create({
@@ -45,15 +46,41 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
       },
     });
     serviceId = service.id;
+
+    const product = await prisma.product.create({
+      data: { businessId, name: "Producto Test", price: 500, stock: 10 },
+    });
+    productId = product.id;
   });
 
   afterAll(async () => {
+    await prisma.bookingProductRequest.deleteMany({ where: { booking: { businessId } } });
     await prisma.booking.deleteMany({ where: { businessId } });
     await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.product.deleteMany({ where: { businessId } });
     await prisma.service.deleteMany({ where: { businessId } });
     await prisma.user.deleteMany({ where: { businessId } });
     await prisma.business.delete({ where: { id: businessId } });
     await prisma.$disconnect();
+  });
+
+  it("attaches requested products to the booking and ignores foreign/invalid ones", async () => {
+    const start = new Date("2027-01-17T10:00:00Z");
+    const booking = await createBooking(businessId, {
+      clientName: "Cliente Producto",
+      clientEmail: "cliente-producto@example.com",
+      serviceId,
+      staffId,
+      startTime: start,
+      productRequests: [
+        { productId, quantity: 2 },
+        { productId: "no-existe", quantity: 1 },
+        { productId, quantity: 0 },
+      ],
+    });
+
+    expect(booking.productRequests).toHaveLength(1);
+    expect(booking.productRequests[0]).toMatchObject({ productId, quantity: 2 });
   });
 
   it("rejects a booking that overlaps an existing one for the same staff", async () => {

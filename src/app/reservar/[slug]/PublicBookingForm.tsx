@@ -7,6 +7,7 @@ import { FormField, FormError, FormSuccess, inputClass } from "@/components/Form
 
 type Service = { id: string; name: string; durationMinutes: number; price: number };
 type Staff = { id: string; name: string };
+type Product = { id: string; name: string; price: number; stock: number };
 
 const initialState: ActionState = {};
 
@@ -18,11 +19,13 @@ export function PublicBookingForm({
   slug,
   services,
   staff,
+  products,
   ctaLabel,
 }: {
   slug: string;
   services: Service[];
   staff: Staff[];
+  products: Product[];
   ctaLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(createPublicBookingAction, initialState);
@@ -31,6 +34,13 @@ export function PublicBookingForm({
   const [busyRanges, setBusyRanges] = useState<{ start: string; end: string }[]>([]);
   const [loadingBusy, setLoadingBusy] = useState(false);
   const [dayAvailability, setDayAvailability] = useState<DayAvailability | null>(null);
+  const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
+
+  const productRequestsJson = JSON.stringify(
+    Object.entries(productQuantities)
+      .filter(([, quantity]) => quantity > 0)
+      .map(([productId, quantity]) => ({ productId, quantity }))
+  );
 
   function refreshBusyTimes(staffId: string, date: string) {
     if (!staffId || !date) {
@@ -163,6 +173,35 @@ export function PublicBookingForm({
               : `Ocupado ese día: ${busyRanges.map((r) => `${r.start}–${r.end}`).join(", ")}`}
         </p>
       )}
+
+      {products.length > 0 && (
+        <fieldset className="flex flex-col gap-2 border border-border rounded-md p-3">
+          <legend className="text-xs font-medium text-muted px-1">
+            Agregar productos (opcional)
+          </legend>
+          {products.map((p) => (
+            <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
+              <label htmlFor={`pbQty-${p.id}`} className="text-ink">
+                {p.name} <span className="text-muted">({money(p.price)})</span>
+              </label>
+              <input
+                id={`pbQty-${p.id}`}
+                type="number"
+                min="0"
+                max={p.stock}
+                step="1"
+                value={productQuantities[p.id] || 0}
+                onChange={(e) => {
+                  const value = Math.max(0, Math.min(p.stock, Number(e.target.value) || 0));
+                  setProductQuantities((prev) => ({ ...prev, [p.id]: value }));
+                }}
+                className={`${inputClass} w-16 text-center`}
+              />
+            </div>
+          ))}
+        </fieldset>
+      )}
+      <input type="hidden" name="productRequests" value={productRequestsJson} />
 
       <FormField label="Notas (opcional)" htmlFor="pbNotes">
         <textarea id="pbNotes" name="notes" rows={2} className={inputClass} />

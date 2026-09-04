@@ -149,6 +149,7 @@ model Product {
   createdAt  DateTime @default(now())
 
   saleItems SaleItem[]
+  bookingRequests BookingProductRequest[]
 
   @@unique([businessId, name])
 }
@@ -187,9 +188,26 @@ model Booking {
   createdAt  DateTime      @default(now())
 
   sale Sale?
+  productRequests BookingProductRequest[]
 
   @@index([businessId, staffId, startTime])
   @@index([businessId, clientId])
+}
+
+// Productos que el cliente pidió llevarse junto con el turno, elegidos en la
+// página pública de reserva. Es un pedido informativo para que el staff lo
+// tenga preparado — el cobro real se sigue haciendo en caja como siempre,
+// esto no mueve stock ni genera una venta por sí solo.
+model BookingProductRequest {
+  id        String   @id @default(cuid())
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  bookingId String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
 }
 
 model GiftCard {

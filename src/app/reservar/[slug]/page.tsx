@@ -1,5 +1,10 @@
 import { notFound } from "next/navigation";
-import { getBusinessBySlug, listPublicServices, listPublicStaff } from "@/lib/public-booking";
+import {
+  getBusinessBySlug,
+  listPublicServices,
+  listPublicStaff,
+  listPublicProducts,
+} from "@/lib/public-booking";
 import { getBusinessHours, hasConfiguredHours, DAY_NAMES } from "@/lib/business-hours";
 import { PublicBookingForm } from "./PublicBookingForm";
 
@@ -24,9 +29,10 @@ export default async function PublicBookingPage({
   const business = await getBusinessBySlug(slug);
   if (!business) notFound();
 
-  const [services, staff, hoursConfigured] = await Promise.all([
+  const [services, staff, products, hoursConfigured] = await Promise.all([
     listPublicServices(business.id),
     listPublicStaff(business.id),
+    listPublicProducts(business.id),
     hasConfiguredHours(business.id),
   ]);
   const hours = hoursConfigured ? await getBusinessHours(business.id) : null;
@@ -113,6 +119,26 @@ export default async function PublicBookingPage({
           </div>
         )}
 
+        {products.length > 0 && (
+          <div>
+            <h2 className="font-display text-lg text-ink mb-3">Productos</h2>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {products.map((p) => (
+                <div
+                  key={p.id}
+                  className="bg-surface border border-border rounded-lg p-3 flex items-center justify-between gap-3"
+                >
+                  <span className="text-sm text-ink">{p.name}</span>
+                  <span className="text-sm text-muted whitespace-nowrap">{money(Number(p.price))}</span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted mt-2">
+              Podés agregarlos a tu {business.copy.bookingSingular} más abajo — se pagan al retirarlos.
+            </p>
+          </div>
+        )}
+
         <div className="bg-surface border border-border rounded-lg p-6">
           <h2 className="font-display text-lg text-ink mb-4">{business.copy.newBookingCta}</h2>
           {services.length === 0 ? (
@@ -130,6 +156,12 @@ export default async function PublicBookingPage({
                 price: Number(s.price),
               }))}
               staff={staff.map((s) => ({ id: s.id, name: s.name }))}
+              products={products.map((p) => ({
+                id: p.id,
+                name: p.name,
+                price: Number(p.price),
+                stock: p.stock,
+              }))}
               ctaLabel={business.copy.newBookingCta}
             />
           )}

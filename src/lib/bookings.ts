@@ -26,7 +26,12 @@ export async function listUpcomingBookings(businessId: string, limit = 50) {
     where: { businessId, startTime: { gte: startOfToday } },
     orderBy: { startTime: "asc" },
     take: limit,
-    include: { client: true, service: true, staff: true },
+    include: {
+      client: true,
+      service: true,
+      staff: true,
+      productRequests: { include: { product: true } },
+    },
   });
 }
 
@@ -69,6 +74,7 @@ export async function createBooking(
     staffId: string;
     startTime: Date;
     notes?: string;
+    productRequests?: { productId: string; quantity: number }[];
   },
   options?: { enforceBusinessHours?: boolean }
 ) {
@@ -108,6 +114,20 @@ export async function createBooking(
     email: input.clientEmail,
   });
 
+  const validRequests = (input.productRequests || []).filter((r) => r.quantity > 0);
+  if (validRequests.length > 0) {
+    const products = await prisma.product.findMany({
+      where: { businessId, active: true, id: { in: validRequests.map((r) => r.productId) } },
+      select: { id: true },
+    });
+    const validIds = new Set(products.map((p) => p.id));
+    validRequests.splice(
+      0,
+      validRequests.length,
+      ...validRequests.filter((r) => validIds.has(r.productId))
+    );
+  }
+
   return prisma.booking.create({
     data: {
       businessId,
@@ -117,8 +137,22 @@ export async function createBooking(
       startTime: input.startTime,
       endTime,
       notes: input.notes || null,
+      productRequests:
+        validRequests.length > 0
+          ? {
+              create: validRequests.map((r) => ({
+                productId: r.productId,
+                quantity: r.quantity,
+              })),
+            }
+          : undefined,
     },
-    include: { client: true, service: true, staff: true },
+    include: {
+      client: true,
+      service: true,
+      staff: true,
+      productRequests: { include: { product: true } },
+    },
   });
 }
 
