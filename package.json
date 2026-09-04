@@ -11,6 +11,7 @@
     "test": "vitest run",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:demo": "tsx prisma/seed-demo-data.ts",
+    "db:reset-demo": "tsx prisma/reset-demo-data.ts",
     "actualizar": "bash scripts/actualizar-y-correr.sh"
   },
   "prisma": {
