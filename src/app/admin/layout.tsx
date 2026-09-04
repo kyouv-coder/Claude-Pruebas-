@@ -12,6 +12,9 @@ export default function AdminLayout({
         <Link href="/admin/reservas" className="text-sm text-neutral-600 hover:text-black">
           Reservas
         </Link>
+        <Link href="/admin/caja" className="text-sm text-neutral-600 hover:text-black">
+          Caja
+        </Link>
         <Link href="/admin/dashboard" className="text-sm text-neutral-600 hover:text-black">
           Dashboard
         </Link>
