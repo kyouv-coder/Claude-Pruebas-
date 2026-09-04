@@ -89,7 +89,12 @@ export default async function DashboardPage() {
             Proyección próximos 30 días: {money(stats.projectedRevenueNext30)}
           </span>
         </div>
-        <RevenueTrendChart data={stats.revenueTrend} />
+        <RevenueTrendChart
+          data={stats.revenueTrend}
+          ariaLabel={`Gráfico de línea: ingresos diarios de los últimos 14 días, entre ${money(
+            Math.min(...stats.revenueTrend.map((d) => d.revenue))
+          )} y ${money(Math.max(...stats.revenueTrend.map((d) => d.revenue)))}.`}
+        />
       </div>
 
       <div className="bg-surface border border-border rounded-lg p-4">
@@ -97,7 +102,12 @@ export default async function DashboardPage() {
           Servicios más solicitados (30 días)
         </h2>
         {stats.topServices.length > 0 ? (
-          <TopServicesChart data={stats.topServices} />
+          <TopServicesChart
+            data={stats.topServices}
+            ariaLabel={`Gráfico de barras: ${stats.topServices
+              .map((s) => `${s.name}, ${s.count} reservas`)
+              .join("; ")}.`}
+          />
         ) : (
           <p className="text-sm text-muted py-6">
             Todavía no hay reservas para calcular este ranking.
@@ -139,6 +149,9 @@ export default async function DashboardPage() {
         </div>
         <NetProfitTrendChart
           data={netTrend.map((m) => ({ label: m.label, net: m.net }))}
+          ariaLabel={`Gráfico de barras: ganancia neta mensual de los últimos meses, ${netTrend
+            .map((m) => `${m.label}: ${money(m.net)}`)
+            .join("; ")}.`}
         />
       </div>
     </div>

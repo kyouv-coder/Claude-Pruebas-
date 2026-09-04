@@ -21,6 +21,7 @@ export function LoginForm({ next }: { next?: string }) {
           type="email"
           required
           autoFocus
+          autoComplete="email"
           className={inputClass}
         />
       </FormField>
@@ -31,6 +32,7 @@ export function LoginForm({ next }: { next?: string }) {
           name="password"
           type="password"
           required
+          autoComplete="current-password"
           className={inputClass}
         />
       </FormField>

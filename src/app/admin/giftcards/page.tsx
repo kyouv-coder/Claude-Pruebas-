@@ -64,13 +64,13 @@ export default async function GiftCardsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
-                  <th className="px-4 py-3 font-medium">Código</th>
-                  <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium">Saldo</th>
-                  <th className="px-4 py-3 font-medium">Valor inicial</th>
-                  <th className="px-4 py-3 font-medium">Vencimiento</th>
-                  <th className="px-4 py-3 font-medium">Estado</th>
-                  <th className="px-4 py-3 font-medium">Emitida</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Código</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Cliente</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Saldo</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Valor inicial</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Vencimiento</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Estado</th>
+                  <th scope="col" className="px-4 py-3 font-medium">Emitida</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">

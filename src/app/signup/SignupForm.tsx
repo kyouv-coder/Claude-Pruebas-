@@ -19,13 +19,20 @@ export function SignupForm() {
           name="businessName"
           required
           autoFocus
+          autoComplete="organization"
           placeholder="Ej: Spa Luna"
           className={inputClass}
         />
       </FormField>
 
       <FormField label="Tu nombre" htmlFor="signupName" required>
-        <input id="signupName" name="name" required className={inputClass} />
+        <input
+          id="signupName"
+          name="name"
+          required
+          autoComplete="name"
+          className={inputClass}
+        />
       </FormField>
 
       <FormField label="Email" htmlFor="signupEmail" required>
@@ -34,6 +41,7 @@ export function SignupForm() {
           name="email"
           type="email"
           required
+          autoComplete="email"
           className={inputClass}
         />
       </FormField>
@@ -45,6 +53,7 @@ export function SignupForm() {
           type="password"
           minLength={8}
           required
+          autoComplete="new-password"
           className={inputClass}
         />
       </FormField>
