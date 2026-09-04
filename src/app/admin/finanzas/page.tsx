@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { listExpensesForMonth, getMonthlyFinancials, currentYearMonth } from "@/lib/finance";
-import { requireBusinessId } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { ExpenseForm } from "./ExpenseForm";
 import { ExpenseList } from "./ExpenseList";
 
@@ -27,7 +27,7 @@ export default async function FinanzasPage({
 }: {
   searchParams: Promise<{ year?: string; month?: string }>;
 }) {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   const params = await searchParams;
   const current = currentYearMonth();
   const year = Number(params.year) || current.year;

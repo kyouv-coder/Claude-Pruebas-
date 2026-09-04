@@ -1,5 +1,5 @@
 import { listAllServices, listAllProducts, listAllStaff } from "@/lib/settings";
-import { requireBusinessId, getCurrentUser } from "@/lib/auth";
+import { requireAdmin, getCurrentUser } from "@/lib/auth";
 import { ServiceManager } from "./ServiceManager";
 import { ProductManager } from "./ProductManager";
 import { StaffManager } from "./StaffManager";
@@ -8,7 +8,7 @@ import { SlackForm } from "./SlackForm";
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   const [services, products, staff, user] = await Promise.all([
     listAllServices(businessId),
     listAllProducts(businessId),

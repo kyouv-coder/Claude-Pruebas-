@@ -13,7 +13,7 @@ import {
   setStaffActive,
   updateSlackWebhook,
 } from "@/lib/settings";
-import { requireBusinessId } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 
 export type ActionState = { error?: string; success?: string };
 
@@ -41,7 +41,7 @@ export async function createServiceAction(
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
 
   try {
     await createService(businessId, {
@@ -75,7 +75,7 @@ export async function updateServiceAction(
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
 
   try {
     await updateService(businessId, id, {
@@ -96,7 +96,7 @@ export async function updateServiceAction(
 }
 
 export async function toggleServiceActiveAction(id: string, active: boolean) {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   await setServiceActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
@@ -119,7 +119,7 @@ export async function createProductAction(
   if (price === null) return { error: "Ingresá un precio válido." };
   if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
 
   try {
     await createProduct(businessId, { name, price, stock });
@@ -147,7 +147,7 @@ export async function updateProductAction(
   if (price === null) return { error: "Ingresá un precio válido." };
   if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
 
   try {
     await updateProduct(businessId, id, { name, price, stock });
@@ -163,7 +163,7 @@ export async function updateProductAction(
 }
 
 export async function toggleProductActiveAction(id: string, active: boolean) {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   await setProductActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/caja");
@@ -181,7 +181,7 @@ export async function updateSlackWebhookAction(
     };
   }
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   await updateSlackWebhook(businessId, url || null);
   revalidatePath("/admin/configuracion");
   return { success: url ? "Notificaciones de Slack activadas." : "Notificaciones de Slack desactivadas." };
@@ -193,15 +193,18 @@ export async function createStaffAction(
 ): Promise<ActionState> {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
 
   if (!name) return { error: "Ingresá un nombre." };
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
+  if (password.length < 8)
+    return { error: "La contraseña inicial debe tener al menos 8 caracteres." };
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
 
   try {
-    await createStaff(businessId, { name, email });
+    await createStaff(businessId, { name, email, password });
   } catch (e) {
     if (e instanceof Error && e.message.includes("Unique constraint")) {
       return { error: "Ya existe una persona con ese email." };
@@ -209,7 +212,9 @@ export async function createStaffAction(
     return { error: "No se pudo agregar a la persona." };
   }
   revalidatePath("/admin/configuracion");
-  return { success: "Persona agregada al staff." };
+  return {
+    success: `Persona agregada. Compartile en privado el email y la contraseña — no queda guardada en ningún lado para volver a verla.`,
+  };
 }
 
 export async function updateStaffAction(
@@ -224,7 +229,7 @@ export async function updateStaffAction(
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
 
   try {
     await updateStaff(businessId, id, { name, email });
@@ -239,7 +244,7 @@ export async function updateStaffAction(
 }
 
 export async function toggleStaffActiveAction(id: string, active: boolean) {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   await setStaffActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");

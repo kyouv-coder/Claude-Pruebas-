@@ -4,24 +4,27 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const links = [
-  { href: "/admin/reservas", label: "Reservas" },
-  { href: "/admin/caja", label: "Caja" },
-  { href: "/admin/giftcards", label: "Giftcards" },
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/finanzas", label: "Finanzas" },
-  { href: "/admin/configuracion", label: "Configuración" },
+  { href: "/admin/reservas", label: "Reservas", adminOnly: false },
+  { href: "/admin/caja", label: "Caja", adminOnly: false },
+  { href: "/admin/giftcards", label: "Giftcards", adminOnly: false },
+  { href: "/admin/dashboard", label: "Dashboard", adminOnly: true },
+  { href: "/admin/finanzas", label: "Finanzas", adminOnly: true },
+  { href: "/admin/configuracion", label: "Configuración", adminOnly: true },
 ];
 
 export function AdminSidebar({
   businessName,
   operatorName,
+  isAdmin,
   logoutAction,
 }: {
   businessName?: string;
   operatorName?: string;
+  isAdmin?: boolean;
   logoutAction: () => void;
 }) {
   const pathname = usePathname();
+  const visibleLinks = links.filter((link) => !link.adminOnly || isAdmin);
 
   return (
     <nav
@@ -34,7 +37,7 @@ export function AdminSidebar({
         </span>
         <p className="text-xs text-muted mt-0.5">Administración</p>
       </div>
-      {links.map((link) => {
+      {visibleLinks.map((link) => {
         const active = pathname === link.href;
         return (
           <Link

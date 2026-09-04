@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import { requireBusinessId } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { listExpensesForMonth, currentYearMonth } from "@/lib/finance";
 import { toCsv, csvResponse } from "@/lib/csv";
 
 export async function GET(request: NextRequest) {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   const current = currentYearMonth();
   const year = Number(request.nextUrl.searchParams.get("year")) || current.year;
   const month = Number(request.nextUrl.searchParams.get("month")) || current.month;

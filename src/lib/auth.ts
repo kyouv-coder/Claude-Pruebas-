@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "@/lib/session";
@@ -45,7 +46,7 @@ export async function signUp(input: {
 
 export async function verifyCredentials(email: string, password: string) {
   const user = await prisma.user.findFirst({
-    where: { email, role: "ADMIN", active: true },
+    where: { email, active: true },
   });
 
   if (user?.lockedUntil && user.lockedUntil > new Date()) {
@@ -125,6 +126,18 @@ export async function changePassword(
 export async function requireBusinessId() {
   const user = await getCurrentUser();
   if (!user) throw new Error("No hay una sesión activa.");
+  return user.businessId;
+}
+
+// Páginas/acciones sensibles (finanzas, configuración, métricas de
+// negocio) están reservadas al rol ADMIN — el staff puede operar
+// (reservas, caja) pero no ver ganancia neta ni editar precios.
+export async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("No hay una sesión activa.");
+  if (user.role !== "ADMIN") {
+    redirect("/admin/reservas");
+  }
   return user.businessId;
 }
 

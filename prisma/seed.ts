@@ -7,6 +7,7 @@ const prisma = new PrismaClient();
 const BUSINESS_NAME = process.env.SEED_BUSINESS_NAME || "Spa Demo";
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@spa.local";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "changeme123";
+const STAFF_PASSWORD = process.env.SEED_STAFF_PASSWORD || "changeme123";
 
 async function main() {
   const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
@@ -33,15 +34,16 @@ async function main() {
     },
   });
 
+  const staffPasswordHash = await bcrypt.hash(STAFF_PASSWORD, 10);
+
   const staff = await prisma.user.upsert({
     where: { email: "staff@spa.local" },
-    update: {},
+    update: { passwordHash: staffPasswordHash },
     create: {
       businessId: business.id,
       name: "Terapeuta Principal",
       email: "staff@spa.local",
-      // El staff no inicia sesión (solo ADMIN) — este hash nunca se usa para login.
-      passwordHash: await bcrypt.hash(crypto.randomUUID(), 10),
+      passwordHash: staffPasswordHash,
       role: "STAFF",
     },
   });
@@ -67,6 +69,9 @@ async function main() {
       ? "(definida por SEED_ADMIN_PASSWORD)"
       : ADMIN_PASSWORD,
     staff: staff.email,
+    staffPassword: process.env.SEED_STAFF_PASSWORD
+      ? "(definida por SEED_STAFF_PASSWORD)"
+      : STAFF_PASSWORD,
     services: services.map((s) => s.name),
   });
 }

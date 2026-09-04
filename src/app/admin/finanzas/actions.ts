@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createExpense, deleteExpense } from "@/lib/finance";
-import { requireBusinessId } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import type { ExpenseCategory } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -36,7 +36,7 @@ export async function createExpenseAction(
     return { error: "El monto debe ser mayor a 0." };
   }
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
 
   await createExpense(businessId, {
     date,
@@ -51,7 +51,7 @@ export async function createExpenseAction(
 }
 
 export async function deleteExpenseAction(id: string) {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   await deleteExpense(businessId, id);
   revalidatePath("/admin/finanzas");
   revalidatePath("/admin/dashboard");

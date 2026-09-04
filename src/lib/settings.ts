@@ -1,5 +1,5 @@
-import { randomUUID } from "node:crypto";
 import { prisma } from "@/lib/prisma";
+import { hashPassword } from "@/lib/auth";
 
 export async function listAllServices(businessId: string) {
   return prisma.service.findMany({ where: { businessId }, orderBy: { name: "asc" } });
@@ -94,17 +94,16 @@ export async function listAllStaff(businessId: string) {
 
 export async function createStaff(
   businessId: string,
-  input: { name: string; email: string }
+  input: { name: string; email: string; password: string }
 ) {
-  // No login system for staff yet — this is a placeholder until real
-  // per-staff auth exists (only ADMIN logs in today).
+  const passwordHash = await hashPassword(input.password);
   return prisma.user.create({
     data: {
       businessId,
       name: input.name,
       email: input.email,
       role: "STAFF",
-      passwordHash: randomUUID(),
+      passwordHash,
     },
   });
 }

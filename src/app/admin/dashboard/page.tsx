@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
 import { getMonthlyFinancials, getMonthlyTrend, currentYearMonth } from "@/lib/finance";
-import { requireBusinessId } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { StatCard } from "@/components/StatCard";
 import {
   RevenueTrendChart,
@@ -20,7 +20,7 @@ function pct(n: number) {
 }
 
 export default async function DashboardPage() {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   const { year, month } = currentYearMonth();
   const [stats, monthFinancials, netTrend] = await Promise.all([
     getDashboardStats(businessId),

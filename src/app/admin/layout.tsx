@@ -20,6 +20,7 @@ export default async function AdminLayout({
       <AdminSidebar
         businessName={user?.business.name}
         operatorName={user?.name}
+        isAdmin={user?.role === "ADMIN"}
         logoutAction={logoutAction}
       />
       <main id="main-content" tabIndex={-1} className="flex-1 px-6 py-8 max-w-6xl">
