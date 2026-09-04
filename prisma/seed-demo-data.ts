@@ -1,23 +1,33 @@
 import "dotenv/config";
-import { PrismaClient } from "../src/generated/prisma";
+import { PrismaClient, type ExpenseCategory } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
 
-// Carga reservas, ventas, giftcards, gastos y fotos ficticias de los últimos
-// meses para el negocio demo (el que crea prisma/seed.ts), así se puede
-// recorrer el panel completo (caja, reservas, giftcards, dashboard,
-// finanzas, página pública) con datos realistas en vez de una cuenta vacía.
+// Carga reservas, ventas, giftcards, gastos, comprobantes y fotos ficticias
+// del último año para el negocio demo (el que crea prisma/seed.ts), así se
+// puede recorrer el panel completo (caja, reservas, giftcards, dashboard,
+// finanzas, página pública) con datos realistas — meses buenos, meses
+// flojos, gastos extra — en vez de una cuenta vacía o un único mes plano.
 // No toca nada de producción: solo corre contra la DATABASE_URL que tengas
 // configurada localmente.
 
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@spa.local";
 
 const now = new Date();
-const YEAR = now.getFullYear();
-const CURRENT_MONTH = now.getMonth();
-// Últimos 3 meses (incluyendo el actual), para que el dashboard muestre una
-// tendencia real en vez de un único mes suelto.
-const MONTHS = [CURRENT_MONTH - 2, CURRENT_MONTH - 1, CURRENT_MONTH];
+
+// Últimos 12 meses (incluyendo el actual), como pares {year, month} para
+// manejar bien el cambio de año.
+const MONTHS_BACK = 12;
+const MONTHS = Array.from({ length: MONTHS_BACK }, (_, i) => {
+  const d = new Date(now.getFullYear(), now.getMonth() - (MONTHS_BACK - 1 - i), 1);
+  return { year: d.getFullYear(), month: d.getMonth() };
+});
+
+// Factor de intensidad del negocio por mes (0 = mes más flojo del año,
+// hace unos meses hubo un mes malo con reparación imprevista; el resto de
+// meses varía como estacionalidad normal, terminando fuerte en el actual).
+const MONTH_FACTORS = [0.85, 0.95, 1.05, 0.55, 1.1, 1.2, 0.8, 1.0, 1.15, 0.75, 1.05, 1.1];
+const BAD_MONTH_INDEX = 3; // el mes con el factor más bajo
 
 const CLIENTS = [
   { name: "Camila Rojas", phone: "+56911111111" },
@@ -45,6 +55,13 @@ function placeholderImage(label: string, bg: string) {
   return { data: Buffer.from(svg), mimeType: "image/svg+xml" };
 }
 
+// PNG 1x1 válido, usado como "comprobante escaneado" ficticio adjunto a
+// algunas ventas (attachSaleInvoice solo acepta JPEG/PNG/PDF).
+const PLACEHOLDER_INVOICE_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64"
+);
+
 function pick<T>(arr: T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -66,21 +83,21 @@ async function main() {
     throw new Error("Corré primero `npm run db:seed` para crear el negocio base.");
   }
 
-  const earliestMonth = Math.min(...MONTHS);
+  const earliest = MONTHS[0];
   const existingDemoBooking = await prisma.booking.findFirst({
     where: {
       businessId: business.id,
-      startTime: { gte: new Date(YEAR, earliestMonth, 1) },
+      startTime: { gte: new Date(earliest.year, earliest.month, 1) },
     },
   });
   if (existingDemoBooking) {
     console.log(
-      `Ya hay reservas demo cargadas para "${business.name}" — no se vuelve a correr para no duplicar. Si querés datos nuevos, borrá primero esas reservas.`
+      `Ya hay reservas demo cargadas para "${business.name}" — no se vuelve a correr para no duplicar. Corré \`npm run db:reset-demo\` primero si querés datos nuevos.`
     );
     return;
   }
 
-  console.log(`Cargando datos de demo (últimos 3 meses) para "${business.name}"...`);
+  console.log(`Cargando datos de demo (último año) para "${business.name}"...`);
 
   // Perfil del negocio para que la página pública se vea completa
   const cover = placeholderImage(business.name, "#1a1a1a");
@@ -174,22 +191,30 @@ async function main() {
   const slots = ["10:00", "11:15", "14:00", "15:30", "17:00"];
   let bookingsCreated = 0;
   let salesCreated = 0;
+  let invoicesAttached = 0;
 
-  for (const month of MONTHS) {
-    const isCurrentMonth = month === CURRENT_MONTH;
-    const daysInMonth = new Date(YEAR, month + 1, 0).getDate();
+  for (let mi = 0; mi < MONTHS.length; mi++) {
+    const { year, month } = MONTHS[mi];
+    const factor = MONTH_FACTORS[mi] ?? 1.0;
+    const isBadMonth = mi === BAD_MONTH_INDEX;
+    const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
     const lastDay = isCurrentMonth ? now.getDate() : daysInMonth;
 
     for (let day = 1; day <= daysInMonth; day++) {
-      const date = new Date(YEAR, month, day);
+      const date = new Date(year, month, day);
       const weekday = date.getDay();
       if (weekday === 0) continue; // domingo cerrado
 
-      const isPast = !isCurrentMonth || day <= lastDay;
       const isFuture = isCurrentMonth && day > lastDay;
       if (isFuture && day > lastDay + 10) continue; // no llenar demasiado a futuro
+      const isPast = !isFuture;
 
-      const dailySlots = weekday === 6 ? slots.slice(0, 3) : slots; // sábado más corto
+      // Menos turnos disponibles cuanto más bajo el factor del mes (mes
+      // flojo = agenda con más huecos, no solo menos ventas).
+      const dailySlots = (weekday === 6 ? slots.slice(0, 3) : slots).filter(
+        () => Math.random() < Math.min(1, factor + 0.15)
+      );
 
       // Caja del día, solo para días pasados
       let cashSessionId: string | null = null;
@@ -199,7 +224,7 @@ async function main() {
           data: {
             businessId: business.id,
             openedById: admin.id,
-            openedAt: new Date(YEAR, month, day, 9, 30),
+            openedAt: new Date(year, month, day, 9, 30),
             openingAmount: opening,
           },
         });
@@ -211,7 +236,7 @@ async function main() {
         const staff = pick(staffMembers);
         const service = pick(allServices);
         const client = pick(clients);
-        const startTime = new Date(YEAR, month, day, h, m);
+        const startTime = new Date(year, month, day, h, m);
         const endTime = new Date(startTime.getTime() + service.durationMinutes * 60000);
 
         // Evitar choques si dos slots random cayeron con el mismo staff/hora
@@ -227,7 +252,10 @@ async function main() {
         let status: "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED" | "NO_SHOW" = "CONFIRMED";
         if (isPast) {
           const roll = Math.random();
-          status = roll < 0.08 ? "NO_SHOW" : roll < 0.15 ? "CANCELLED" : "COMPLETED";
+          // Mes malo: más cancelaciones y ausencias que lo normal.
+          const noShowCutoff = isBadMonth ? 0.16 : 0.08;
+          const cancelCutoff = isBadMonth ? 0.32 : 0.15;
+          status = roll < noShowCutoff ? "NO_SHOW" : roll < cancelCutoff ? "CANCELLED" : "COMPLETED";
         } else {
           status = Math.random() < 0.5 ? "CONFIRMED" : "PENDING";
         }
@@ -247,7 +275,7 @@ async function main() {
 
         if (status === "COMPLETED" && cashSessionId) {
           const paymentMethod = pick(["CASH", "CARD", "TRANSFER"] as const);
-          await prisma.sale.create({
+          const sale = await prisma.sale.create({
             data: {
               businessId: business.id,
               clientId: client.id,
@@ -261,11 +289,26 @@ async function main() {
             },
           });
           salesCreated++;
+
+          // ~40% de las ventas quedan con el comprobante ya escaneado y
+          // subido, como haría la dueña del negocio en la vida real.
+          if (Math.random() < 0.4) {
+            await prisma.sale.update({
+              where: { id: sale.id },
+              data: {
+                invoiceFileName: `comprobante-${sale.id.slice(-6)}.png`,
+                invoiceMimeType: "image/png",
+                invoiceFileData: PLACEHOLDER_INVOICE_PNG,
+                invoiceUploadedAt: new Date(startTime.getTime() + 2 * 60 * 60_000),
+              },
+            });
+            invoicesAttached++;
+          }
         }
       }
 
-      // Alguna venta de producto suelta en días pasados
-      if (isPast && cashSessionId && Math.random() < 0.4) {
+      // Alguna venta de producto suelta en días pasados (menos frecuente en el mes malo)
+      if (isPast && cashSessionId && Math.random() < 0.4 * factor) {
         const product = pick(products);
         const quantity = randomInt(1, 2);
         await prisma.sale.create({
@@ -299,7 +342,7 @@ async function main() {
         await prisma.cashRegisterSession.update({
           where: { id: cashSessionId },
           data: {
-            closedAt: new Date(YEAR, month, day, 20, 0),
+            closedAt: new Date(year, month, day, 20, 0),
             closingAmount: cashTotal,
             expectedCashAmount: cashTotal,
           },
@@ -365,24 +408,36 @@ async function main() {
     }
   }
 
-  // Gastos de cada mes
-  const expenseTemplates: Array<{ day: number; category: "ALQUILER" | "INSUMOS" | "SERVICIOS" | "SUELDOS"; description: string; amount: number }> = [
+  // Gastos de cada mes (el mes malo trae además una reparación imprevista)
+  const expenseTemplates: Array<{ day: number; category: ExpenseCategory; description: string; amount: number }> = [
     { day: 1, category: "ALQUILER", description: "Arriendo local", amount: 450000 },
     { day: 5, category: "INSUMOS", description: "Aceites y toallas", amount: 65000 },
     { day: 15, category: "SERVICIOS", description: "Luz y agua", amount: 38000 },
     { day: 30, category: "SUELDOS", description: "Sueldo terapeuta", amount: 380000 },
   ];
-  for (const month of MONTHS) {
-    const daysInMonth = new Date(YEAR, month + 1, 0).getDate();
-    await prisma.expense.createMany({
-      data: expenseTemplates.map((e) => ({
+  let expensesCreated = 0;
+  for (let mi = 0; mi < MONTHS.length; mi++) {
+    const { year, month } = MONTHS[mi];
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const rows = expenseTemplates.map((e) => ({
+      businessId: business.id,
+      date: new Date(year, month, Math.min(e.day, daysInMonth)),
+      category: e.category,
+      description: e.description,
+      // Insumos varía un poco con la intensidad del mes.
+      amount: e.category === "INSUMOS" ? Math.round(e.amount * (MONTH_FACTORS[mi] ?? 1)) : e.amount,
+    }));
+    if (mi === BAD_MONTH_INDEX) {
+      rows.push({
         businessId: business.id,
-        date: new Date(YEAR, month, Math.min(e.day, daysInMonth)),
-        category: e.category,
-        description: e.description,
-        amount: e.amount,
-      })),
-    });
+        date: new Date(year, month, 12),
+        category: "OTRO",
+        description: "Reparación de camilla y aire acondicionado",
+        amount: 210000,
+      });
+    }
+    await prisma.expense.createMany({ data: rows });
+    expensesCreated += rows.length;
   }
 
   console.log({
@@ -391,8 +446,10 @@ async function main() {
     productos: products.length,
     reservas: bookingsCreated,
     ventas: salesCreated,
+    comprobantesSubidos: invoicesAttached,
     giftcards: 2,
-    gastos: expenseTemplates.length * MONTHS.length,
+    gastos: expensesCreated,
+    mesMalo: MONTHS[BAD_MONTH_INDEX] ? `${MONTHS[BAD_MONTH_INDEX].month + 1}/${MONTHS[BAD_MONTH_INDEX].year}` : null,
   });
 }
 
