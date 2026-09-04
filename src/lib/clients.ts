@@ -50,6 +50,25 @@ export async function getClientDetail(businessId: string, id: string) {
   });
 }
 
+export async function listFrequentNoShowClients(businessId: string, minCount = 2) {
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const noShows = await prisma.booking.findMany({
+    where: { businessId, status: "NO_SHOW", startTime: { gte: ninetyDaysAgo } },
+    select: { clientId: true, client: { select: { name: true } } },
+  });
+
+  const counts = new Map<string, { name: string; count: number }>();
+  for (const b of noShows) {
+    const entry = counts.get(b.clientId) ?? { name: b.client.name, count: 0 };
+    entry.count += 1;
+    counts.set(b.clientId, entry);
+  }
+
+  return [...counts.entries()]
+    .filter(([, v]) => v.count >= minCount)
+    .map(([clientId, v]) => ({ clientId, name: v.name, count: v.count }));
+}
+
 export async function updateClientNotes(businessId: string, id: string, notes: string) {
   return prisma.client.update({
     where: { id, businessId },

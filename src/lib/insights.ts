@@ -1,4 +1,4 @@
-import { listClients } from "@/lib/clients";
+import { listClients, listFrequentNoShowClients } from "@/lib/clients";
 import { listAllProducts } from "@/lib/settings";
 import { listGiftCards } from "@/lib/giftcards";
 import { getMonthlyFinancials, currentYearMonth, listSalesForMonth } from "@/lib/finance";
@@ -28,15 +28,23 @@ export async function getRecommendations(businessId: string): Promise<Recommenda
   const now = new Date();
   const { year, month } = currentYearMonth();
 
-  const [clients, products, giftCards, financials, lastClosedSession, salesThisMonth] =
-    await Promise.all([
-      listClients(businessId),
-      listAllProducts(businessId),
-      listGiftCards(businessId),
-      getMonthlyFinancials(businessId, year, month),
-      getLastClosedCashSession(businessId),
-      listSalesForMonth(businessId, year, month),
-    ]);
+  const [
+    clients,
+    products,
+    giftCards,
+    financials,
+    lastClosedSession,
+    salesThisMonth,
+    frequentNoShows,
+  ] = await Promise.all([
+    listClients(businessId),
+    listAllProducts(businessId),
+    listGiftCards(businessId),
+    getMonthlyFinancials(businessId, year, month),
+    getLastClosedCashSession(businessId),
+    listSalesForMonth(businessId, year, month),
+    listFrequentNoShowClients(businessId),
+  ]);
 
   const recommendations: Recommendation[] = [];
 
@@ -116,6 +124,19 @@ export async function getRecommendations(businessId: string): Promise<Recommenda
         linkLabel: "Ver caja",
       });
     }
+  }
+
+  // Clientes con no-shows repetidos
+  if (frequentNoShows.length > 0) {
+    recommendations.push({
+      severity: "media",
+      title: `${frequentNoShows.length} cliente${frequentNoShows.length > 1 ? "s" : ""} con no-shows repetidos`,
+      description: `${frequentNoShows
+        .map((c) => `${c.name} (${c.count})`)
+        .join(", ")}. Considerá pedir seña por adelantado para las próximas reservas de estos clientes.`,
+      href: "/admin/clientes",
+      linkLabel: "Ver clientes",
+    });
   }
 
   // Facturación electrónica pendiente
