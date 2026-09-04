@@ -4,20 +4,29 @@ Repositorio de trabajo para construir **productos y servicios digitales viables 
 
 Este repo usa [Claude Code](https://claude.ai/code) con un set curado de **skills** (`.claude/skills/`) pensado para moverse rápido sin perder rigor: de la idea al MVP, y del MVP a producción, para un cliente pyme a la vez o varios en paralelo.
 
-## Proyecto actual: sistema de reservas para spa
+## Proyecto actual: herramienta de gestión para pymes (multi-negocio)
 
-MVP para una pyme de spa: reservas de citas/servicios, giftcards (venta/canje), caja/POS conectado a las reservas, y dashboard con métricas y gráficos del negocio (ingresos, ocupación, ticket promedio).
+SaaS con login propio: cualquier negocio se registra en `/signup` y administra, con sus propios datos aislados, reservas de citas/servicios, giftcards (venta/canje), caja/POS conectado a las reservas, gastos/impuestos mensuales, y un dashboard con métricas reales del negocio (ingresos, ocupación, ticket promedio, ganancia neta). Nació como MVP para una pyme de spa; el modelo de datos generaliza a cualquier negocio con turnos.
 
-**Stack:** Next.js 14+ (App Router, TypeScript), PostgreSQL, Prisma.
+**Stack:** Next.js 16 (App Router, TypeScript), PostgreSQL, Prisma, autenticación propia (bcrypt + sesión firmada, sin dependencias de auth externas).
 
 ### Getting started
 
 ```bash
 npm install
+cp .env.example .env   # completar DATABASE_URL, AUTH_SECRET, etc.
+npx prisma migrate deploy
+npm run db:seed        # crea un negocio de prueba con datos de ejemplo
 npm run dev
 ```
 
-Abrí [http://localhost:3000](http://localhost:3000).
+Abrí [http://localhost:3000](http://localhost:3000) — te redirige a `/login`. Con el seed corrido, entrás con `admin@spa.local` / `changeme123` (cambiarla es una tarea pendiente, ver abajo), o creá tu propia cuenta en `/signup`.
+
+### Pendiente / gaps conocidos
+
+- No hay pantalla para cambiar la contraseña del admin.
+- Solo el rol ADMIN inicia sesión; el staff todavía no tiene login propio.
+- Sin deploy productivo todavía — guía de deploy a Vercel en progreso.
 
 ## Cómo usar las skills
 
