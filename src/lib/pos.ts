@@ -1,11 +1,11 @@
 import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/auth";
 import type { PaymentMethod } from "@/generated/prisma";
 
 async function getOperator() {
-  const admin = await prisma.user.findFirstOrThrow({
-    where: { role: "ADMIN", active: true },
-  });
-  return admin;
+  const user = await getCurrentUser();
+  if (!user) throw new Error("No hay una sesión activa.");
+  return user;
 }
 
 export async function getOpenCashSession() {

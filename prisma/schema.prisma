@@ -47,13 +47,15 @@ enum ExpenseCategory {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  name         String
-  email        String   @unique
-  passwordHash String
-  role         Role     @default(STAFF)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  passwordHash        String
+  role                Role      @default(STAFF)
+  active              Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
 
   bookings     Booking[]             @relation("StaffBookings")
   cashSessions CashRegisterSession[]
