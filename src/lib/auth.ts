@@ -105,6 +105,23 @@ export async function destroySession() {
   cookieStore.delete(SESSION_COOKIE);
 }
 
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+) {
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+  const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!valid) {
+    return { error: "La contraseña actual no es correcta." };
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  return { error: null };
+}
+
 export async function requireBusinessId() {
   const user = await getCurrentUser();
   if (!user) throw new Error("No hay una sesión activa.");

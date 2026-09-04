@@ -56,6 +56,17 @@ export function AdminSidebar({
             Conectada como {operatorName}
           </p>
         )}
+        <Link
+          href="/admin/cuenta"
+          aria-current={pathname === "/admin/cuenta" ? "page" : undefined}
+          className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+            pathname === "/admin/cuenta"
+              ? "bg-accent-soft text-ink font-medium"
+              : "text-muted hover:bg-accent-soft/60 hover:text-ink"
+          }`}
+        >
+          Mi cuenta
+        </Link>
         <form action={logoutAction}>
           <button
             type="submit"
