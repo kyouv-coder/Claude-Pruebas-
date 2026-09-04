@@ -76,6 +76,17 @@ export function AdminSidebar({
         >
           Mi cuenta
         </Link>
+        <Link
+          href="/admin/soporte"
+          aria-current={pathname === "/admin/soporte" ? "page" : undefined}
+          className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+            pathname === "/admin/soporte"
+              ? "bg-accent-soft text-ink font-medium"
+              : "text-muted hover:bg-accent-soft/60 hover:text-ink"
+          }`}
+        >
+          Soporte
+        </Link>
         <form action={logoutAction}>
           <button
             type="submit"
