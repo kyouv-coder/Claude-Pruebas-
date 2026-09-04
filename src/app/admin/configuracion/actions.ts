@@ -5,6 +5,9 @@ import {
   createService,
   updateService,
   setServiceActive,
+  createProduct,
+  updateProduct,
+  setProductActive,
   createStaff,
   updateStaff,
   setStaffActive,
@@ -96,6 +99,73 @@ export async function toggleServiceActiveAction(id: string, active: boolean) {
   await setServiceActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
+}
+
+function parseStock(raw: FormDataEntryValue | null) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 0 ? n : null;
+}
+
+export async function createProductAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const name = String(formData.get("name") || "").trim();
+  const price = parsePrice(formData.get("price"));
+  const stock = parseStock(formData.get("stock"));
+
+  if (!name) return { error: "Ingresá un nombre para el producto." };
+  if (price === null) return { error: "Ingresá un precio válido." };
+  if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
+
+  const businessId = await requireBusinessId();
+
+  try {
+    await createProduct(businessId, { name, price, stock });
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("Unique constraint")) {
+      return { error: "Ya existe un producto con ese nombre." };
+    }
+    return { error: "No se pudo crear el producto." };
+  }
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/caja");
+  return { success: "Producto creado." };
+}
+
+export async function updateProductAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = String(formData.get("id") || "");
+  const name = String(formData.get("name") || "").trim();
+  const price = parsePrice(formData.get("price"));
+  const stock = parseStock(formData.get("stock"));
+
+  if (!name) return { error: "Ingresá un nombre para el producto." };
+  if (price === null) return { error: "Ingresá un precio válido." };
+  if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
+
+  const businessId = await requireBusinessId();
+
+  try {
+    await updateProduct(businessId, id, { name, price, stock });
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("Unique constraint")) {
+      return { error: "Ya existe un producto con ese nombre." };
+    }
+    return { error: "No se pudo actualizar el producto." };
+  }
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/caja");
+  return { success: "Producto actualizado." };
+}
+
+export async function toggleProductActiveAction(id: string, active: boolean) {
+  const businessId = await requireBusinessId();
+  await setProductActive(businessId, id, active);
+  revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/caja");
 }
 
 export async function createStaffAction(

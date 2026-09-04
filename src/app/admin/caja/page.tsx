@@ -2,6 +2,7 @@ import {
   getOpenCashSession,
   getCashSessionSummary,
   getTodaysUnpaidBookings,
+  listSellableProducts,
 } from "@/lib/pos";
 import { requireBusinessId } from "@/lib/auth";
 import { chargeBookingAction } from "./actions";
@@ -10,6 +11,7 @@ import {
   CloseCashForm,
   SellGiftCardForm,
   RedeemGiftCardForm,
+  SellProductForm,
 } from "./CajaForms";
 
 export const dynamic = "force-dynamic";
@@ -34,10 +36,18 @@ export default async function CajaPage() {
     );
   }
 
-  const [summary, pendingBookings] = await Promise.all([
+  const [summary, pendingBookings, products] = await Promise.all([
     getCashSessionSummary(businessId, session.id),
     getTodaysUnpaidBookings(businessId),
+    listSellableProducts(businessId),
   ]);
+
+  const productRows = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: Number(p.price),
+    stock: p.stock,
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -108,6 +118,11 @@ export default async function CajaPage() {
       </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        <section className="bg-surface border border-border rounded-lg p-5">
+          <h2 className="font-display text-lg text-ink mb-4">Vender producto</h2>
+          <SellProductForm cashSessionId={session.id} products={productRows} />
+        </section>
+
         <section className="bg-surface border border-border rounded-lg p-5">
           <h2 className="font-display text-lg text-ink mb-4">Vender giftcard</h2>
           <SellGiftCardForm cashSessionId={session.id} />

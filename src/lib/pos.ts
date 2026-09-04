@@ -102,6 +102,61 @@ export async function chargeBooking(
   });
 }
 
+export async function listSellableProducts(businessId: string) {
+  return prisma.product.findMany({
+    where: { businessId, active: true, stock: { gt: 0 } },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function sellProduct(
+  businessId: string,
+  input: {
+    productId: string;
+    quantity: number;
+    paymentMethod: PaymentMethod;
+    cashSessionId: string;
+    clientId?: string;
+  }
+) {
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.findFirstOrThrow({
+      where: { id: input.productId, businessId },
+    });
+
+    if (product.stock < input.quantity) {
+      throw new Error(`Stock insuficiente. Quedan ${product.stock} unidades.`);
+    }
+
+    const sale = await tx.sale.create({
+      data: {
+        businessId,
+        clientId: input.clientId,
+        cashSessionId: input.cashSessionId,
+        total: Number(product.price) * input.quantity,
+        paymentMethod: input.paymentMethod,
+        items: {
+          create: [
+            {
+              productId: product.id,
+              description: product.name,
+              quantity: input.quantity,
+              unitPrice: product.price,
+            },
+          ],
+        },
+      },
+    });
+
+    await tx.product.update({
+      where: { id: product.id },
+      data: { stock: product.stock - input.quantity },
+    });
+
+    return sale;
+  });
+}
+
 function generateGiftCardCode() {
   return `GC-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }

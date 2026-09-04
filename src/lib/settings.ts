@@ -50,6 +50,34 @@ export async function setServiceActive(businessId: string, id: string, active: b
   return prisma.service.update({ where: { id, businessId }, data: { active } });
 }
 
+export async function listAllProducts(businessId: string) {
+  return prisma.product.findMany({ where: { businessId }, orderBy: { name: "asc" } });
+}
+
+export async function createProduct(
+  businessId: string,
+  input: { name: string; price: number; stock: number }
+) {
+  return prisma.product.create({
+    data: { businessId, name: input.name, price: input.price, stock: input.stock },
+  });
+}
+
+export async function updateProduct(
+  businessId: string,
+  id: string,
+  input: { name: string; price: number; stock: number }
+) {
+  return prisma.product.update({
+    where: { id, businessId },
+    data: { name: input.name, price: input.price, stock: input.stock },
+  });
+}
+
+export async function setProductActive(businessId: string, id: string, active: boolean) {
+  return prisma.product.update({ where: { id, businessId }, data: { active } });
+}
+
 export async function listAllStaff(businessId: string) {
   return prisma.user.findMany({
     where: { businessId, role: "STAFF" },

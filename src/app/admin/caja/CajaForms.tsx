@@ -6,6 +6,7 @@ import {
   closeCashSessionAction,
   sellGiftCardAction,
   redeemGiftCardAction,
+  sellProductAction,
   type ActionState,
 } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
@@ -137,6 +138,73 @@ export function SellGiftCardForm({ cashSessionId }: { cashSessionId: string }) {
         className="bg-ink text-paper rounded-md px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
       >
         {pending ? "Vendiendo…" : "Vender giftcard"}
+      </button>
+    </form>
+  );
+}
+
+type SellableProduct = { id: string; name: string; price: number; stock: number };
+
+export function SellProductForm({
+  cashSessionId,
+  products,
+}: {
+  cashSessionId: string;
+  products: SellableProduct[];
+}) {
+  const [state, formAction, pending] = useActionState(sellProductAction, initialState);
+
+  if (products.length === 0) {
+    return (
+      <p className="text-sm text-muted">
+        No hay productos con stock disponible. Cargalos en Configuración.
+      </p>
+    );
+  }
+
+  return (
+    <form action={formAction} className="flex flex-col gap-3" noValidate>
+      <input type="hidden" name="cashSessionId" value={cashSessionId} />
+      <FormError message={state.error} />
+      <FormSuccess message={state.success} />
+
+      <FormField label="Producto" htmlFor="productId" required>
+        <select id="productId" name="productId" required className={inputClass}>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} — {p.price.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}{" "}
+              ({p.stock} en stock)
+            </option>
+          ))}
+        </select>
+      </FormField>
+      <div className="flex gap-2">
+        <FormField label="Cantidad" htmlFor="quantity" required>
+          <input
+            id="quantity"
+            name="quantity"
+            type="number"
+            min="1"
+            step="1"
+            defaultValue={1}
+            required
+            className={inputClass}
+          />
+        </FormField>
+        <FormField label="Pago" htmlFor="prodPaymentMethod" required>
+          <select id="prodPaymentMethod" name="paymentMethod" className={inputClass}>
+            <option value="CASH">Efectivo</option>
+            <option value="CARD">Tarjeta</option>
+            <option value="TRANSFER">Transferencia</option>
+          </select>
+        </FormField>
+      </div>
+      <button
+        type="submit"
+        disabled={pending}
+        className="bg-ink text-paper rounded-md px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50"
+      >
+        {pending ? "Vendiendo…" : "Vender producto"}
       </button>
     </form>
   );

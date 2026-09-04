@@ -53,6 +53,7 @@ model Business {
 
   users        User[]
   services     Service[]
+  products     Product[]
   clients      Client[]
   bookings     Booking[]
   giftCards    GiftCard[]
@@ -92,6 +93,21 @@ model Service {
   createdAt       DateTime @default(now())
 
   bookings Booking[]
+
+  @@unique([businessId, name])
+}
+
+model Product {
+  id         String   @id @default(cuid())
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+  name       String
+  price      Decimal  @db.Decimal(10, 2)
+  stock      Int      @default(0)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  saleItems SaleItem[]
 
   @@unique([businessId, name])
 }
@@ -203,12 +219,14 @@ model Sale {
 }
 
 model SaleItem {
-  id          String  @id @default(cuid())
-  sale        Sale    @relation(fields: [saleId], references: [id])
+  id          String   @id @default(cuid())
+  sale        Sale     @relation(fields: [saleId], references: [id])
   saleId      String
+  product     Product? @relation(fields: [productId], references: [id])
+  productId   String?
   description String
-  quantity    Int     @default(1)
-  unitPrice   Decimal @db.Decimal(10, 2)
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
 }
 
 model Expense {

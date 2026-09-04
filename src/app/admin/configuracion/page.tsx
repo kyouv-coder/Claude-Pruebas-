@@ -1,14 +1,16 @@
-import { listAllServices, listAllStaff } from "@/lib/settings";
+import { listAllServices, listAllProducts, listAllStaff } from "@/lib/settings";
 import { requireBusinessId } from "@/lib/auth";
 import { ServiceManager } from "./ServiceManager";
+import { ProductManager } from "./ProductManager";
 import { StaffManager } from "./StaffManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
   const businessId = await requireBusinessId();
-  const [services, staff] = await Promise.all([
+  const [services, products, staff] = await Promise.all([
     listAllServices(businessId),
+    listAllProducts(businessId),
     listAllStaff(businessId),
   ]);
 
@@ -19,6 +21,14 @@ export default async function ConfiguracionPage() {
     durationMinutes: s.durationMinutes,
     price: Number(s.price),
     active: s.active,
+  }));
+
+  const productRows = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    price: Number(p.price),
+    stock: p.stock,
+    active: p.active,
   }));
 
   const staffRows = staff.map((u) => ({
@@ -41,6 +51,11 @@ export default async function ConfiguracionPage() {
       <section className="flex flex-col gap-4">
         <h2 className="font-display text-lg text-ink">Servicios</h2>
         <ServiceManager services={serviceRows} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-display text-lg text-ink">Productos</h2>
+        <ProductManager products={productRows} />
       </section>
 
       <section className="flex flex-col gap-4">
