@@ -1,8 +1,17 @@
+// Un valor que arranca con =, +, -, @ o tab se interpreta como fórmula al
+// abrir el CSV en Excel/Sheets — un nombre de cliente/producto malicioso
+// podría ejecutar código (CSV injection). Se neutraliza anteponiendo un
+// apóstrofe, el mismo mitigante que recomienda OWASP.
+function neutralizeFormula(value: string) {
+  return /^[=+\-@\t]/.test(value) ? `'${value}` : value;
+}
+
 function escapeCsvField(value: string) {
-  if (/[",\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  const safe = neutralizeFormula(value);
+  if (/[",\n]/.test(safe)) {
+    return `"${safe.replace(/"/g, '""')}"`;
   }
-  return value;
+  return safe;
 }
 
 export function toCsv<T extends Record<string, unknown>>(
