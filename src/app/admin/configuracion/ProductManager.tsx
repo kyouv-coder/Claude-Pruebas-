@@ -5,6 +5,7 @@ import {
   createProductAction,
   updateProductAction,
   toggleProductActiveAction,
+  uploadProductImageAction,
   type ActionState,
 } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
@@ -12,9 +13,11 @@ import { FormField, FormError, FormSuccess, inputClass } from "@/components/Form
 type Product = {
   id: string;
   name: string;
+  description: string | null;
   price: number;
   stock: number;
   active: boolean;
+  imageMimeType: string | null;
 };
 
 const initialState: ActionState = {};
@@ -66,6 +69,16 @@ function ProductForm({
           name="name"
           defaultValue={product?.name}
           required
+          className={inputClass}
+        />
+      </FormField>
+      <FormField label="Descripción" htmlFor={`prod-desc-${idSuffix}`}>
+        <textarea
+          id={`prod-desc-${idSuffix}`}
+          name="description"
+          defaultValue={product?.description ?? ""}
+          rows={2}
+          placeholder="Qué es, para qué sirve, de qué está hecho…"
           className={inputClass}
         />
       </FormField>
@@ -131,19 +144,32 @@ function ProductRow({ product }: { product: Product }) {
 
   return (
     <div className="p-4 flex items-center justify-between gap-4">
-      <div className="text-sm">
-        <div
-          className={`font-medium ${
-            product.active ? "text-ink" : "text-muted line-through"
-          }`}
-        >
-          {product.name}
-        </div>
-        <div className={product.stock === 0 ? "text-danger" : "text-muted"}>
-          {money(product.price)} · {product.stock} en stock
+      <div className="flex items-center gap-3">
+        {product.imageMimeType ? (
+          // eslint-disable-next-line @next/next/no-img-element -- imagen servida por una API propia, no un dominio remoto configurable
+          <img
+            src={`/admin/configuracion/imagen-producto/${product.id}`}
+            alt=""
+            className="w-12 h-12 rounded-md object-cover border border-border shrink-0"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-md bg-accent-soft shrink-0" aria-hidden="true" />
+        )}
+        <div className="text-sm">
+          <div
+            className={`font-medium ${
+              product.active ? "text-ink" : "text-muted line-through"
+            }`}
+          >
+            {product.name}
+          </div>
+          <div className={product.stock === 0 ? "text-danger" : "text-muted"}>
+            {money(product.price)} · {product.stock} en stock
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-3">
+        <ProductImageUpload productId={product.id} />
         <button
           type="button"
           onClick={() => setEditing(true)}
@@ -167,5 +193,37 @@ function ProductRow({ product }: { product: Product }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function ProductImageUpload({ productId }: { productId: string }) {
+  const [state, formAction, pending] = useActionState(uploadProductImageAction, initialState);
+
+  return (
+    <form action={formAction} className="flex items-center gap-1">
+      <input type="hidden" name="id" value={productId} />
+      <label htmlFor={`prod-img-${productId}`} className="sr-only">
+        Foto del producto
+      </label>
+      <input
+        id={`prod-img-${productId}`}
+        name="image"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="text-xs max-w-[7rem]"
+      />
+      <button
+        type="submit"
+        disabled={pending}
+        className="text-xs text-accent hover:underline disabled:opacity-50"
+      >
+        {pending ? "Subiendo…" : "Subir foto"}
+      </button>
+      {state.error && (
+        <span role="alert" className="text-danger text-xs">
+          {state.error}
+        </span>
+      )}
+    </form>
   );
 }

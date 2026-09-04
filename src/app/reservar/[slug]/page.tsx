@@ -122,14 +122,34 @@ export default async function PublicBookingPage({
         {products.length > 0 && (
           <div>
             <h2 className="font-display text-lg text-ink mb-3">Productos</h2>
-            <div className="grid gap-2 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2">
               {products.map((p) => (
                 <div
                   key={p.id}
-                  className="bg-surface border border-border rounded-lg p-3 flex items-center justify-between gap-3"
+                  className="bg-surface border border-border rounded-lg overflow-hidden flex flex-col"
                 >
-                  <span className="text-sm text-ink">{p.name}</span>
-                  <span className="text-sm text-muted whitespace-nowrap">{money(Number(p.price))}</span>
+                  {p.hasImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- imagen servida por una API propia, no un dominio remoto configurable
+                    <img
+                      src={`/reservar/${slug}/imagen-producto/${p.id}`}
+                      alt=""
+                      className="w-full h-32 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-16 bg-accent-soft" aria-hidden="true" />
+                  )}
+                  <div className="p-3">
+                    <p className="text-sm font-medium text-ink">{p.name}</p>
+                    {p.description && (
+                      <p className="text-xs text-muted mt-1">{p.description}</p>
+                    )}
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-muted">{money(Number(p.price))}</p>
+                      {p.stock <= 5 && (
+                        <p className="text-xs text-muted">Últimas {p.stock} unidades</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -159,8 +179,10 @@ export default async function PublicBookingPage({
               products={products.map((p) => ({
                 id: p.id,
                 name: p.name,
+                description: p.description,
                 price: Number(p.price),
                 stock: p.stock,
+                hasImage: p.hasImage,
               }))}
               ctaLabel={business.copy.newBookingCta}
             />

@@ -122,31 +122,68 @@ export async function setServiceActive(businessId: string, id: string, active: b
 }
 
 export async function listAllProducts(businessId: string) {
-  return prisma.product.findMany({ where: { businessId }, orderBy: { name: "asc" } });
+  return prisma.product.findMany({
+    where: { businessId },
+    orderBy: { name: "asc" },
+    omit: { imageData: true },
+  });
 }
 
 export async function createProduct(
   businessId: string,
-  input: { name: string; price: number; stock: number }
+  input: { name: string; description?: string; price: number; stock: number }
 ) {
   return prisma.product.create({
-    data: { businessId, name: input.name, price: input.price, stock: input.stock },
+    data: {
+      businessId,
+      name: input.name,
+      description: input.description || null,
+      price: input.price,
+      stock: input.stock,
+    },
   });
 }
 
 export async function updateProduct(
   businessId: string,
   id: string,
-  input: { name: string; price: number; stock: number }
+  input: { name: string; description?: string; price: number; stock: number }
 ) {
   return prisma.product.update({
     where: { id, businessId },
-    data: { name: input.name, price: input.price, stock: input.stock },
+    data: {
+      name: input.name,
+      description: input.description || null,
+      price: input.price,
+      stock: input.stock,
+    },
   });
 }
 
 export async function setProductActive(businessId: string, id: string, active: boolean) {
   return prisma.product.update({ where: { id, businessId }, data: { active } });
+}
+
+export async function setProductImage(
+  businessId: string,
+  id: string,
+  file: { type: string; data: Buffer }
+) {
+  assertValidImage(file);
+  await prisma.product.findFirstOrThrow({ where: { id, businessId } });
+  return prisma.product.update({
+    where: { id },
+    data: { imageData: file.data, imageMimeType: file.type },
+  });
+}
+
+export async function getProductImage(businessId: string, id: string) {
+  const product = await prisma.product.findFirst({
+    where: { id, businessId },
+    select: { imageData: true, imageMimeType: true },
+  });
+  if (!product?.imageData || !product.imageMimeType) return null;
+  return { data: product.imageData, mimeType: product.imageMimeType };
 }
 
 export async function updateSlackWebhook(businessId: string, url: string | null) {

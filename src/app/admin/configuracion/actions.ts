@@ -9,6 +9,7 @@ import {
   createProduct,
   updateProduct,
   setProductActive,
+  setProductImage,
   createStaff,
   updateStaff,
   setStaffActive,
@@ -141,6 +142,7 @@ export async function createProductAction(
   formData: FormData
 ): Promise<ActionState> {
   const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim();
   const price = parsePrice(formData.get("price"));
   const stock = parseStock(formData.get("stock"));
 
@@ -151,7 +153,7 @@ export async function createProductAction(
   const businessId = await requireAdmin();
 
   try {
-    await createProduct(businessId, { name, price, stock });
+    await createProduct(businessId, { name, description: description || undefined, price, stock });
   } catch (e) {
     if (e instanceof Error && e.message.includes("Unique constraint")) {
       return { error: "Ya existe un producto con ese nombre." };
@@ -169,6 +171,7 @@ export async function updateProductAction(
 ): Promise<ActionState> {
   const id = String(formData.get("id") || "");
   const name = String(formData.get("name") || "").trim();
+  const description = String(formData.get("description") || "").trim();
   const price = parsePrice(formData.get("price"));
   const stock = parseStock(formData.get("stock"));
 
@@ -179,7 +182,7 @@ export async function updateProductAction(
   const businessId = await requireAdmin();
 
   try {
-    await updateProduct(businessId, id, { name, price, stock });
+    await updateProduct(businessId, id, { name, description: description || undefined, price, stock });
   } catch (e) {
     if (e instanceof Error && e.message.includes("Unique constraint")) {
       return { error: "Ya existe un producto con ese nombre." };
@@ -196,6 +199,30 @@ export async function toggleProductActiveAction(id: string, active: boolean) {
   await setProductActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/caja");
+}
+
+export async function uploadProductImageAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = String(formData.get("id") || "");
+  const file = formData.get("image");
+
+  if (!id) return { error: "Producto inválido." };
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Elegí una imagen para subir." };
+  }
+
+  const businessId = await requireAdmin();
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  try {
+    await setProductImage(businessId, id, { type: file.type, data: buffer });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
+  }
+  revalidatePath("/admin/configuracion");
+  return { success: "Foto actualizada." };
 }
 
 export async function updateSlackWebhookAction(

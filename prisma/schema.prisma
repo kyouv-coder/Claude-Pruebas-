@@ -139,14 +139,17 @@ model Service {
 }
 
 model Product {
-  id         String   @id @default(cuid())
-  business   Business @relation(fields: [businessId], references: [id])
-  businessId String
-  name       String
-  price      Decimal  @db.Decimal(10, 2)
-  stock      Int      @default(0)
-  active     Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id            String   @id @default(cuid())
+  business      Business @relation(fields: [businessId], references: [id])
+  businessId    String
+  name          String
+  description   String?
+  price         Decimal  @db.Decimal(10, 2)
+  stock         Int      @default(0)
+  active        Boolean  @default(true)
+  imageData     Bytes?
+  imageMimeType String?
+  createdAt     DateTime @default(now())
 
   saleItems SaleItem[]
   bookingRequests BookingProductRequest[]

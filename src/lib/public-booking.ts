@@ -20,10 +20,12 @@ export async function listPublicServices(businessId: string) {
 }
 
 export async function listPublicProducts(businessId: string) {
-  return prisma.product.findMany({
+  const products = await prisma.product.findMany({
     where: { businessId, active: true, stock: { gt: 0 } },
     orderBy: { name: "asc" },
+    omit: { imageData: true },
   });
+  return products.map((p) => ({ ...p, hasImage: p.imageMimeType != null }));
 }
 
 export async function listPublicStaff(businessId: string) {

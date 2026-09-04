@@ -44,9 +44,11 @@ export default async function ConfiguracionPage() {
   const productRows = products.map((p) => ({
     id: p.id,
     name: p.name,
+    description: p.description,
     price: Number(p.price),
     stock: p.stock,
     active: p.active,
+    imageMimeType: p.imageMimeType,
   }));
 
   const staffRows = staff.map((u) => ({

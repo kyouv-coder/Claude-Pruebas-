@@ -7,7 +7,14 @@ import { FormField, FormError, FormSuccess, inputClass } from "@/components/Form
 
 type Service = { id: string; name: string; durationMinutes: number; price: number };
 type Staff = { id: string; name: string };
-type Product = { id: string; name: string; price: number; stock: number };
+type Product = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  stock: number;
+  hasImage: boolean;
+};
 
 const initialState: ActionState = {};
 
@@ -180,9 +187,20 @@ export function PublicBookingForm({
             Agregar productos (opcional)
           </legend>
           {products.map((p) => (
-            <div key={p.id} className="flex items-center justify-between gap-2 text-sm">
-              <label htmlFor={`pbQty-${p.id}`} className="text-ink">
-                {p.name} <span className="text-muted">({money(p.price)})</span>
+            <div key={p.id} className="flex items-center gap-2 text-sm">
+              {p.hasImage ? (
+                // eslint-disable-next-line @next/next/no-img-element -- imagen servida por una API propia, no un dominio remoto configurable
+                <img
+                  src={`/reservar/${slug}/imagen-producto/${p.id}`}
+                  alt=""
+                  className="w-9 h-9 rounded object-cover border border-border shrink-0"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded bg-accent-soft shrink-0" aria-hidden="true" />
+              )}
+              <label htmlFor={`pbQty-${p.id}`} className="text-ink flex-1 min-w-0">
+                <span className="block truncate">{p.name}</span>
+                <span className="block text-xs text-muted">{money(p.price)}</span>
               </label>
               <input
                 id={`pbQty-${p.id}`}
@@ -195,7 +213,7 @@ export function PublicBookingForm({
                   const value = Math.max(0, Math.min(p.stock, Number(e.target.value) || 0));
                   setProductQuantities((prev) => ({ ...prev, [p.id]: value }));
                 }}
-                className={`${inputClass} w-16 text-center`}
+                className={`${inputClass} w-16 text-center shrink-0`}
               />
             </div>
           ))}
