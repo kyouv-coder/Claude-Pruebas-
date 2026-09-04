@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createBooking, updateBookingStatus } from "@/lib/bookings";
-import { requireBusinessId } from "@/lib/auth";
+import { requireBusinessId, getCurrentUser } from "@/lib/auth";
+import { sendSlackNotification } from "@/lib/slack";
 
 export type ActionState = { error?: string; success?: string };
 
@@ -30,7 +31,7 @@ export async function createBookingAction(
 
   const businessId = await requireBusinessId();
 
-  await createBooking(businessId, {
+  const booking = await createBooking(businessId, {
     clientName,
     clientPhone: clientPhone || undefined,
     clientEmail: clientEmail || undefined,
@@ -39,6 +40,15 @@ export async function createBookingAction(
     startTime,
     notes: notes || undefined,
   });
+
+  const user = await getCurrentUser();
+  await sendSlackNotification(
+    user?.business.slackWebhookUrl,
+    `📅 Nueva reserva: *${booking.client.name}* — ${booking.service.name} con ${booking.staff.name}, ${booking.startTime.toLocaleString("es-AR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    })}`
+  );
 
   revalidatePath("/admin/reservas");
   return { success: "Reserva creada." };

@@ -78,6 +78,13 @@ export async function setProductActive(businessId: string, id: string, active: b
   return prisma.product.update({ where: { id, businessId }, data: { active } });
 }
 
+export async function updateSlackWebhook(businessId: string, url: string | null) {
+  return prisma.business.update({
+    where: { id: businessId },
+    data: { slackWebhookUrl: url },
+  });
+}
+
 export async function listAllStaff(businessId: string) {
   return prisma.user.findMany({
     where: { businessId, role: "STAFF" },

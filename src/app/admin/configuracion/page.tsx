@@ -1,17 +1,19 @@
 import { listAllServices, listAllProducts, listAllStaff } from "@/lib/settings";
-import { requireBusinessId } from "@/lib/auth";
+import { requireBusinessId, getCurrentUser } from "@/lib/auth";
 import { ServiceManager } from "./ServiceManager";
 import { ProductManager } from "./ProductManager";
 import { StaffManager } from "./StaffManager";
+import { SlackForm } from "./SlackForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
   const businessId = await requireBusinessId();
-  const [services, products, staff] = await Promise.all([
+  const [services, products, staff, user] = await Promise.all([
     listAllServices(businessId),
     listAllProducts(businessId),
     listAllStaff(businessId),
+    getCurrentUser(),
   ]);
 
   const serviceRows = services.map((s) => ({
@@ -61,6 +63,11 @@ export default async function ConfiguracionPage() {
       <section className="flex flex-col gap-4">
         <h2 className="font-display text-lg text-ink">Staff</h2>
         <StaffManager staff={staffRows} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-display text-lg text-ink">Notificaciones de Slack</h2>
+        <SlackForm currentUrl={user?.business.slackWebhookUrl ?? null} />
       </section>
     </div>
   );

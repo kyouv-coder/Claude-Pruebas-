@@ -47,9 +47,10 @@ enum ExpenseCategory {
 }
 
 model Business {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id               String   @id @default(cuid())
+  name             String
+  slackWebhookUrl  String?
+  createdAt        DateTime @default(now())
 
   users        User[]
   services     Service[]

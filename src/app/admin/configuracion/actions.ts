@@ -11,6 +11,7 @@ import {
   createStaff,
   updateStaff,
   setStaffActive,
+  updateSlackWebhook,
 } from "@/lib/settings";
 import { requireBusinessId } from "@/lib/auth";
 
@@ -166,6 +167,24 @@ export async function toggleProductActiveAction(id: string, active: boolean) {
   await setProductActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/caja");
+}
+
+export async function updateSlackWebhookAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const url = String(formData.get("slackWebhookUrl") || "").trim();
+
+  if (url && !url.startsWith("https://hooks.slack.com/")) {
+    return {
+      error: "Tiene que ser una URL de Incoming Webhook de Slack (empieza con https://hooks.slack.com/).",
+    };
+  }
+
+  const businessId = await requireBusinessId();
+  await updateSlackWebhook(businessId, url || null);
+  revalidatePath("/admin/configuracion");
+  return { success: url ? "Notificaciones de Slack activadas." : "Notificaciones de Slack desactivadas." };
 }
 
 export async function createStaffAction(

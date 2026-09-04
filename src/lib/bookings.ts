@@ -87,6 +87,7 @@ export async function createBooking(
       endTime,
       notes: input.notes || null,
     },
+    include: { client: true, service: true, staff: true },
   });
 }
 
