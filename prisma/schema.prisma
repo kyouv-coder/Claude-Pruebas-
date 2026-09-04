@@ -52,7 +52,7 @@ model User {
 
 model Service {
   id              String   @id @default(cuid())
-  name            String
+  name            String   @unique
   description     String?
   durationMinutes Int
   price           Decimal  @db.Decimal(10, 2)
