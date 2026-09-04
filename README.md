@@ -6,11 +6,11 @@ Este repo usa [Claude Code](https://claude.ai/code) con un set curado de **skill
 
 ## Proyecto actual: herramienta de gestión para pymes (multi-negocio)
 
-SaaS con login propio: cualquier negocio se registra en `/signup` y administra, con sus propios datos aislados, reservas de citas/servicios, giftcards (venta/canje), caja/POS con reconciliación al cierre, productos con stock, clientes con historial y notas, gastos/impuestos mensuales con export a CSV, un dashboard con métricas reales del negocio, un checklist de onboarding para cuentas nuevas, y un panel de Recomendaciones que analiza esos datos y avisa proactivamente qué necesita atención (clientes inactivos, stock bajo, giftcards por vencer, mes en rojo, diferencias de caja, no-shows repetidos). También tiene una página pública de reserva online por negocio (`/reservar/[slug]`) que muestra los horarios ya ocupados de cada profesional antes de que el cliente elija. Nació como MVP para una pyme de spa; el modelo de datos generaliza a cualquier negocio con turnos.
+SaaS con login propio: cualquier negocio se registra en `/signup` y administra, con sus propios datos aislados, reservas de citas/servicios, giftcards (venta/canje), caja/POS con reconciliación al cierre, productos con stock, clientes con historial y notas, gastos/impuestos mensuales con export a CSV, un dashboard con métricas reales del negocio, un checklist de onboarding para cuentas nuevas, una página de soporte con FAQ, y un panel de Recomendaciones que analiza esos datos y avisa proactivamente qué necesita atención (clientes inactivos, stock bajo, giftcards por vencer, mes en rojo, diferencias de caja, no-shows repetidos). También tiene una página pública de reserva online por negocio (`/reservar/[slug]`) que respeta el horario de atención configurado (si hay uno) y muestra los horarios ya ocupados de cada profesional antes de que el cliente elija, además de la política de cancelación del negocio si la cargó. Nació como MVP para una pyme de spa; el modelo de datos generaliza a cualquier negocio con turnos.
 
 Roles reales: ADMIN ve todo (finanzas, configuración, dashboard, recomendaciones); STAFF opera el día a día (reservas, caja, clientes, giftcards) sin acceso a ganancia neta ni precios.
 
-**Stack:** Next.js 16 (App Router, TypeScript), PostgreSQL, Prisma, autenticación propia (bcrypt + sesión firmada, sin dependencias de auth externas), monitoreo de errores con Sentry (inactivo hasta configurar `SENTRY_DSN`).
+**Stack:** Next.js 16 (App Router, TypeScript), PostgreSQL, Prisma, autenticación propia (bcrypt + sesión firmada, sin dependencias de auth externas), monitoreo de errores con Sentry (inactivo hasta configurar `SENTRY_DSN`), tests con Vitest (`npm test`).
 
 ### Getting started
 
@@ -29,10 +29,10 @@ Abrí [http://localhost:3000](http://localhost:3000) — te redirige a `/login`.
 - **Facturación electrónica**: no hay integración con ningún proveedor (Bsale, Haulmer/OpenFactura, etc.) — las ventas se registran acá pero el comprobante fiscal se sigue emitiendo aparte. El panel de Recomendaciones avisa esto activamente cada mes. Bloqueado hasta definir proveedor.
 - **Recordatorios a clientes por WhatsApp/SMS**: hoy solo hay notificación a Slack para la dueña, no al cliente. Necesita una cuenta de Twilio o WhatsApp Business API.
 - **Sentry**: el SDK está instalado pero inactivo (sin `SENTRY_DSN` configurado no envía nada).
-- **Política de cancelación / seña**: no hay forma de cobrar una seña ni de definir reglas de cancelación — necesita definir con el negocio si se cobra seña, cuánto, y con qué proveedor de pagos.
-- **Soporte**: no hay un canal de soporte dentro de la app para el dueño del negocio.
+- **Política de cancelación / seña real**: hoy hay un campo de texto libre (informativo) mostrado al cliente, pero no cobra una seña ni bloquea nada — necesita definir con el negocio si se cobra seña, cuánto, y con qué proveedor de pagos.
+- **Soporte real**: hoy hay una página estática con FAQ y un email/WhatsApp de contacto (`src/lib/support.ts`, configurable por variable de entorno) — no hay ticketing ni chat en vivo.
 - **Multi-sucursal**: el modelo de datos asume un negocio = una ubicación.
-- **Horarios de atención**: la reserva pública solo muestra horarios ya ocupados, no un horario de apertura/cierre configurable — falta definir ese concepto en el modelo.
+- **Cobertura de tests**: hay una primera suite (`npm test`) sobre la lógica más crítica (CSV injection, slugs, horarios, doble reserva), pero no cubre todo el código.
 - Sin deploy productivo todavía — falta correr `npx prisma migrate resolve --applied 20260904000000_init` una sola vez contra la base real antes del próximo `migrate deploy` (ver el mensaje del commit `fd5dfa0`).
 
 ## Cómo usar las skills
@@ -148,6 +148,8 @@ Curadas desde cinco repos públicos de Claude Code:
 - [affaan-m/ECC](https://github.com/affaan-m/ECC)
 - [tech-leads-club/agent-skills](https://github.com/tech-leads-club/agent-skills)
 - [zubair-trabzada/geo-seo-claude](https://github.com/zubair-trabzada/geo-seo-claude) (solo `geo-llmstxt` — el resto es un toolkit de auditorías SEO para agencias, no aplica a este proyecto)
+
+Se evaluó también [alirezarezvani/claude-skills](https://github.com/alirezarezvani/claude-skills) y no se adoptó nada: es un catálogo genérico de miles de skills de rol de negocio (C-level, marketing, compliance) duplicado sin cambios entre `.claude/`, `.codex/` y `.gemini/`, sin nada específico para un SaaS de reservas. El único candidato con nombre prometedor (`a11y-audit`) resultó ser solo un `SKILL.md` que documenta scripts Python de escaneo que en realidad no existen en el repo.
 
 Se seleccionó un subconjunto orientado a negocio/producto, no el catálogo completo (que incluye pentesting, contenido educativo, etc. no relevante para este repo). Periódicamente se audita y se sacan duplicados — ver "Pasada de limpieza" más abajo.
 
