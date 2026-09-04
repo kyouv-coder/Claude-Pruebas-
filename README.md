@@ -33,7 +33,7 @@ Abrí [http://localhost:3000](http://localhost:3000) — te redirige a `/login`.
 - **Soporte real**: hoy hay una página estática con FAQ y un email/WhatsApp de contacto (`src/lib/support.ts`, configurable por variable de entorno) — no hay ticketing ni chat en vivo.
 - **Multi-sucursal**: el modelo de datos asume un negocio = una ubicación.
 - **Verificación en vivo del webhook de Slack**: se creó el canal `#pyme-notificaciones` y se cargó su Incoming Webhook en el negocio de prueba local, pero este sandbox bloquea las conexiones salientes a `hooks.slack.com` (política de red del entorno, no de la app), así que no se pudo confirmar que el mensaje llega de punta a punta. Falta probarlo contra un deploy real (Vercel no tiene esa restricción).
-- **Cobertura de tests**: hay una primera suite (`npm test`) sobre la lógica más crítica (CSV injection, slugs, horarios, doble reserva), pero no cubre todo el código.
+- **Cobertura de tests**: hay una suite (`npm test`, 21 tests) sobre la lógica más crítica (CSV injection, slugs, horarios, doble reserva, canje de giftcards sin sobregiro), pero no cubre todo el código.
 - Sin deploy productivo todavía — falta correr `npx prisma migrate resolve --applied 20260904000000_init` una sola vez contra la base real antes del próximo `migrate deploy` (ver el mensaje del commit `fd5dfa0`).
 
 ## Cómo usar las skills

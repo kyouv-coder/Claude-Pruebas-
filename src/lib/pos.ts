@@ -261,11 +261,25 @@ export async function redeemGiftCard(
   });
 
   if (!giftCard.active) throw new Error("La giftcard no está activa");
-  if (Number(giftCard.balance) < input.amount) {
-    throw new Error("Saldo insuficiente en la giftcard");
-  }
 
   return prisma.$transaction(async (tx) => {
+    // Update condicionado (mismo patrón que el descuento de stock en
+    // sellProduct): si dos canjes de la misma giftcard llegan al mismo
+    // tiempo, esta resta es atómica a nivel de base de datos — solo uno
+    // puede pasar cuando el saldo ya no alcanza, evitando dejarlo negativo.
+    const decremented = await tx.giftCard.updateMany({
+      where: { id: giftCard.id, businessId, active: true, balance: { gte: input.amount } },
+      data: { balance: { decrement: input.amount } },
+    });
+    if (decremented.count === 0) {
+      throw new Error("Saldo insuficiente en la giftcard");
+    }
+
+    const updated = await tx.giftCard.findUniqueOrThrow({ where: { id: giftCard.id } });
+    if (Number(updated.balance) <= 0) {
+      await tx.giftCard.update({ where: { id: giftCard.id }, data: { active: false } });
+    }
+
     const sale = await tx.sale.create({
       data: {
         businessId,
@@ -283,12 +297,6 @@ export async function redeemGiftCard(
           ],
         },
       },
-    });
-
-    const newBalance = Number(giftCard.balance) - input.amount;
-    await tx.giftCard.update({
-      where: { id: giftCard.id },
-      data: { balance: newBalance, active: newBalance > 0 ? true : false },
     });
 
     await tx.giftCardTransaction.create({
