@@ -72,6 +72,8 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 | `repo-audit` | Hotspots de código, ownership, secret scanning en el historial |
 | `secure-code-review` / `security` / `security-audit` / `security-check` | Revisión de seguridad (OWASP Top 10) antes de entregar |
 | `sentry` | Consultar errores de producción vía la API de Sentry (solo lectura) — requiere `SENTRY_AUTH_TOKEN` y que el proyecto ya tenga Sentry configurado |
+| `web-accessibility` | Auditoría WCAG 2.1: contraste, teclado, lectores de pantalla, formularios |
+| `web-quality-audit` | Auditoría completa (performance, accesibilidad, SEO, buenas prácticas) tipo Lighthouse, en un solo pase |
 
 ### 4. Flujo de trabajo / entrega
 | Skill | Para qué sirve |
