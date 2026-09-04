@@ -4,6 +4,21 @@ Repositorio de trabajo para construir **productos y servicios digitales viables 
 
 Este repo usa [Claude Code](https://claude.ai/code) con un set curado de **skills** (`.claude/skills/`) pensado para moverse rápido sin perder rigor: de la idea al MVP, y del MVP a producción, para un cliente pyme a la vez o varios en paralelo.
 
+## Proyecto actual: sistema de reservas para spa
+
+MVP para una pyme de spa: reservas de citas/servicios, giftcards (venta/canje), caja/POS conectado a las reservas, y dashboard con métricas y gráficos del negocio (ingresos, ocupación, ticket promedio).
+
+**Stack:** Next.js 14+ (App Router, TypeScript), PostgreSQL, Prisma.
+
+### Getting started
+
+```bash
+npm install
+npm run dev
+```
+
+Abrí [http://localhost:3000](http://localhost:3000).
+
 ## Cómo usar las skills
 
 Dentro de una sesión de Claude Code en este repo, invocá cualquiera con `/nombre-skill`, por ejemplo:
