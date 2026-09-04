@@ -38,7 +38,8 @@ export function OnboardingChecklist({ status }: { status: OnboardingStatus }) {
             >
               ✓
             </span>
-            <span className={step.done ? "text-muted line-through" : "text-ink"}>
+            <span className={step.done ? "text-success line-through" : "text-ink"}>
+              <span className="sr-only">{step.done ? "(completado) " : "(pendiente) "}</span>
               {step.label}
               {step.optional && !step.done ? " — opcional" : ""}
             </span>
