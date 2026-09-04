@@ -13,6 +13,7 @@ import {
   setStaffActive,
   updateSlackWebhook,
 } from "@/lib/settings";
+import { saveBusinessHours, type DayHours } from "@/lib/business-hours";
 import { requireAdmin } from "@/lib/auth";
 
 export type ActionState = { error?: string; success?: string };
@@ -248,4 +249,40 @@ export async function toggleStaffActiveAction(id: string, active: boolean) {
   await setStaffActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
+}
+
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+export async function updateBusinessHoursAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const days: DayHours[] = [];
+
+  for (let dayOfWeek = 0; dayOfWeek < 7; dayOfWeek++) {
+    const closed = formData.get(`closed_${dayOfWeek}`) === "on";
+    const openTime = String(formData.get(`open_${dayOfWeek}`) || "");
+    const closeTime = String(formData.get(`close_${dayOfWeek}`) || "");
+
+    if (!closed) {
+      if (!TIME_RE.test(openTime) || !TIME_RE.test(closeTime)) {
+        return { error: "Los horarios deben tener formato HH:mm." };
+      }
+      if (openTime >= closeTime) {
+        return { error: "El horario de apertura debe ser anterior al de cierre." };
+      }
+    }
+
+    days.push({
+      dayOfWeek,
+      openTime: closed ? "09:00" : openTime,
+      closeTime: closed ? "19:00" : closeTime,
+      closed,
+    });
+  }
+
+  const businessId = await requireAdmin();
+  await saveBusinessHours(businessId, days);
+  revalidatePath("/admin/configuracion");
+  return { success: "Horario de atención guardado." };
 }

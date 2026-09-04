@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { listAllServices, listAllProducts, listAllStaff } from "@/lib/settings";
+import { getBusinessHours, hasConfiguredHours } from "@/lib/business-hours";
 import { requireAdmin, getCurrentUser } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
 import { ServiceManager } from "./ServiceManager";
@@ -7,17 +8,20 @@ import { ProductManager } from "./ProductManager";
 import { StaffManager } from "./StaffManager";
 import { SlackForm } from "./SlackForm";
 import { PublicBookingLink } from "./PublicBookingLink";
+import { BusinessHoursForm } from "./BusinessHoursForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
   const businessId = await requireAdmin();
-  const [services, products, staff, user, headerList] = await Promise.all([
+  const [services, products, staff, user, headerList, hours, hoursConfigured] = await Promise.all([
     listAllServices(businessId),
     listAllProducts(businessId),
     listAllStaff(businessId),
     getCurrentUser(),
     headers(),
+    getBusinessHours(businessId),
+    hasConfiguredHours(businessId),
   ]);
 
   const proto = headerList.get("x-forwarded-proto") ?? "http";
@@ -77,6 +81,11 @@ export default async function ConfiguracionPage() {
       <section className="flex flex-col gap-4">
         <h2 className="font-display text-lg text-ink">Reservas online</h2>
         <PublicBookingLink url={publicBookingUrl} bookingSingular={copy.bookingSingular} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-display text-lg text-ink">Horario de atención</h2>
+        <BusinessHoursForm hours={hours} isConfigured={hoursConfigured} />
       </section>
 
       <section className="flex flex-col gap-4">

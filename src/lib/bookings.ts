@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { BookingStatus } from "@/generated/prisma";
+import { checkWithinBusinessHours } from "@/lib/business-hours";
 
 export async function listServices(businessId: string) {
   return prisma.service.findMany({
@@ -68,7 +69,8 @@ export async function createBooking(
     staffId: string;
     startTime: Date;
     notes?: string;
-  }
+  },
+  options?: { enforceBusinessHours?: boolean }
 ) {
   const service = await prisma.service.findFirstOrThrow({
     where: { id: input.serviceId, businessId },
@@ -76,6 +78,13 @@ export async function createBooking(
   const endTime = new Date(
     input.startTime.getTime() + service.durationMinutes * 60_000
   );
+
+  if (options?.enforceBusinessHours) {
+    const hoursCheck = await checkWithinBusinessHours(businessId, input.startTime, endTime);
+    if (!hoursCheck.ok) {
+      throw new Error(hoursCheck.reason);
+    }
+  }
 
   // Evita doble reserva: ¿el mismo profesional ya tiene un turno que se
   // superpone con este horario? (dos intervalos se solapan si uno

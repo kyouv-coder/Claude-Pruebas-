@@ -2,6 +2,8 @@
 
 import { headers } from "next/headers";
 import { createBooking } from "@/lib/bookings";
+import { checkWithinBusinessHours } from "@/lib/business-hours";
+import { prisma } from "@/lib/prisma";
 import {
   getBusinessBySlug,
   listPublicStaff,
@@ -70,10 +72,23 @@ export async function createPublicBookingAction(
     notes: notes || undefined,
   };
 
+  const service = await prisma.service.findFirst({
+    where: { id: serviceId, businessId: business.id },
+  });
+  if (!service) {
+    return { error: "El servicio elegido ya no está disponible." };
+  }
+  const endTime = new Date(startTime.getTime() + service.durationMinutes * 60_000);
+  const hoursCheck = await checkWithinBusinessHours(business.id, startTime, endTime);
+  if (!hoursCheck.ok) {
+    return { error: hoursCheck.reason };
+  }
+
   try {
+    const createOptions = { enforceBusinessHours: true };
     let booking;
     if (staffId) {
-      booking = await createBooking(business.id, { ...bookingInput, staffId });
+      booking = await createBooking(business.id, { ...bookingInput, staffId }, createOptions);
     } else {
       // "Sin preferencia": probamos con cada profesional activo hasta
       // encontrar uno libre en ese horario.
@@ -84,7 +99,7 @@ export async function createPublicBookingAction(
       let lastError: Error | null = null;
       for (const s of staff) {
         try {
-          booking = await createBooking(business.id, { ...bookingInput, staffId: s.id });
+          booking = await createBooking(business.id, { ...bookingInput, staffId: s.id }, createOptions);
           lastError = null;
           break;
         } catch (e) {

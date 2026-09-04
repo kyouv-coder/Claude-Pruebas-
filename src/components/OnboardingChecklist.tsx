@@ -16,6 +16,11 @@ export function OnboardingChecklist({ status }: { status: OnboardingStatus }) {
       label: "Conectar Slack para recibir avisos de nuevas reservas (opcional)",
       optional: true,
     },
+    {
+      done: status.hasBusinessHours,
+      label: "Definir el horario de atención para la reserva online (opcional)",
+      optional: true,
+    },
   ];
 
   return (

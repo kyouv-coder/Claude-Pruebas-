@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { createPublicBookingAction, type ActionState } from "./actions";
-import { getBusyTimesAction } from "./availability";
+import { getBusyTimesAction, getDayAvailabilityAction, type DayAvailability } from "./availability";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
 
 type Service = { id: string; name: string; durationMinutes: number; price: number };
@@ -30,6 +30,7 @@ export function PublicBookingForm({
   const [selectedDate, setSelectedDate] = useState("");
   const [busyRanges, setBusyRanges] = useState<{ start: string; end: string }[]>([]);
   const [loadingBusy, setLoadingBusy] = useState(false);
+  const [dayAvailability, setDayAvailability] = useState<DayAvailability | null>(null);
 
   function refreshBusyTimes(staffId: string, date: string) {
     if (!staffId || !date) {
@@ -40,6 +41,14 @@ export function PublicBookingForm({
     getBusyTimesAction(slug, staffId, date)
       .then((ranges) => setBusyRanges(ranges))
       .finally(() => setLoadingBusy(false));
+  }
+
+  function refreshDayAvailability(date: string) {
+    if (!date) {
+      setDayAvailability(null);
+      return;
+    }
+    getDayAvailabilityAction(slug, date).then((info) => setDayAvailability(info));
   }
 
   if (state.success) {
@@ -124,6 +133,7 @@ export function PublicBookingForm({
             onChange={(e) => {
               setSelectedDate(e.target.value);
               refreshBusyTimes(selectedStaffId, e.target.value);
+              refreshDayAvailability(e.target.value);
             }}
           />
         </FormField>
@@ -131,6 +141,18 @@ export function PublicBookingForm({
           <input id="pbTime" name="time" type="time" required className={inputClass} />
         </FormField>
       </div>
+
+      {selectedDate && dayAvailability?.configured && (
+        <p
+          className={`text-xs -mt-1 ${dayAvailability.closed ? "text-danger" : "text-muted"}`}
+          role="status"
+          aria-live="polite"
+        >
+          {dayAvailability.closed
+            ? "El negocio no atiende ese día."
+            : `Horario de atención ese día: ${dayAvailability.openTime}–${dayAvailability.closeTime}.`}
+        </p>
+      )}
 
       {selectedStaffId && selectedDate && (
         <p className="text-xs text-muted -mt-1" role="status" aria-live="polite">

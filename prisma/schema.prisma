@@ -92,6 +92,7 @@ model Business {
   cashSessions CashRegisterSession[]
   sales        Sale[]
   expenses     Expense[]
+  hours        BusinessHours[]
 }
 
 model User {
@@ -273,4 +274,19 @@ model Expense {
   createdAt   DateTime        @default(now())
 
   @@index([businessId, date])
+}
+
+// Horario de atención por día de semana (0 = domingo ... 6 = sábado). Si un
+// negocio no tiene filas acá, se interpreta como "sin restricción configurada"
+// (comportamiento actual: la reserva pública no bloquea ningún horario).
+model BusinessHours {
+  id         String   @id @default(cuid())
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+  dayOfWeek  Int
+  openTime   String // "HH:mm"
+  closeTime  String // "HH:mm"
+  closed     Boolean  @default(false)
+
+  @@unique([businessId, dayOfWeek])
 }
