@@ -6,9 +6,11 @@ Este repo usa [Claude Code](https://claude.ai/code) con un set curado de **skill
 
 ## Proyecto actual: herramienta de gestión para pymes (multi-negocio)
 
-SaaS con login propio: cualquier negocio se registra en `/signup` y administra, con sus propios datos aislados, reservas de citas/servicios, giftcards (venta/canje), caja/POS conectado a las reservas, gastos/impuestos mensuales, y un dashboard con métricas reales del negocio (ingresos, ocupación, ticket promedio, ganancia neta). Nació como MVP para una pyme de spa; el modelo de datos generaliza a cualquier negocio con turnos.
+SaaS con login propio: cualquier negocio se registra en `/signup` y administra, con sus propios datos aislados, reservas de citas/servicios, giftcards (venta/canje), caja/POS con reconciliación al cierre, productos con stock, clientes con historial y notas, gastos/impuestos mensuales con export a CSV, un dashboard con métricas reales del negocio, y un panel de Recomendaciones que analiza esos datos y avisa proactivamente qué necesita atención (clientes inactivos, stock bajo, giftcards por vencer, mes en rojo, diferencias de caja, no-shows repetidos). Nació como MVP para una pyme de spa; el modelo de datos generaliza a cualquier negocio con turnos.
 
-**Stack:** Next.js 16 (App Router, TypeScript), PostgreSQL, Prisma, autenticación propia (bcrypt + sesión firmada, sin dependencias de auth externas).
+Roles reales: ADMIN ve todo (finanzas, configuración, dashboard, recomendaciones); STAFF opera el día a día (reservas, caja, clientes, giftcards) sin acceso a ganancia neta ni precios.
+
+**Stack:** Next.js 16 (App Router, TypeScript), PostgreSQL, Prisma, autenticación propia (bcrypt + sesión firmada, sin dependencias de auth externas), monitoreo de errores con Sentry (inactivo hasta configurar `SENTRY_DSN`).
 
 ### Getting started
 
@@ -20,13 +22,15 @@ npm run db:seed        # crea un negocio de prueba con datos de ejemplo
 npm run dev
 ```
 
-Abrí [http://localhost:3000](http://localhost:3000) — te redirige a `/login`. Con el seed corrido, entrás con `admin@spa.local` / `changeme123` (cambiarla es una tarea pendiente, ver abajo), o creá tu propia cuenta en `/signup`.
+Abrí [http://localhost:3000](http://localhost:3000) — te redirige a `/login`. Con el seed corrido, entrás como admin con `admin@spa.local` / `changeme123`, o como staff con `staff@spa.local` / `changeme123` (ambas cambiables desde "Mi cuenta"), o creá tu propia cuenta en `/signup`.
 
 ### Pendiente / gaps conocidos
 
-- No hay pantalla para cambiar la contraseña del admin.
-- Solo el rol ADMIN inicia sesión; el staff todavía no tiene login propio.
-- Sin deploy productivo todavía — guía de deploy a Vercel en progreso.
+- **Facturación electrónica**: no hay integración con ningún proveedor (Bsale, Haulmer/OpenFactura, etc.) — las ventas se registran acá pero el comprobante fiscal se sigue emitiendo aparte. El panel de Recomendaciones avisa esto activamente cada mes. Bloqueado hasta definir proveedor.
+- **Recordatorios a clientes por WhatsApp/SMS**: hoy solo hay notificación a Slack para la dueña, no al cliente. Necesita una cuenta de Twilio o WhatsApp Business API.
+- **Onboarding**: una cuenta nueva por `/signup` arranca sin servicios ni staff cargados — no hay wizard guiado todavía.
+- **Sentry**: el SDK está instalado pero inactivo (sin `SENTRY_DSN` configurado no envía nada).
+- Sin deploy productivo todavía — falta correr `npx prisma migrate resolve --applied 20260904000000_init` una sola vez contra la base real antes del próximo `migrate deploy` (ver el mensaje del commit `fd5dfa0`).
 
 ## Cómo usar las skills
 
