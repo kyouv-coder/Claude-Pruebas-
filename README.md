@@ -19,6 +19,8 @@ npm install
 cp .env.example .env   # completar DATABASE_URL, AUTH_SECRET, etc.
 npx prisma migrate deploy
 npm run db:seed        # crea un negocio de prueba con datos de ejemplo
+npm run db:seed:demo   # carga reservas, ventas, giftcards y gastos ficticios de septiembre
+                        # sobre ese negocio, para probar caja/reservas/giftcards/dashboard con datos reales
 npm run dev
 ```
 
