@@ -5,6 +5,7 @@ import {
   createService,
   updateService,
   setServiceActive,
+  setServiceImage,
   createProduct,
   updateProduct,
   setProductActive,
@@ -13,6 +14,8 @@ import {
   setStaffActive,
   updateSlackWebhook,
   updateCancellationPolicy,
+  updateBusinessProfile,
+  setBusinessCoverImage,
 } from "@/lib/settings";
 import { saveBusinessHours, type DayHours } from "@/lib/business-hours";
 import { requireAdmin } from "@/lib/auth";
@@ -102,6 +105,30 @@ export async function toggleServiceActiveAction(id: string, active: boolean) {
   await setServiceActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
+}
+
+export async function uploadServiceImageAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const id = String(formData.get("id") || "");
+  const file = formData.get("image");
+
+  if (!id) return { error: "Servicio inválido." };
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Elegí una imagen para subir." };
+  }
+
+  const businessId = await requireAdmin();
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  try {
+    await setServiceImage(businessId, id, { type: file.type, data: buffer });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
+  }
+  revalidatePath("/admin/configuracion");
+  return { success: "Foto actualizada." };
 }
 
 function parseStock(raw: FormDataEntryValue | null) {
@@ -301,4 +328,45 @@ export async function updateBusinessHoursAction(
   await saveBusinessHours(businessId, days);
   revalidatePath("/admin/configuracion");
   return { success: "Horario de atención guardado." };
+}
+
+export async function updateBusinessProfileAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const description = String(formData.get("description") || "").trim();
+  const address = String(formData.get("address") || "").trim();
+
+  if (description.length > 800) {
+    return { error: "La descripción es demasiado larga (máximo 800 caracteres)." };
+  }
+
+  const businessId = await requireAdmin();
+  await updateBusinessProfile(businessId, {
+    description: description || undefined,
+    address: address || undefined,
+  });
+  revalidatePath("/admin/configuracion");
+  return { success: "Datos del negocio guardados." };
+}
+
+export async function uploadBusinessCoverImageAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const file = formData.get("image");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Elegí una imagen para subir." };
+  }
+
+  const businessId = await requireAdmin();
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  try {
+    await setBusinessCoverImage(businessId, { type: file.type, data: buffer });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
+  }
+  revalidatePath("/admin/configuracion");
+  return { success: "Foto de portada actualizada." };
 }

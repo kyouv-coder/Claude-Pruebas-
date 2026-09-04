@@ -2,7 +2,11 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 
 export async function listAllServices(businessId: string) {
-  return prisma.service.findMany({ where: { businessId }, orderBy: { name: "asc" } });
+  return prisma.service.findMany({
+    where: { businessId },
+    orderBy: { name: "asc" },
+    omit: { imageData: true },
+  });
 }
 
 export async function createService(
@@ -44,6 +48,73 @@ export async function updateService(
       price: input.price,
     },
   });
+}
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024;
+
+function assertValidImage(file: { type: string; data: Buffer }) {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    throw new Error("Solo se aceptan imágenes JPG, PNG o WebP.");
+  }
+  if (file.data.byteLength > MAX_IMAGE_SIZE_BYTES) {
+    throw new Error("La imagen no puede pesar más de 4 MB.");
+  }
+}
+
+export async function setServiceImage(
+  businessId: string,
+  id: string,
+  file: { type: string; data: Buffer }
+) {
+  assertValidImage(file);
+  await prisma.service.findFirstOrThrow({ where: { id, businessId } });
+  return prisma.service.update({
+    where: { id },
+    data: { imageData: file.data, imageMimeType: file.type },
+  });
+}
+
+export async function getServiceImage(businessId: string, id: string) {
+  const service = await prisma.service.findFirst({
+    where: { id, businessId },
+    select: { imageData: true, imageMimeType: true },
+  });
+  if (!service?.imageData || !service.imageMimeType) return null;
+  return { data: service.imageData, mimeType: service.imageMimeType };
+}
+
+export async function updateBusinessProfile(
+  businessId: string,
+  input: { description?: string; address?: string }
+) {
+  return prisma.business.update({
+    where: { id: businessId },
+    data: {
+      description: input.description || null,
+      address: input.address || null,
+    },
+  });
+}
+
+export async function setBusinessCoverImage(
+  businessId: string,
+  file: { type: string; data: Buffer }
+) {
+  assertValidImage(file);
+  return prisma.business.update({
+    where: { id: businessId },
+    data: { coverImageData: file.data, coverImageMimeType: file.type },
+  });
+}
+
+export async function getBusinessCoverImage(businessId: string) {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { coverImageData: true, coverImageMimeType: true },
+  });
+  if (!business?.coverImageData || !business.coverImageMimeType) return null;
+  return { data: business.coverImageData, mimeType: business.coverImageMimeType };
 }
 
 export async function setServiceActive(businessId: string, id: string, active: boolean) {

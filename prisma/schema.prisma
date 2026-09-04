@@ -82,6 +82,11 @@ model Business {
   businessType     BusinessType @default(OTRO)
   slackWebhookUrl  String?
   cancellationPolicy String?
+  // Contenido de la página pública de reserva (/reservar/[slug]).
+  description      String?
+  address          String?
+  coverImageData     Bytes?
+  coverImageMimeType String?
   createdAt        DateTime     @default(now())
 
   users        User[]
@@ -124,6 +129,8 @@ model Service {
   durationMinutes Int
   price           Decimal  @db.Decimal(10, 2)
   active          Boolean  @default(true)
+  imageData       Bytes?
+  imageMimeType   String?
   createdAt       DateTime @default(now())
 
   bookings Booking[]

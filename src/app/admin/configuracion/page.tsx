@@ -10,6 +10,7 @@ import { SlackForm } from "./SlackForm";
 import { PublicBookingLink } from "./PublicBookingLink";
 import { BusinessHoursForm } from "./BusinessHoursForm";
 import { CancellationPolicyForm } from "./CancellationPolicyForm";
+import { BusinessProfileForm } from "./BusinessProfileForm";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +38,7 @@ export default async function ConfiguracionPage() {
     durationMinutes: s.durationMinutes,
     price: Number(s.price),
     active: s.active,
+    imageMimeType: s.imageMimeType,
   }));
 
   const productRows = products.map((p) => ({
@@ -82,6 +84,20 @@ export default async function ConfiguracionPage() {
       <section className="flex flex-col gap-4">
         <h2 className="font-display text-lg text-ink">Reservas online</h2>
         <PublicBookingLink url={publicBookingUrl} bookingSingular={copy.bookingSingular} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-display text-lg text-ink">Página pública</h2>
+        <p className="text-sm text-muted -mt-2">
+          Descripción, dirección y foto de portada que ve el cliente al
+          entrar al link de reservas online, antes de elegir un{" "}
+          {copy.serviceLabel.toLowerCase()}.
+        </p>
+        <BusinessProfileForm
+          description={user?.business.description ?? ""}
+          address={user?.business.address ?? ""}
+          hasCoverImage={Boolean(user?.business.coverImageMimeType)}
+        />
       </section>
 
       <section className="flex flex-col gap-4">

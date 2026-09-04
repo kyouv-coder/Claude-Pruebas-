@@ -176,6 +176,6 @@ export async function getCurrentUser() {
 
   return prisma.user.findUnique({
     where: { id: session.sub },
-    include: { business: true },
+    include: { business: { omit: { coverImageData: true } } },
   });
 }

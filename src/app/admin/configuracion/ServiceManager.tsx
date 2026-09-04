@@ -5,6 +5,7 @@ import {
   createServiceAction,
   updateServiceAction,
   toggleServiceActiveAction,
+  uploadServiceImageAction,
   type ActionState,
 } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
@@ -16,6 +17,7 @@ type Service = {
   durationMinutes: number;
   price: number;
   active: boolean;
+  imageMimeType: string | null;
 };
 
 const initialState: ActionState = {};
@@ -141,19 +143,32 @@ function ServiceRow({ service }: { service: Service }) {
 
   return (
     <div className="p-4 flex items-center justify-between gap-4">
-      <div className="text-sm">
-        <div
-          className={`font-medium ${
-            service.active ? "text-ink" : "text-muted line-through"
-          }`}
-        >
-          {service.name}
-        </div>
-        <div className="text-muted">
-          {service.durationMinutes} min · {money(service.price)}
+      <div className="flex items-center gap-3">
+        {service.imageMimeType ? (
+          // eslint-disable-next-line @next/next/no-img-element -- imagen servida por una API propia, no un dominio remoto configurable
+          <img
+            src={`/admin/configuracion/imagen-servicio/${service.id}`}
+            alt=""
+            className="w-12 h-12 rounded-md object-cover border border-border shrink-0"
+          />
+        ) : (
+          <div className="w-12 h-12 rounded-md bg-accent-soft shrink-0" aria-hidden="true" />
+        )}
+        <div className="text-sm">
+          <div
+            className={`font-medium ${
+              service.active ? "text-ink" : "text-muted line-through"
+            }`}
+          >
+            {service.name}
+          </div>
+          <div className="text-muted">
+            {service.durationMinutes} min · {money(service.price)}
+          </div>
         </div>
       </div>
       <div className="flex items-center gap-3">
+        <ServiceImageUpload serviceId={service.id} />
         <button
           type="button"
           onClick={() => setEditing(true)}
@@ -177,5 +192,37 @@ function ServiceRow({ service }: { service: Service }) {
         </button>
       </div>
     </div>
+  );
+}
+
+function ServiceImageUpload({ serviceId }: { serviceId: string }) {
+  const [state, formAction, pending] = useActionState(uploadServiceImageAction, initialState);
+
+  return (
+    <form action={formAction} className="flex items-center gap-1">
+      <input type="hidden" name="id" value={serviceId} />
+      <label htmlFor={`svc-img-${serviceId}`} className="sr-only">
+        Foto del servicio
+      </label>
+      <input
+        id={`svc-img-${serviceId}`}
+        name="image"
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="text-xs max-w-[7rem]"
+      />
+      <button
+        type="submit"
+        disabled={pending}
+        className="text-xs text-accent hover:underline disabled:opacity-50"
+      >
+        {pending ? "Subiendo…" : "Subir foto"}
+      </button>
+      {state.error && (
+        <span role="alert" className="text-danger text-xs">
+          {state.error}
+        </span>
+      )}
+    </form>
   );
 }

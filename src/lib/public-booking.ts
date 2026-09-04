@@ -2,16 +2,21 @@ import { prisma } from "@/lib/prisma";
 import { getVerticalCopy } from "@/lib/verticals";
 
 export async function getBusinessBySlug(slug: string) {
-  const business = await prisma.business.findUnique({ where: { slug } });
+  const business = await prisma.business.findUnique({
+    where: { slug },
+    omit: { coverImageData: true },
+  });
   if (!business) return null;
   return { ...business, copy: getVerticalCopy(business.businessType) };
 }
 
 export async function listPublicServices(businessId: string) {
-  return prisma.service.findMany({
+  const services = await prisma.service.findMany({
     where: { businessId, active: true },
     orderBy: { name: "asc" },
+    omit: { imageData: true },
   });
+  return services.map((s) => ({ ...s, hasImage: s.imageMimeType != null }));
 }
 
 export async function listPublicStaff(businessId: string) {
