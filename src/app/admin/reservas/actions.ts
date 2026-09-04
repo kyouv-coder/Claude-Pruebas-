@@ -59,3 +59,11 @@ export async function cancelBookingAction(bookingId: string) {
   await updateBookingStatus(businessId, bookingId, "CANCELLED");
   revalidatePath("/admin/reservas");
 }
+
+export async function markNoShowAction(bookingId: string) {
+  const businessId = await requireBusinessId();
+  await updateBookingStatus(businessId, bookingId, "NO_SHOW");
+  revalidatePath("/admin/reservas");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/clientes");
+}

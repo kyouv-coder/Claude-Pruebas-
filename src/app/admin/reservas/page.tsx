@@ -2,6 +2,7 @@ import { listServices, listStaff, listUpcomingBookings } from "@/lib/bookings";
 import { requireBusinessId } from "@/lib/auth";
 import { BookingForm } from "./BookingForm";
 import { CancelBookingButton } from "./CancelBookingButton";
+import { MarkNoShowButton } from "./MarkNoShowButton";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ const statusColor: Record<string, string> = {
 
 export default async function ReservasPage() {
   const businessId = await requireBusinessId();
+  const now = new Date();
   const [services, staff, bookings] = await Promise.all([
     listServices(businessId),
     listStaff(businessId),
@@ -82,9 +84,14 @@ export default async function ReservasPage() {
                     </span>
                   </div>
                 </div>
-                {b.status !== "CANCELLED" && (
-                  <CancelBookingButton bookingId={b.id} clientName={b.client.name} />
-                )}
+                <div className="flex items-center gap-3 shrink-0">
+                  {b.startTime < now && (b.status === "PENDING" || b.status === "CONFIRMED") && (
+                    <MarkNoShowButton bookingId={b.id} />
+                  )}
+                  {b.status !== "CANCELLED" && (
+                    <CancelBookingButton bookingId={b.id} clientName={b.client.name} />
+                  )}
+                </div>
               </div>
             ))}
           </div>

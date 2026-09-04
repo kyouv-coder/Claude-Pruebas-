@@ -16,8 +16,13 @@ export async function listStaff(businessId: string) {
 }
 
 export async function listUpcomingBookings(businessId: string, limit = 50) {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return prisma.booking.findMany({
-    where: { businessId, startTime: { gte: new Date() } },
+    // Incluye desde el inicio de hoy (no solo desde "ahora") para que un
+    // turno de esta mañana que nunca se cobró siga visible y se pueda
+    // marcar como no-show, en vez de desaparecer de la lista sin más.
+    where: { businessId, startTime: { gte: startOfToday } },
     orderBy: { startTime: "asc" },
     take: limit,
     include: { client: true, service: true, staff: true },
