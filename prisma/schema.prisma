@@ -67,9 +67,18 @@ model SignupAttempt {
   @@index([ip, createdAt])
 }
 
+model PublicBookingAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+}
+
 model Business {
   id               String       @id @default(cuid())
   name             String
+  slug             String       @unique
   businessType     BusinessType @default(OTRO)
   slackWebhookUrl  String?
   createdAt        DateTime     @default(now())

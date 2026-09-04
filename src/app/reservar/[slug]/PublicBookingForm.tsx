@@ -1,0 +1,112 @@
+"use client";
+
+import { useActionState } from "react";
+import { createPublicBookingAction, type ActionState } from "./actions";
+import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
+
+type Service = { id: string; name: string; durationMinutes: number; price: number };
+type Staff = { id: string; name: string };
+
+const initialState: ActionState = {};
+
+function money(n: number) {
+  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+}
+
+export function PublicBookingForm({
+  slug,
+  services,
+  staff,
+  ctaLabel,
+}: {
+  slug: string;
+  services: Service[];
+  staff: Staff[];
+  ctaLabel: string;
+}) {
+  const [state, formAction, pending] = useActionState(createPublicBookingAction, initialState);
+
+  if (state.success) {
+    return (
+      <div className="bg-accent-soft border border-success/30 rounded-lg p-6 text-center">
+        <p className="text-ink font-medium">{state.success}</p>
+        <p className="text-sm text-muted mt-2">
+          Si necesitás cambiar o cancelar, contactá directamente al negocio.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form action={formAction} className="flex flex-col gap-3" noValidate>
+      <input type="hidden" name="slug" value={slug} />
+      <FormError message={state.error} />
+      <FormSuccess message={state.success} />
+
+      <FormField label="Tu nombre" htmlFor="pbClientName" required>
+        <input id="pbClientName" name="clientName" required autoComplete="name" className={inputClass} />
+      </FormField>
+
+      <div className="flex gap-2">
+        <FormField label="Teléfono" htmlFor="pbClientPhone">
+          <input id="pbClientPhone" name="clientPhone" autoComplete="tel" className={inputClass} />
+        </FormField>
+        <FormField label="Email" htmlFor="pbClientEmail">
+          <input
+            id="pbClientEmail"
+            name="clientEmail"
+            type="email"
+            autoComplete="email"
+            className={inputClass}
+          />
+        </FormField>
+      </div>
+
+      <FormField label="Servicio" htmlFor="pbServiceId" required>
+        <select id="pbServiceId" name="serviceId" required className={inputClass}>
+          <option value="">Elegir…</option>
+          {services.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name} ({s.durationMinutes} min · {money(s.price)})
+            </option>
+          ))}
+        </select>
+      </FormField>
+
+      {staff.length > 1 && (
+        <FormField label="Profesional" htmlFor="pbStaffId">
+          <select id="pbStaffId" name="staffId" className={inputClass}>
+            <option value="">Sin preferencia</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+        </FormField>
+      )}
+      {staff.length === 1 && <input type="hidden" name="staffId" value={staff[0].id} />}
+
+      <div className="flex gap-2">
+        <FormField label="Fecha" htmlFor="pbDate" required>
+          <input id="pbDate" name="date" type="date" required className={inputClass} />
+        </FormField>
+        <FormField label="Hora" htmlFor="pbTime" required>
+          <input id="pbTime" name="time" type="time" required className={inputClass} />
+        </FormField>
+      </div>
+
+      <FormField label="Notas (opcional)" htmlFor="pbNotes">
+        <textarea id="pbNotes" name="notes" rows={2} className={inputClass} />
+      </FormField>
+
+      <button
+        type="submit"
+        disabled={pending || services.length === 0}
+        className="bg-ink text-paper rounded-md px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 mt-2"
+      >
+        {pending ? "Reservando…" : ctaLabel}
+      </button>
+    </form>
+  );
+}

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import type { BusinessType } from "@/generated/prisma";
+import { generateUniqueSlug } from "@/lib/slug";
 import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "@/lib/session";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 días
@@ -46,10 +47,11 @@ export async function signUp(input: {
   password: string;
 }) {
   const passwordHash = await hashPassword(input.password);
+  const slug = await generateUniqueSlug(input.businessName);
 
   return prisma.$transaction(async (tx) => {
     const business = await tx.business.create({
-      data: { name: input.businessName, businessType: input.businessType },
+      data: { name: input.businessName, businessType: input.businessType, slug },
     });
     const user = await tx.user.create({
       data: {

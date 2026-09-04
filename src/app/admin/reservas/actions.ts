@@ -31,15 +31,20 @@ export async function createBookingAction(
 
   const businessId = await requireBusinessId();
 
-  const booking = await createBooking(businessId, {
-    clientName,
-    clientPhone: clientPhone || undefined,
-    clientEmail: clientEmail || undefined,
-    serviceId,
-    staffId,
-    startTime,
-    notes: notes || undefined,
-  });
+  let booking;
+  try {
+    booking = await createBooking(businessId, {
+      clientName,
+      clientPhone: clientPhone || undefined,
+      clientEmail: clientEmail || undefined,
+      serviceId,
+      staffId,
+      startTime,
+      notes: notes || undefined,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo crear la reserva." };
+  }
 
   const user = await getCurrentUser();
   await sendSlackNotification(

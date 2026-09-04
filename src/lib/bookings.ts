@@ -73,14 +73,31 @@ export async function createBooking(
   const service = await prisma.service.findFirstOrThrow({
     where: { id: input.serviceId, businessId },
   });
+  const endTime = new Date(
+    input.startTime.getTime() + service.durationMinutes * 60_000
+  );
+
+  // Evita doble reserva: ¿el mismo profesional ya tiene un turno que se
+  // superpone con este horario? (dos intervalos se solapan si uno
+  // empieza antes de que el otro termine, en ambos sentidos)
+  const conflict = await prisma.booking.findFirst({
+    where: {
+      businessId,
+      staffId: input.staffId,
+      status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+      startTime: { lt: endTime },
+      endTime: { gt: input.startTime },
+    },
+  });
+  if (conflict) {
+    throw new Error("Ese profesional ya tiene un turno reservado en ese horario.");
+  }
+
   const client = await findOrCreateClient(businessId, {
     name: input.clientName,
     phone: input.clientPhone,
     email: input.clientEmail,
   });
-  const endTime = new Date(
-    input.startTime.getTime() + service.durationMinutes * 60_000
-  );
 
   return prisma.booking.create({
     data: {

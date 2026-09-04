@@ -1,20 +1,29 @@
+import { headers } from "next/headers";
 import { listAllServices, listAllProducts, listAllStaff } from "@/lib/settings";
 import { requireAdmin, getCurrentUser } from "@/lib/auth";
+import { getVerticalCopy } from "@/lib/verticals";
 import { ServiceManager } from "./ServiceManager";
 import { ProductManager } from "./ProductManager";
 import { StaffManager } from "./StaffManager";
 import { SlackForm } from "./SlackForm";
+import { PublicBookingLink } from "./PublicBookingLink";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
   const businessId = await requireAdmin();
-  const [services, products, staff, user] = await Promise.all([
+  const [services, products, staff, user, headerList] = await Promise.all([
     listAllServices(businessId),
     listAllProducts(businessId),
     listAllStaff(businessId),
     getCurrentUser(),
+    headers(),
   ]);
+
+  const proto = headerList.get("x-forwarded-proto") ?? "http";
+  const host = headerList.get("host") ?? "localhost:3000";
+  const copy = getVerticalCopy(user?.business.businessType);
+  const publicBookingUrl = user ? `${proto}://${host}/reservar/${user.business.slug}` : "";
 
   const serviceRows = services.map((s) => ({
     id: s.id,
@@ -63,6 +72,11 @@ export default async function ConfiguracionPage() {
       <section className="flex flex-col gap-4">
         <h2 className="font-display text-lg text-ink">Staff</h2>
         <StaffManager staff={staffRows} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-display text-lg text-ink">Reservas online</h2>
+        <PublicBookingLink url={publicBookingUrl} bookingSingular={copy.bookingSingular} />
       </section>
 
       <section className="flex flex-col gap-4">

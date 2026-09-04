@@ -9,6 +9,16 @@ const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@spa.local";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "changeme123";
 const STAFF_PASSWORD = process.env.SEED_STAFF_PASSWORD || "changeme123";
 
+function slugify(text: string) {
+  return (
+    text
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-+|-+$)/g, "") || "negocio"
+  );
+}
+
 async function main() {
   const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
@@ -21,7 +31,7 @@ async function main() {
         where: { id: existingAdmin.businessId },
       })
     : await prisma.business.create({
-        data: { name: BUSINESS_NAME, businessType: "SPA" },
+        data: { name: BUSINESS_NAME, businessType: "SPA", slug: slugify(BUSINESS_NAME) },
       });
 
   const admin = await prisma.user.upsert({
