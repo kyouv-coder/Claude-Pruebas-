@@ -27,9 +27,30 @@ export async function closeCashSession(
   sessionId: string,
   closingAmount: number
 ) {
-  return prisma.cashRegisterSession.update({
+  const session = await prisma.cashRegisterSession.findFirstOrThrow({
     where: { id: sessionId, businessId },
-    data: { closedAt: new Date(), closingAmount },
+  });
+
+  const cashSales = await prisma.sale.findMany({
+    where: { businessId, cashSessionId: sessionId, paymentMethod: "CASH" },
+    select: { total: true },
+  });
+  const cashSalesTotal = cashSales.reduce((sum, s) => sum + Number(s.total), 0);
+  const expectedCash = Number(session.openingAmount) + cashSalesTotal;
+  const difference = closingAmount - expectedCash;
+
+  const updated = await prisma.cashRegisterSession.update({
+    where: { id: sessionId, businessId },
+    data: { closedAt: new Date(), closingAmount, expectedCashAmount: expectedCash },
+  });
+
+  return { session: updated, expectedCash, countedCash: closingAmount, difference };
+}
+
+export async function getLastClosedCashSession(businessId: string) {
+  return prisma.cashRegisterSession.findFirst({
+    where: { businessId, closedAt: { not: null } },
+    orderBy: { closedAt: "desc" },
   });
 }
 

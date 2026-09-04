@@ -78,6 +78,15 @@ export async function getMonthlyFinancials(
   };
 }
 
+export async function listSalesForMonth(businessId: string, year: number, month: number) {
+  const { start, end } = monthRange(year, month);
+  return prisma.sale.findMany({
+    where: { businessId, createdAt: { gte: start, lt: end } },
+    orderBy: { createdAt: "desc" },
+    include: { client: true, items: true },
+  });
+}
+
 export async function getMonthlyTrend(businessId: string, monthsBack = 6) {
   const now = new Date();
   const months: { year: number; month: number; label: string }[] = [];

@@ -79,6 +79,21 @@ export default async function FinanzasPage({
         </Link>
       </div>
 
+      <div className="flex flex-wrap gap-3 text-sm">
+        <a
+          href={`/admin/finanzas/export?year=${year}&month=${month}`}
+          className="text-accent hover:underline"
+        >
+          ⬇ Descargar gastos del mes (CSV)
+        </a>
+        <a
+          href={`/admin/caja/export?year=${year}&month=${month}`}
+          className="text-accent hover:underline"
+        >
+          ⬇ Descargar ventas del mes (CSV)
+        </a>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-xs text-muted">Ingresos del mes</div>

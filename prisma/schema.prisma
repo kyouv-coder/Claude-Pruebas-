@@ -182,16 +182,17 @@ model GiftCardTransaction {
 }
 
 model CashRegisterSession {
-  id            String    @id @default(cuid())
-  business      Business  @relation(fields: [businessId], references: [id])
-  businessId    String
-  openedBy      User      @relation(fields: [openedById], references: [id])
-  openedById    String
-  openedAt      DateTime  @default(now())
-  closedAt      DateTime?
-  openingAmount Decimal   @db.Decimal(10, 2)
-  closingAmount Decimal?  @db.Decimal(10, 2)
-  notes         String?
+  id                  String    @id @default(cuid())
+  business            Business  @relation(fields: [businessId], references: [id])
+  businessId          String
+  openedBy            User      @relation(fields: [openedById], references: [id])
+  openedById          String
+  openedAt            DateTime  @default(now())
+  closedAt            DateTime?
+  openingAmount       Decimal   @db.Decimal(10, 2)
+  closingAmount       Decimal?  @db.Decimal(10, 2)
+  expectedCashAmount  Decimal?  @db.Decimal(10, 2)
+  notes               String?
 
   sales Sale[]
 

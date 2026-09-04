@@ -3,6 +3,7 @@ import {
   getCashSessionSummary,
   getTodaysUnpaidBookings,
   listSellableProducts,
+  getLastClosedCashSession,
 } from "@/lib/pos";
 import { requireBusinessId } from "@/lib/auth";
 import { chargeBookingAction } from "./actions";
@@ -25,9 +26,41 @@ export default async function CajaPage() {
   const session = await getOpenCashSession(businessId);
 
   if (!session) {
+    const lastClosed = await getLastClosedCashSession(businessId);
+    const diff =
+      lastClosed?.closingAmount != null && lastClosed.expectedCashAmount != null
+        ? Number(lastClosed.closingAmount) - Number(lastClosed.expectedCashAmount)
+        : null;
+
     return (
       <div className="flex flex-col gap-6">
         <h1 className="font-display text-2xl text-ink">Caja</h1>
+
+        {lastClosed && diff !== null && (
+          <div
+            className={`max-w-sm border rounded-lg p-4 text-sm ${
+              diff === 0
+                ? "bg-accent-soft border-success/20"
+                : "bg-danger-soft border-danger/20"
+            }`}
+          >
+            <p className="font-medium text-ink mb-1">
+              Último cierre — {lastClosed.closedAt!.toLocaleString("es-AR")}
+            </p>
+            <p className="text-muted">
+              Esperado: {money(Number(lastClosed.expectedCashAmount))} · Contado:{" "}
+              {money(Number(lastClosed.closingAmount))}
+            </p>
+            <p className={diff === 0 ? "text-success" : "text-danger"}>
+              {diff === 0
+                ? "Cuadra exacto."
+                : diff > 0
+                  ? `Sobrante de ${money(diff)}.`
+                  : `Faltante de ${money(Math.abs(diff))}.`}
+            </p>
+          </div>
+        )}
+
         <div className="max-w-sm bg-surface border border-border rounded-lg p-5">
           <h2 className="font-display text-lg text-ink mb-4">Abrir caja</h2>
           <OpenCashForm />

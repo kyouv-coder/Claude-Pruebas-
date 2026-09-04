@@ -39,9 +39,21 @@ export async function closeCashSessionAction(
     return { error: "Ingresá un monto de cierre válido." };
   }
   const businessId = await requireBusinessId();
-  await closeCashSession(businessId, sessionId, closingAmount);
+  const result = await closeCashSession(businessId, sessionId, closingAmount);
   revalidatePath("/admin/caja");
-  return { success: "Caja cerrada." };
+
+  const money = (n: number) =>
+    n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+
+  if (result.difference === 0) {
+    return { success: `Caja cerrada. Cuadra exacto: ${money(result.countedCash)}.` };
+  }
+  const sign = result.difference > 0 ? "sobrante" : "faltante";
+  return {
+    success: `Caja cerrada. Esperado: ${money(result.expectedCash)}, contado: ${money(
+      result.countedCash
+    )} — ${sign} de ${money(Math.abs(result.difference))}.`,
+  };
 }
 
 export async function chargeBookingAction(formData: FormData) {
