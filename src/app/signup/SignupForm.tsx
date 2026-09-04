@@ -1,8 +1,10 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { signupAction, type ActionState } from "./actions";
 import { FormField, FormError, inputClass } from "@/components/FormField";
+import { BUSINESS_TYPE_OPTIONS } from "@/lib/verticals";
 
 const initialState: ActionState = {};
 
@@ -19,13 +21,39 @@ export function SignupForm() {
           name="businessName"
           required
           autoFocus
+          autoComplete="organization"
           placeholder="Ej: Spa Luna"
           className={inputClass}
         />
       </FormField>
 
+      <FormField label="Rubro de tu negocio" htmlFor="signupBusinessType" required>
+        <select
+          id="signupBusinessType"
+          name="businessType"
+          required
+          defaultValue=""
+          className={inputClass}
+        >
+          <option value="" disabled>
+            Elegí una opción…
+          </option>
+          {BUSINESS_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </FormField>
+
       <FormField label="Tu nombre" htmlFor="signupName" required>
-        <input id="signupName" name="name" required className={inputClass} />
+        <input
+          id="signupName"
+          name="name"
+          required
+          autoComplete="name"
+          className={inputClass}
+        />
       </FormField>
 
       <FormField label="Email" htmlFor="signupEmail" required>
@@ -34,6 +62,7 @@ export function SignupForm() {
           name="email"
           type="email"
           required
+          autoComplete="email"
           className={inputClass}
         />
       </FormField>
@@ -45,9 +74,22 @@ export function SignupForm() {
           type="password"
           minLength={8}
           required
+          autoComplete="new-password"
           className={inputClass}
         />
       </FormField>
+
+      <p className="text-xs text-muted">
+        Al crear tu cuenta aceptás los{" "}
+        <Link href="/terminos" target="_blank" className="text-accent hover:underline">
+          Términos de Servicio
+        </Link>{" "}
+        y la{" "}
+        <Link href="/privacidad" target="_blank" className="text-accent hover:underline">
+          Política de Privacidad
+        </Link>
+        .
+      </p>
 
       <button
         type="submit"

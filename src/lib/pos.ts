@@ -27,9 +27,30 @@ export async function closeCashSession(
   sessionId: string,
   closingAmount: number
 ) {
-  return prisma.cashRegisterSession.update({
+  const session = await prisma.cashRegisterSession.findFirstOrThrow({
     where: { id: sessionId, businessId },
-    data: { closedAt: new Date(), closingAmount },
+  });
+
+  const cashSales = await prisma.sale.findMany({
+    where: { businessId, cashSessionId: sessionId, paymentMethod: "CASH" },
+    select: { total: true },
+  });
+  const cashSalesTotal = cashSales.reduce((sum, s) => sum + Number(s.total), 0);
+  const expectedCash = Number(session.openingAmount) + cashSalesTotal;
+  const difference = closingAmount - expectedCash;
+
+  const updated = await prisma.cashRegisterSession.update({
+    where: { id: sessionId, businessId },
+    data: { closedAt: new Date(), closingAmount, expectedCashAmount: expectedCash },
+  });
+
+  return { session: updated, expectedCash, countedCash: closingAmount, difference };
+}
+
+export async function getLastClosedCashSession(businessId: string) {
+  return prisma.cashRegisterSession.findFirst({
+    where: { businessId, closedAt: { not: null } },
+    orderBy: { closedAt: "desc" },
   });
 }
 
@@ -98,6 +119,64 @@ export async function chargeBooking(
       where: { id: booking.id },
       data: { status: "COMPLETED" },
     });
+    return sale;
+  });
+}
+
+export async function listSellableProducts(businessId: string) {
+  return prisma.product.findMany({
+    where: { businessId, active: true, stock: { gt: 0 } },
+    orderBy: { name: "asc" },
+  });
+}
+
+export async function sellProduct(
+  businessId: string,
+  input: {
+    productId: string;
+    quantity: number;
+    paymentMethod: PaymentMethod;
+    cashSessionId: string;
+    clientId?: string;
+  }
+) {
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.findFirstOrThrow({
+      where: { id: input.productId, businessId },
+    });
+
+    // Update condicionado (no leer-y-después-escribir): si dos ventas del
+    // mismo producto llegan al mismo tiempo, esta consulta es atómica a
+    // nivel de base de datos — solo una puede descontar stock que ya no
+    // alcanza, evitando dejarlo en negativo.
+    const decremented = await tx.product.updateMany({
+      where: { id: product.id, businessId, stock: { gte: input.quantity } },
+      data: { stock: { decrement: input.quantity } },
+    });
+    if (decremented.count === 0) {
+      throw new Error(`Stock insuficiente. Quedan ${product.stock} unidades.`);
+    }
+
+    const sale = await tx.sale.create({
+      data: {
+        businessId,
+        clientId: input.clientId,
+        cashSessionId: input.cashSessionId,
+        total: Number(product.price) * input.quantity,
+        paymentMethod: input.paymentMethod,
+        items: {
+          create: [
+            {
+              productId: product.id,
+              description: product.name,
+              quantity: input.quantity,
+              unitPrice: product.price,
+            },
+          ],
+        },
+      },
+    });
+
     return sale;
   });
 }
@@ -182,11 +261,25 @@ export async function redeemGiftCard(
   });
 
   if (!giftCard.active) throw new Error("La giftcard no está activa");
-  if (Number(giftCard.balance) < input.amount) {
-    throw new Error("Saldo insuficiente en la giftcard");
-  }
 
   return prisma.$transaction(async (tx) => {
+    // Update condicionado (mismo patrón que el descuento de stock en
+    // sellProduct): si dos canjes de la misma giftcard llegan al mismo
+    // tiempo, esta resta es atómica a nivel de base de datos — solo uno
+    // puede pasar cuando el saldo ya no alcanza, evitando dejarlo negativo.
+    const decremented = await tx.giftCard.updateMany({
+      where: { id: giftCard.id, businessId, active: true, balance: { gte: input.amount } },
+      data: { balance: { decrement: input.amount } },
+    });
+    if (decremented.count === 0) {
+      throw new Error("Saldo insuficiente en la giftcard");
+    }
+
+    const updated = await tx.giftCard.findUniqueOrThrow({ where: { id: giftCard.id } });
+    if (Number(updated.balance) <= 0) {
+      await tx.giftCard.update({ where: { id: giftCard.id }, data: { active: false } });
+    }
+
     const sale = await tx.sale.create({
       data: {
         businessId,
@@ -204,12 +297,6 @@ export async function redeemGiftCard(
           ],
         },
       },
-    });
-
-    const newBalance = Number(giftCard.balance) - input.amount;
-    await tx.giftCard.update({
-      where: { id: giftCard.id },
-      data: { balance: newBalance, active: newBalance > 0 ? true : false },
     });
 
     await tx.giftCardTransaction.create({

@@ -3,24 +3,33 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const links = [
-  { href: "/admin/reservas", label: "Reservas" },
-  { href: "/admin/caja", label: "Caja" },
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/finanzas", label: "Finanzas" },
-  { href: "/admin/configuracion", label: "Configuración" },
-];
-
 export function AdminSidebar({
   businessName,
   operatorName,
+  isAdmin,
+  bookingsNavLabel = "Reservas",
+  clientsNavLabel = "Clientes",
   logoutAction,
 }: {
   businessName?: string;
   operatorName?: string;
+  isAdmin?: boolean;
+  bookingsNavLabel?: string;
+  clientsNavLabel?: string;
   logoutAction: () => void;
 }) {
   const pathname = usePathname();
+  const links = [
+    { href: "/admin/reservas", label: bookingsNavLabel, adminOnly: false },
+    { href: "/admin/caja", label: "Caja", adminOnly: false },
+    { href: "/admin/clientes", label: clientsNavLabel, adminOnly: false },
+    { href: "/admin/giftcards", label: "Giftcards", adminOnly: false },
+    { href: "/admin/dashboard", label: "Dashboard", adminOnly: true },
+    { href: "/admin/recomendaciones", label: "Recomendaciones", adminOnly: true },
+    { href: "/admin/finanzas", label: "Finanzas", adminOnly: true },
+    { href: "/admin/configuracion", label: "Configuración", adminOnly: true },
+  ];
+  const visibleLinks = links.filter((link) => !link.adminOnly || isAdmin);
 
   return (
     <nav
@@ -33,7 +42,7 @@ export function AdminSidebar({
         </span>
         <p className="text-xs text-muted mt-0.5">Administración</p>
       </div>
-      {links.map((link) => {
+      {visibleLinks.map((link) => {
         const active = pathname === link.href;
         return (
           <Link
@@ -56,6 +65,28 @@ export function AdminSidebar({
             Conectada como {operatorName}
           </p>
         )}
+        <Link
+          href="/admin/cuenta"
+          aria-current={pathname === "/admin/cuenta" ? "page" : undefined}
+          className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+            pathname === "/admin/cuenta"
+              ? "bg-accent-soft text-ink font-medium"
+              : "text-muted hover:bg-accent-soft/60 hover:text-ink"
+          }`}
+        >
+          Mi cuenta
+        </Link>
+        <Link
+          href="/admin/soporte"
+          aria-current={pathname === "/admin/soporte" ? "page" : undefined}
+          className={`block rounded-md px-3 py-2 text-sm transition-colors ${
+            pathname === "/admin/soporte"
+              ? "bg-accent-soft text-ink font-medium"
+              : "text-muted hover:bg-accent-soft/60 hover:text-ink"
+          }`}
+        >
+          Soporte
+        </Link>
         <form action={logoutAction}>
           <button
             type="submit"

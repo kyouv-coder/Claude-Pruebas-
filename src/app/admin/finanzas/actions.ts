@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createExpense, deleteExpense } from "@/lib/finance";
-import { requireBusinessId } from "@/lib/auth";
+import { createExpense, deleteExpense, attachSaleInvoice } from "@/lib/finance";
+import { requireAdmin } from "@/lib/auth";
 import type { ExpenseCategory } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -36,7 +36,7 @@ export async function createExpenseAction(
     return { error: "El monto debe ser mayor a 0." };
   }
 
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
 
   await createExpense(businessId, {
     date,
@@ -51,8 +51,39 @@ export async function createExpenseAction(
 }
 
 export async function deleteExpenseAction(id: string) {
-  const businessId = await requireBusinessId();
+  const businessId = await requireAdmin();
   await deleteExpense(businessId, id);
   revalidatePath("/admin/finanzas");
   revalidatePath("/admin/dashboard");
+}
+
+export async function uploadSaleInvoiceAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const saleId = String(formData.get("saleId") || "");
+  const file = formData.get("file");
+
+  if (!saleId) {
+    return { error: "Venta inválida." };
+  }
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Elegí un archivo para subir." };
+  }
+
+  const businessId = await requireAdmin();
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  try {
+    await attachSaleInvoice(businessId, saleId, {
+      name: file.name,
+      type: file.type,
+      data: buffer,
+    });
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "No se pudo subir el comprobante." };
+  }
+
+  revalidatePath("/admin/finanzas");
+  return { success: "Comprobante subido." };
 }

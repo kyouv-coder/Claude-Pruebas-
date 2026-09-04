@@ -66,6 +66,19 @@ function StaffForm({ staff, onDone }: { staff?: Staff; onDone?: () => void }) {
           className={inputClass}
         />
       </FormField>
+      {!staff && (
+        <FormField label="Contraseña inicial" htmlFor={`staff-password-${idSuffix}`} required>
+          <input
+            id={`staff-password-${idSuffix}`}
+            name="password"
+            type="password"
+            minLength={8}
+            required
+            autoComplete="new-password"
+            className={inputClass}
+          />
+        </FormField>
+      )}
       <div className="flex gap-2">
         <button
           type="submit"

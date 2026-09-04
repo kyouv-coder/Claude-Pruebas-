@@ -1,0 +1,6 @@
+-- CreateEnum
+CREATE TYPE "BusinessType" AS ENUM ('SPA', 'PELUQUERIA_BARBERIA', 'RESTAURANTE', 'PANADERIA_CAFETERIA', 'TRANSPORTE', 'OTRO');
+
+-- AlterTable
+ALTER TABLE "Business" ADD COLUMN     "businessType" "BusinessType" NOT NULL DEFAULT 'OTRO';
+

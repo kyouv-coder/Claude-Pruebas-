@@ -1,22 +1,48 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { Prisma } from "@/generated/prisma";
-import { signUp, createSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import { Prisma, type BusinessType } from "@/generated/prisma";
+import { signUp, createSession, checkSignupRateLimit, recordSignupAttempt } from "@/lib/auth";
+import { BUSINESS_TYPE_OPTIONS } from "@/lib/verticals";
 
 export type ActionState = { error?: string };
+
+async function getClientIp() {
+  const headerList = await headers();
+  // x-real-ip lo pone la plataforma de deploy (Vercel) directamente, sin
+  // que el cliente pueda sobreescribirlo — se prioriza sobre
+  // x-forwarded-for, que un cliente puede mandar con un valor propio si
+  // el proxy no lo sanitiza antes de reenviarlo a la app.
+  const realIp = headerList.get("x-real-ip");
+  if (realIp) return realIp.trim();
+
+  const forwardedFor = headerList.get("x-forwarded-for");
+  return forwardedFor?.split(",")[0]?.trim() || "unknown";
+}
 
 export async function signupAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const ip = await getClientIp();
+  const withinLimit = await checkSignupRateLimit(ip);
+  if (!withinLimit) {
+    return { error: "Demasiados intentos de registro. Probá de nuevo en un rato." };
+  }
+  await recordSignupAttempt(ip);
+
   const businessName = String(formData.get("businessName") || "").trim();
+  const businessType = String(formData.get("businessType") || "") as BusinessType;
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
 
   if (!businessName) {
     return { error: "Ingresá el nombre de tu negocio." };
+  }
+  if (!BUSINESS_TYPE_OPTIONS.some((o) => o.value === businessType)) {
+    return { error: "Elegí el rubro de tu negocio." };
   }
   if (!name) {
     return { error: "Ingresá tu nombre." };
@@ -30,7 +56,7 @@ export async function signupAction(
 
   let userId: string;
   try {
-    const result = await signUp({ businessName, name, email, password });
+    const result = await signUp({ businessName, businessType, name, email, password });
     userId = result.user.id;
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {

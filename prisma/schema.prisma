@@ -46,19 +46,59 @@ enum ExpenseCategory {
   OTRO
 }
 
-model Business {
+// Determina el "vocabulario" que ve cada negocio (nav, títulos, textos).
+// El modelo de datos subyacente (reservas de un servicio con un
+// profesional en un horario) sigue siendo el mismo para todos los
+// rubros — esto personaliza el lenguaje, no todavía el flujo completo.
+enum BusinessType {
+  SPA
+  PELUQUERIA_BARBERIA
+  RESTAURANTE
+  PANADERIA_CAFETERIA
+  TRANSPORTE
+  OTRO
+}
+
+model SignupAttempt {
   id        String   @id @default(cuid())
-  name      String
+  ip        String
   createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+}
+
+model PublicBookingAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+}
+
+model Business {
+  id               String       @id @default(cuid())
+  name             String
+  slug             String       @unique
+  businessType     BusinessType @default(OTRO)
+  slackWebhookUrl  String?
+  cancellationPolicy String?
+  // Contenido de la página pública de reserva (/reservar/[slug]).
+  description      String?
+  address          String?
+  coverImageData     Bytes?
+  coverImageMimeType String?
+  createdAt        DateTime     @default(now())
 
   users        User[]
   services     Service[]
+  products     Product[]
   clients      Client[]
   bookings     Booking[]
   giftCards    GiftCard[]
   cashSessions CashRegisterSession[]
   sales        Sale[]
   expenses     Expense[]
+  hours        BusinessHours[]
 }
 
 model User {
@@ -89,9 +129,30 @@ model Service {
   durationMinutes Int
   price           Decimal  @db.Decimal(10, 2)
   active          Boolean  @default(true)
+  imageData       Bytes?
+  imageMimeType   String?
   createdAt       DateTime @default(now())
 
   bookings Booking[]
+
+  @@unique([businessId, name])
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  business      Business @relation(fields: [businessId], references: [id])
+  businessId    String
+  name          String
+  description   String?
+  price         Decimal  @db.Decimal(10, 2)
+  stock         Int      @default(0)
+  active        Boolean  @default(true)
+  imageData     Bytes?
+  imageMimeType String?
+  createdAt     DateTime @default(now())
+
+  saleItems SaleItem[]
+  bookingRequests BookingProductRequest[]
 
   @@unique([businessId, name])
 }
@@ -130,9 +191,26 @@ model Booking {
   createdAt  DateTime      @default(now())
 
   sale Sale?
+  productRequests BookingProductRequest[]
 
   @@index([businessId, staffId, startTime])
   @@index([businessId, clientId])
+}
+
+// Productos que el cliente pidió llevarse junto con el turno, elegidos en la
+// página pública de reserva. Es un pedido informativo para que el staff lo
+// tenga preparado — el cobro real se sigue haciendo en caja como siempre,
+// esto no mueve stock ni genera una venta por sí solo.
+model BookingProductRequest {
+  id        String   @id @default(cuid())
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  bookingId String
+  product   Product  @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  createdAt DateTime @default(now())
+
+  @@index([bookingId])
 }
 
 model GiftCard {
@@ -165,16 +243,17 @@ model GiftCardTransaction {
 }
 
 model CashRegisterSession {
-  id            String    @id @default(cuid())
-  business      Business  @relation(fields: [businessId], references: [id])
-  businessId    String
-  openedBy      User      @relation(fields: [openedById], references: [id])
-  openedById    String
-  openedAt      DateTime  @default(now())
-  closedAt      DateTime?
-  openingAmount Decimal   @db.Decimal(10, 2)
-  closingAmount Decimal?  @db.Decimal(10, 2)
-  notes         String?
+  id                  String    @id @default(cuid())
+  business            Business  @relation(fields: [businessId], references: [id])
+  businessId          String
+  openedBy            User      @relation(fields: [openedById], references: [id])
+  openedById          String
+  openedAt            DateTime  @default(now())
+  closedAt            DateTime?
+  openingAmount       Decimal   @db.Decimal(10, 2)
+  closingAmount       Decimal?  @db.Decimal(10, 2)
+  expectedCashAmount  Decimal?  @db.Decimal(10, 2)
+  notes               String?
 
   sales Sale[]
 
@@ -195,6 +274,14 @@ model Sale {
   paymentMethod PaymentMethod
   createdAt     DateTime            @default(now())
 
+  // Comprobante/factura escaneada y subida por la dueña del negocio (se
+  // sigue emitiendo con un sistema de facturación externo — acá solo se
+  // guarda una copia para tener todo junto).
+  invoiceFileName   String?
+  invoiceMimeType   String?
+  invoiceFileData   Bytes?
+  invoiceUploadedAt DateTime?
+
   items      SaleItem[]
   giftCardTx GiftCardTransaction[]
 
@@ -203,12 +290,14 @@ model Sale {
 }
 
 model SaleItem {
-  id          String  @id @default(cuid())
-  sale        Sale    @relation(fields: [saleId], references: [id])
+  id          String   @id @default(cuid())
+  sale        Sale     @relation(fields: [saleId], references: [id])
   saleId      String
+  product     Product? @relation(fields: [productId], references: [id])
+  productId   String?
   description String
-  quantity    Int     @default(1)
-  unitPrice   Decimal @db.Decimal(10, 2)
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
 }
 
 model Expense {
@@ -222,4 +311,19 @@ model Expense {
   createdAt   DateTime        @default(now())
 
   @@index([businessId, date])
+}
+
+// Horario de atención por día de semana (0 = domingo ... 6 = sábado). Si un
+// negocio no tiene filas acá, se interpreta como "sin restricción configurada"
+// (comportamiento actual: la reserva pública no bloquea ningún horario).
+model BusinessHours {
+  id         String   @id @default(cuid())
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+  dayOfWeek  Int
+  openTime   String // "HH:mm"
+  closeTime  String // "HH:mm"
+  closed     Boolean  @default(false)
+
+  @@unique([businessId, dayOfWeek])
 }

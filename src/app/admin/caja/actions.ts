@@ -8,6 +8,7 @@ import {
   chargeBooking,
   sellGiftCard,
   redeemGiftCard,
+  sellProduct,
 } from "@/lib/pos";
 import { requireBusinessId } from "@/lib/auth";
 import type { PaymentMethod } from "@/generated/prisma";
@@ -38,9 +39,21 @@ export async function closeCashSessionAction(
     return { error: "Ingresá un monto de cierre válido." };
   }
   const businessId = await requireBusinessId();
-  await closeCashSession(businessId, sessionId, closingAmount);
+  const result = await closeCashSession(businessId, sessionId, closingAmount);
   revalidatePath("/admin/caja");
-  return { success: "Caja cerrada." };
+
+  const money = (n: number) =>
+    n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+
+  if (result.difference === 0) {
+    return { success: `Caja cerrada. Cuadra exacto: ${money(result.countedCash)}.` };
+  }
+  const sign = result.difference > 0 ? "sobrante" : "faltante";
+  return {
+    success: `Caja cerrada. Esperado: ${money(result.expectedCash)}, contado: ${money(
+      result.countedCash
+    )} — ${sign} de ${money(Math.abs(result.difference))}.`,
+  };
 }
 
 export async function chargeBookingAction(formData: FormData) {
@@ -84,6 +97,40 @@ export async function sellGiftCardAction(
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
   return { success: "Giftcard vendida." };
+}
+
+export async function sellProductAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const cashSessionId = String(formData.get("cashSessionId") || "");
+  const productId = String(formData.get("productId") || "");
+  const quantity = Number(formData.get("quantity") || 0);
+  const paymentMethod = String(formData.get("paymentMethod") || "CASH") as PaymentMethod;
+
+  if (!productId) {
+    return { error: "Elegí un producto." };
+  }
+  if (!Number.isInteger(quantity) || quantity < 1) {
+    return { error: "La cantidad debe ser un número entero mayor a 0." };
+  }
+
+  const businessId = await requireBusinessId();
+
+  try {
+    await sellProduct(businessId, { productId, quantity, paymentMethod, cashSessionId });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return { error: "No se encontró el producto." };
+    }
+    return {
+      error: e instanceof Error ? e.message : "No se pudo registrar la venta.",
+    };
+  }
+  revalidatePath("/admin/caja");
+  revalidatePath("/admin/dashboard");
+  revalidatePath("/admin/configuracion");
+  return { success: "Producto vendido." };
 }
 
 export async function redeemGiftCardAction(

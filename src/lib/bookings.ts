@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { BookingStatus } from "@/generated/prisma";
+import { checkWithinBusinessHours } from "@/lib/business-hours";
 
 export async function listServices(businessId: string) {
   return prisma.service.findMany({
@@ -16,11 +17,21 @@ export async function listStaff(businessId: string) {
 }
 
 export async function listUpcomingBookings(businessId: string, limit = 50) {
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return prisma.booking.findMany({
-    where: { businessId, startTime: { gte: new Date() } },
+    // Incluye desde el inicio de hoy (no solo desde "ahora") para que un
+    // turno de esta mañana que nunca se cobró siga visible y se pueda
+    // marcar como no-show, en vez de desaparecer de la lista sin más.
+    where: { businessId, startTime: { gte: startOfToday } },
     orderBy: { startTime: "asc" },
     take: limit,
-    include: { client: true, service: true, staff: true },
+    include: {
+      client: true,
+      service: true,
+      staff: true,
+      productRequests: { include: { product: true } },
+    },
   });
 }
 
@@ -63,19 +74,59 @@ export async function createBooking(
     staffId: string;
     startTime: Date;
     notes?: string;
-  }
+    productRequests?: { productId: string; quantity: number }[];
+  },
+  options?: { enforceBusinessHours?: boolean }
 ) {
   const service = await prisma.service.findFirstOrThrow({
     where: { id: input.serviceId, businessId },
   });
+  const endTime = new Date(
+    input.startTime.getTime() + service.durationMinutes * 60_000
+  );
+
+  if (options?.enforceBusinessHours) {
+    const hoursCheck = await checkWithinBusinessHours(businessId, input.startTime, endTime);
+    if (!hoursCheck.ok) {
+      throw new Error(hoursCheck.reason);
+    }
+  }
+
+  // Evita doble reserva: ¿el mismo profesional ya tiene un turno que se
+  // superpone con este horario? (dos intervalos se solapan si uno
+  // empieza antes de que el otro termine, en ambos sentidos)
+  const conflict = await prisma.booking.findFirst({
+    where: {
+      businessId,
+      staffId: input.staffId,
+      status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+      startTime: { lt: endTime },
+      endTime: { gt: input.startTime },
+    },
+  });
+  if (conflict) {
+    throw new Error("Ese profesional ya tiene un turno reservado en ese horario.");
+  }
+
   const client = await findOrCreateClient(businessId, {
     name: input.clientName,
     phone: input.clientPhone,
     email: input.clientEmail,
   });
-  const endTime = new Date(
-    input.startTime.getTime() + service.durationMinutes * 60_000
-  );
+
+  const validRequests = (input.productRequests || []).filter((r) => r.quantity > 0);
+  if (validRequests.length > 0) {
+    const products = await prisma.product.findMany({
+      where: { businessId, active: true, id: { in: validRequests.map((r) => r.productId) } },
+      select: { id: true },
+    });
+    const validIds = new Set(products.map((p) => p.id));
+    validRequests.splice(
+      0,
+      validRequests.length,
+      ...validRequests.filter((r) => validIds.has(r.productId))
+    );
+  }
 
   return prisma.booking.create({
     data: {
@@ -86,6 +137,21 @@ export async function createBooking(
       startTime: input.startTime,
       endTime,
       notes: input.notes || null,
+      productRequests:
+        validRequests.length > 0
+          ? {
+              create: validRequests.map((r) => ({
+                productId: r.productId,
+                quantity: r.quantity,
+              })),
+            }
+          : undefined,
+    },
+    include: {
+      client: true,
+      service: true,
+      staff: true,
+      productRequests: { include: { product: true } },
     },
   });
 }

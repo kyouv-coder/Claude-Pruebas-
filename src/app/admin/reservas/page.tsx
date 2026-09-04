@@ -1,7 +1,9 @@
 import { listServices, listStaff, listUpcomingBookings } from "@/lib/bookings";
-import { requireBusinessId } from "@/lib/auth";
+import { requireBusinessId, getCurrentUser } from "@/lib/auth";
+import { getVerticalCopy } from "@/lib/verticals";
 import { BookingForm } from "./BookingForm";
 import { CancelBookingButton } from "./CancelBookingButton";
+import { MarkNoShowButton } from "./MarkNoShowButton";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ const statusLabel: Record<string, string> = {
 // statuses use text-muted so they don't read as an alert.
 const statusColor: Record<string, string> = {
   PENDING: "text-muted",
-  CONFIRMED: "text-accent",
+  CONFIRMED: "text-ink font-medium",
   COMPLETED: "text-success",
   CANCELLED: "text-muted",
   NO_SHOW: "text-muted",
@@ -25,23 +27,37 @@ const statusColor: Record<string, string> = {
 
 export default async function ReservasPage() {
   const businessId = await requireBusinessId();
-  const [services, staff, bookings] = await Promise.all([
+  const now = new Date();
+  const [services, staff, bookings, user] = await Promise.all([
     listServices(businessId),
     listStaff(businessId),
     listUpcomingBookings(businessId),
+    getCurrentUser(),
   ]);
+  const copy = getVerticalCopy(user?.business.businessType);
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-display text-2xl text-ink">Reservas</h1>
+      <div>
+        <h1 className="font-display text-2xl text-ink">{copy.bookingsTitle}</h1>
+        <p className="text-sm text-muted mt-1">{copy.bookingsSubtitle}</p>
+      </div>
 
       <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
         <section className="bg-surface border border-border rounded-lg p-5 h-fit">
-          <h2 className="font-display text-lg text-ink mb-4">Nueva reserva</h2>
-          <BookingForm services={services} staff={staff} />
+          <h2 className="font-display text-lg text-ink mb-4">{copy.newBookingCta}</h2>
+          <BookingForm
+            services={services.map((s) => ({
+              id: s.id,
+              name: s.name,
+              durationMinutes: s.durationMinutes,
+            }))}
+            staff={staff.map((s) => ({ id: s.id, name: s.name }))}
+            ctaLabel={copy.newBookingCta}
+          />
           {services.length === 0 && (
             <p className="text-xs text-muted mt-3">
-              No hay servicios cargados todavía — corré{" "}
+              No hay {copy.serviceLabel.toLowerCase()} cargados todavía — corré{" "}
               <code className="bg-accent-soft px-1 rounded">
                 npm run db:seed
               </code>
@@ -52,11 +68,11 @@ export default async function ReservasPage() {
 
         <section className="bg-surface border border-border rounded-lg p-5">
           <h2 className="font-display text-lg text-ink mb-4">
-            Próximas reservas ({bookings.length})
+            Próximas {copy.bookingsNav.toLowerCase()} ({bookings.length})
           </h2>
           <div className="flex flex-col divide-y divide-border">
             {bookings.length === 0 && (
-              <p className="text-sm text-muted py-4">No hay reservas próximas.</p>
+              <p className="text-sm text-muted py-4">No hay {copy.bookingSingular}s próximas.</p>
             )}
             {bookings.map((b) => (
               <div
@@ -81,10 +97,20 @@ export default async function ReservasPage() {
                       {statusLabel[b.status]}
                     </span>
                   </div>
+                  {b.productRequests.length > 0 && (
+                    <div className="text-xs text-muted mt-0.5">
+                      🛍 Pidió: {b.productRequests.map((r) => `${r.quantity}x ${r.product.name}`).join(", ")}
+                    </div>
+                  )}
                 </div>
-                {b.status !== "CANCELLED" && (
-                  <CancelBookingButton bookingId={b.id} clientName={b.client.name} />
-                )}
+                <div className="flex items-center gap-3 shrink-0">
+                  {b.startTime < now && (b.status === "PENDING" || b.status === "CONFIRMED") && (
+                    <MarkNoShowButton bookingId={b.id} />
+                  )}
+                  {b.status !== "CANCELLED" && (
+                    <CancelBookingButton bookingId={b.id} clientName={b.client.name} />
+                  )}
+                </div>
               </div>
             ))}
           </div>

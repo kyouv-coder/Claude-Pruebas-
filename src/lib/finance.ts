@@ -78,6 +78,59 @@ export async function getMonthlyFinancials(
   };
 }
 
+export async function listSalesForMonth(businessId: string, year: number, month: number) {
+  const { start, end } = monthRange(year, month);
+  return prisma.sale.findMany({
+    where: { businessId, createdAt: { gte: start, lt: end } },
+    orderBy: { createdAt: "desc" },
+    include: { client: true, items: true },
+    // El archivo del comprobante puede pesar varios MB — nunca lo traemos
+    // en un listado, solo cuando se pide puntualmente (ver getSaleInvoiceFile).
+    omit: { invoiceFileData: true },
+  });
+}
+
+const ALLOWED_INVOICE_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+const MAX_INVOICE_SIZE_BYTES = 5 * 1024 * 1024;
+
+export async function attachSaleInvoice(
+  businessId: string,
+  saleId: string,
+  file: { name: string; type: string; data: Buffer }
+) {
+  if (!ALLOWED_INVOICE_TYPES.includes(file.type)) {
+    throw new Error("Solo se aceptan imágenes (JPG/PNG) o PDF.");
+  }
+  if (file.data.byteLength > MAX_INVOICE_SIZE_BYTES) {
+    throw new Error("El archivo no puede pesar más de 5 MB.");
+  }
+
+  await prisma.sale.findFirstOrThrow({ where: { id: saleId, businessId } });
+
+  return prisma.sale.update({
+    where: { id: saleId },
+    data: {
+      invoiceFileName: file.name,
+      invoiceMimeType: file.type,
+      invoiceFileData: file.data,
+      invoiceUploadedAt: new Date(),
+    },
+  });
+}
+
+export async function getSaleInvoiceFile(businessId: string, saleId: string) {
+  const sale = await prisma.sale.findFirst({
+    where: { id: saleId, businessId },
+    select: { invoiceFileName: true, invoiceMimeType: true, invoiceFileData: true },
+  });
+  if (!sale || !sale.invoiceFileData || !sale.invoiceMimeType) return null;
+  return {
+    fileName: sale.invoiceFileName || "comprobante",
+    mimeType: sale.invoiceMimeType,
+    data: sale.invoiceFileData,
+  };
+}
+
 export async function getMonthlyTrend(businessId: string, monthsBack = 6) {
   const now = new Date();
   const months: { year: number; month: number; label: string }[] = [];
