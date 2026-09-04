@@ -21,9 +21,11 @@ function money(n: number) {
 export function RevenueTrendChart({
   data,
   ariaLabel,
+  tickFormatter = (d: string) => d.slice(5),
 }: {
   data: { date: string; revenue: number }[];
   ariaLabel: string;
+  tickFormatter?: (date: string) => string;
 }) {
   return (
     <div role="img" aria-label={ariaLabel}>
@@ -33,7 +35,7 @@ export function RevenueTrendChart({
           <XAxis
             dataKey="date"
             tick={{ fontSize: 11, fill: "var(--muted)" }}
-            tickFormatter={(d: string) => d.slice(5)}
+            tickFormatter={tickFormatter}
           />
           <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} />
           <Tooltip

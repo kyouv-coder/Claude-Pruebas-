@@ -131,6 +131,49 @@ export async function getSaleInvoiceFile(businessId: string, saleId: string) {
   };
 }
 
+function yearRange(year: number) {
+  return { start: new Date(year, 0, 1), end: new Date(year + 1, 0, 1) };
+}
+
+export async function getYearlyFinancials(businessId: string, year: number) {
+  const { start, end } = yearRange(year);
+
+  const [sales, expenses] = await Promise.all([
+    prisma.sale.findMany({
+      where: { businessId, createdAt: { gte: start, lt: end } },
+      select: { total: true },
+    }),
+    prisma.expense.findMany({
+      where: { businessId, date: { gte: start, lt: end } },
+      select: { amount: true },
+    }),
+  ]);
+
+  const revenue = sales.reduce((sum, s) => sum + Number(s.total), 0);
+  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
+  return {
+    revenue,
+    expenses: totalExpenses,
+    net: revenue - totalExpenses,
+    salesCount: sales.length,
+    expensesCount: expenses.length,
+  };
+}
+
+export async function getYearlyTrend(businessId: string, yearsBack = 3) {
+  const currentYear = new Date().getFullYear();
+  const years = Array.from({ length: yearsBack }, (_, i) => currentYear - (yearsBack - 1 - i));
+
+  return Promise.all(
+    years.map(async (year) => ({
+      year,
+      label: String(year),
+      ...(await getYearlyFinancials(businessId, year)),
+    }))
+  );
+}
+
 export async function getMonthlyTrend(businessId: string, monthsBack = 6) {
   const now = new Date();
   const months: { year: number; month: number; label: string }[] = [];
