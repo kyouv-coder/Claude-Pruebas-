@@ -111,6 +111,7 @@ export async function getDashboardStats() {
     .slice(0, 5);
 
   return {
+    hasActivity: bookingsLast30.length > 0 || last30Sales.length > 0,
     todaysBookingsCount: todaysBookings.filter((b) => b.status !== "CANCELLED")
       .length,
     revenueLast7,

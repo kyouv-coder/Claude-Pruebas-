@@ -8,7 +8,7 @@ import {
   redeemGiftCardAction,
   type ActionState,
 } from "./actions";
-import { FormField, FormError, inputClass } from "@/components/FormField";
+import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
 
 const initialState: ActionState = {};
 
@@ -21,6 +21,7 @@ export function OpenCashForm() {
   return (
     <form action={formAction} className="flex flex-col gap-3" noValidate>
       <FormError message={state.error} />
+      <FormSuccess message={state.success} />
       <FormField label="Monto inicial" htmlFor="openingAmount" required>
         <input
           id="openingAmount"
@@ -75,6 +76,7 @@ export function CloseCashForm({ sessionId }: { sessionId: string }) {
         </button>
       </div>
       <FormError message={state.error} />
+      <FormSuccess message={state.success} />
     </form>
   );
 }
@@ -89,6 +91,7 @@ export function SellGiftCardForm({ cashSessionId }: { cashSessionId: string }) {
     <form action={formAction} className="flex flex-col gap-3" noValidate>
       <input type="hidden" name="cashSessionId" value={cashSessionId} />
       <FormError message={state.error} />
+      <FormSuccess message={state.success} />
 
       <FormField label="Nombre del cliente" htmlFor="gcClientName" required>
         <input id="gcClientName" name="clientName" required className={inputClass} />
@@ -149,6 +152,7 @@ export function RedeemGiftCardForm({ cashSessionId }: { cashSessionId: string })
     <form action={formAction} className="flex flex-col gap-3" noValidate>
       <input type="hidden" name="cashSessionId" value={cashSessionId} />
       <FormError message={state.error} />
+      <FormSuccess message={state.success} />
 
       <FormField label="Código de giftcard" htmlFor="redeemCode" required>
         <input

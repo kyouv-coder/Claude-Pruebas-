@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createBooking, updateBookingStatus } from "@/lib/bookings";
 
-export type ActionState = { error?: string };
+export type ActionState = { error?: string; success?: string };
 
 export async function createBookingAction(
   _prevState: ActionState,
@@ -38,7 +38,7 @@ export async function createBookingAction(
   });
 
   revalidatePath("/admin/reservas");
-  return {};
+  return { success: "Reserva creada." };
 }
 
 export async function cancelBookingAction(bookingId: string) {

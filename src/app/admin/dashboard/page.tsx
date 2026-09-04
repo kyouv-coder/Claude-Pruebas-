@@ -19,6 +19,14 @@ export default async function DashboardPage() {
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-2xl text-ink">Dashboard</h1>
 
+      {!stats.hasActivity && (
+        <div className="bg-accent-soft border border-border rounded-lg p-4 text-sm text-ink">
+          Todavía no hay reservas ni ventas registradas. Las métricas de abajo
+          van a empezar a completarse en cuanto se cree la primera reserva y
+          se cobre en caja.
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Reservas de hoy"

@@ -1,6 +1,6 @@
 import { listServices, listStaff, listUpcomingBookings } from "@/lib/bookings";
-import { cancelBookingAction } from "./actions";
 import { BookingForm } from "./BookingForm";
+import { CancelBookingButton } from "./CancelBookingButton";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +12,14 @@ const statusLabel: Record<string, string> = {
   NO_SHOW: "No se presentó",
 };
 
+// text-danger is reserved for destructive actions (e.g. "Cancelar"); past/neutral
+// statuses use text-muted so they don't read as an alert.
 const statusColor: Record<string, string> = {
   PENDING: "text-muted",
   CONFIRMED: "text-accent",
   COMPLETED: "text-success",
-  CANCELLED: "text-danger",
-  NO_SHOW: "text-danger",
+  CANCELLED: "text-muted",
+  NO_SHOW: "text-muted",
 };
 
 export default async function ReservasPage() {
@@ -79,19 +81,7 @@ export default async function ReservasPage() {
                   </div>
                 </div>
                 {b.status !== "CANCELLED" && (
-                  <form
-                    action={async () => {
-                      "use server";
-                      await cancelBookingAction(b.id);
-                    }}
-                  >
-                    <button
-                      type="submit"
-                      className="text-xs text-danger hover:underline"
-                    >
-                      Cancelar
-                    </button>
-                  </form>
+                  <CancelBookingButton bookingId={b.id} clientName={b.client.name} />
                 )}
               </div>
             ))}

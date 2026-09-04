@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createBookingAction, type ActionState } from "./actions";
-import { FormField, FormError, inputClass } from "@/components/FormField";
+import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
 
 type Service = { id: string; name: string; durationMinutes: number };
 type Staff = { id: string; name: string };
@@ -24,6 +24,7 @@ export function BookingForm({
   return (
     <form action={formAction} className="flex flex-col gap-3" noValidate>
       <FormError message={state.error} />
+      <FormSuccess message={state.success} />
 
       <FormField label="Nombre del cliente" htmlFor="clientName" required>
         <input id="clientName" name="clientName" required className={inputClass} />

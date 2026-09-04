@@ -10,7 +10,7 @@ import {
 } from "@/lib/pos";
 import type { PaymentMethod } from "@/generated/prisma";
 
-export type ActionState = { error?: string };
+export type ActionState = { error?: string; success?: string };
 
 export async function openCashSessionAction(
   _prevState: ActionState,
@@ -22,7 +22,7 @@ export async function openCashSessionAction(
   }
   await openCashSession(openingAmount);
   revalidatePath("/admin/caja");
-  return {};
+  return { success: "Caja abierta." };
 }
 
 export async function closeCashSessionAction(
@@ -36,7 +36,7 @@ export async function closeCashSessionAction(
   }
   await closeCashSession(sessionId, closingAmount);
   revalidatePath("/admin/caja");
-  return {};
+  return { success: "Caja cerrada." };
 }
 
 export async function chargeBookingAction(formData: FormData) {
@@ -76,7 +76,7 @@ export async function sellGiftCardAction(
   });
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
-  return {};
+  return { success: "Giftcard vendida." };
 }
 
 export async function redeemGiftCardAction(
@@ -106,5 +106,5 @@ export async function redeemGiftCardAction(
   }
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
-  return {};
+  return { success: "Giftcard canjeada." };
 }

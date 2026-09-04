@@ -32,5 +32,17 @@ export function FormError({ message }: { message?: string | null }) {
   );
 }
 
+export function FormSuccess({ message }: { message?: string | null }) {
+  if (!message) return null;
+  return (
+    <p
+      role="status"
+      className="text-sm text-success bg-accent-soft border border-success/20 rounded-md px-3 py-2"
+    >
+      {message}
+    </p>
+  );
+}
+
 export const inputClass =
   "border border-border rounded-md px-3 py-2 text-sm bg-surface text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent";
