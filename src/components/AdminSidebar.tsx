@@ -9,6 +9,7 @@ const links = [
   { href: "/admin/clientes", label: "Clientes", adminOnly: false },
   { href: "/admin/giftcards", label: "Giftcards", adminOnly: false },
   { href: "/admin/dashboard", label: "Dashboard", adminOnly: true },
+  { href: "/admin/recomendaciones", label: "Recomendaciones", adminOnly: true },
   { href: "/admin/finanzas", label: "Finanzas", adminOnly: true },
   { href: "/admin/configuracion", label: "Configuración", adminOnly: true },
 ];

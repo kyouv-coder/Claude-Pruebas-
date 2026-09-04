@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
 import { getMonthlyFinancials, getMonthlyTrend, currentYearMonth } from "@/lib/finance";
+import { getRecommendations } from "@/lib/insights";
 import { requireAdmin } from "@/lib/auth";
 import { StatCard } from "@/components/StatCard";
 import {
@@ -22,11 +23,13 @@ function pct(n: number) {
 export default async function DashboardPage() {
   const businessId = await requireAdmin();
   const { year, month } = currentYearMonth();
-  const [stats, monthFinancials, netTrend] = await Promise.all([
+  const [stats, monthFinancials, netTrend, recommendations] = await Promise.all([
     getDashboardStats(businessId),
     getMonthlyFinancials(businessId, year, month),
     getMonthlyTrend(businessId, 6),
+    getRecommendations(businessId),
   ]);
+  const topRecommendations = recommendations.filter((r) => r.severity !== "info").slice(0, 2);
   const netColor =
     monthFinancials.net > 0
       ? "text-success"
@@ -43,6 +46,29 @@ export default async function DashboardPage() {
           Todavía no hay reservas ni ventas registradas. Las métricas de abajo
           van a empezar a completarse en cuanto se cree la primera reserva y
           se cobre en caja.
+        </div>
+      )}
+
+      {topRecommendations.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {topRecommendations.map((r, i) => (
+            <div
+              key={i}
+              className={`border rounded-lg p-3 text-sm flex items-center justify-between gap-4 ${
+                r.severity === "alta"
+                  ? "border-danger/30 bg-danger-soft"
+                  : "border-border bg-accent-soft"
+              }`}
+            >
+              <span className="text-ink font-medium">{r.title}</span>
+              <Link
+                href="/admin/recomendaciones"
+                className="text-accent hover:underline shrink-0"
+              >
+                Ver detalle →
+              </Link>
+            </div>
+          ))}
         </div>
       )}
 
