@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { listExpensesForMonth, getMonthlyFinancials, currentYearMonth } from "@/lib/finance";
+import {
+  listExpensesForMonth,
+  listSalesForMonth,
+  getMonthlyFinancials,
+  currentYearMonth,
+} from "@/lib/finance";
 import { requireAdmin } from "@/lib/auth";
 import { ExpenseForm } from "./ExpenseForm";
 import { ExpenseList } from "./ExpenseList";
+import { InvoiceUploadForm } from "./InvoiceUploadForm";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +39,10 @@ export default async function FinanzasPage({
   const year = Number(params.year) || current.year;
   const month = Number(params.month) || current.month;
 
-  const [expenses, financials] = await Promise.all([
+  const [expenses, financials, sales] = await Promise.all([
     listExpensesForMonth(businessId, year, month),
     getMonthlyFinancials(businessId, year, month),
+    listSalesForMonth(businessId, year, month),
   ]);
 
   const expenseRows = expenses.map((e) => ({
@@ -128,6 +135,36 @@ export default async function FinanzasPage({
           <ExpenseList expenses={expenseRows} />
         </section>
       </div>
+
+      <section className="bg-surface border border-border rounded-lg p-5">
+        <h2 className="font-display text-lg text-ink mb-1">
+          Ventas de {monthLabel(year, month)} ({sales.length})
+        </h2>
+        <p className="text-sm text-muted mb-4">
+          El comprobante fiscal se sigue emitiendo aparte (boleta/factura) —
+          acá solo subís una foto o PDF de ese comprobante para tenerlo junto
+          a la venta.
+        </p>
+        <div className="flex flex-col divide-y divide-border">
+          {sales.length === 0 && (
+            <p className="text-sm text-muted py-4">No hay ventas registradas este mes.</p>
+          )}
+          {sales.map((s) => (
+            <div key={s.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
+              <div className="text-sm">
+                <div className="font-medium text-ink">
+                  {s.createdAt.toLocaleString("es-AR")} — {money(Number(s.total))}
+                </div>
+                <div className="text-muted">
+                  {s.client?.name ?? "Sin cliente"} ·{" "}
+                  {s.items.map((i) => `${i.quantity}x ${i.description}`).join(", ")}
+                </div>
+              </div>
+              <InvoiceUploadForm saleId={s.id} hasInvoice={Boolean(s.invoiceUploadedAt)} />
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

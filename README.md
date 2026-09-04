@@ -28,7 +28,7 @@ Abrí [http://localhost:3000](http://localhost:3000) — te redirige a `/login`.
 
 ### Pendiente / gaps conocidos
 
-- **Facturación electrónica**: no hay integración con ningún proveedor (Bsale, Haulmer/OpenFactura, etc.) — las ventas se registran acá pero el comprobante fiscal se sigue emitiendo aparte. El panel de Recomendaciones avisa esto activamente cada mes. Bloqueado hasta definir proveedor.
+- **Facturación electrónica**: no hay integración automática con ningún proveedor (Bsale u otro) — decisión consciente por ahora: en `Finanzas` cada venta tiene un botón para subir una foto o PDF del comprobante emitido aparte (por Bsale u otro sistema), y queda guardado junto a la venta. Si más adelante se quiere automatizar la emisión (no solo adjuntar), ahí sí hace falta el token de API de Bsale.
 - **Recordatorios a clientes por WhatsApp/SMS**: hoy solo hay notificación a Slack para la dueña, no al cliente. Necesita una cuenta de Twilio o WhatsApp Business API.
 - **Sentry**: el SDK está instalado pero inactivo (sin `SENTRY_DSN` configurado no envía nada).
 - **Política de cancelación / seña real**: hoy hay un campo de texto libre (informativo) mostrado al cliente, pero no cobra una seña ni bloquea nada — necesita definir con el negocio si se cobra seña, cuánto, y con qué proveedor de pagos.

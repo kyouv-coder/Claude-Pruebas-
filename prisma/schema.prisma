@@ -246,6 +246,14 @@ model Sale {
   paymentMethod PaymentMethod
   createdAt     DateTime            @default(now())
 
+  // Comprobante/factura escaneada y subida por la dueña del negocio (se
+  // sigue emitiendo con un sistema de facturación externo — acá solo se
+  // guarda una copia para tener todo junto).
+  invoiceFileName   String?
+  invoiceMimeType   String?
+  invoiceFileData   Bytes?
+  invoiceUploadedAt DateTime?
+
   items      SaleItem[]
   giftCardTx GiftCardTransaction[]
 
