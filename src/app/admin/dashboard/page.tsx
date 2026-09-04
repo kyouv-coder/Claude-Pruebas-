@@ -1,17 +1,14 @@
 import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
-import { getMonthlyFinancials, getMonthlyTrend, currentYearMonth } from "@/lib/finance";
+import { getMonthlyFinancials, getMonthlyTrend, getYearlyTrend, currentYearMonth } from "@/lib/finance";
 import { getRecommendations } from "@/lib/insights";
 import { getOnboardingStatus } from "@/lib/onboarding";
 import { requireAdmin, getCurrentUser } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
 import { StatCard } from "@/components/StatCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import {
-  RevenueTrendChart,
-  TopServicesChart,
-  NetProfitTrendChart,
-} from "@/components/DashboardCharts";
+import { TopServicesChart, NetProfitTrendChart } from "@/components/DashboardCharts";
+import { RevenueTrendPanel } from "@/components/RevenueTrendPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -26,14 +23,17 @@ function pct(n: number) {
 export default async function DashboardPage() {
   const businessId = await requireAdmin();
   const { year, month } = currentYearMonth();
-  const [stats, monthFinancials, netTrend, recommendations, user, onboarding] = await Promise.all([
-    getDashboardStats(businessId),
-    getMonthlyFinancials(businessId, year, month),
-    getMonthlyTrend(businessId, 6),
-    getRecommendations(businessId),
-    getCurrentUser(),
-    getOnboardingStatus(businessId),
-  ]);
+  const [stats, monthFinancials, netTrend, revenueMonthlyTrend, revenueYearlyTrend, recommendations, user, onboarding] =
+    await Promise.all([
+      getDashboardStats(businessId),
+      getMonthlyFinancials(businessId, year, month),
+      getMonthlyTrend(businessId, 6),
+      getMonthlyTrend(businessId, 12),
+      getYearlyTrend(businessId, 3),
+      getRecommendations(businessId),
+      getCurrentUser(),
+      getOnboardingStatus(businessId),
+    ]);
   const copy = getVerticalCopy(user?.business.businessType);
   const topRecommendations = recommendations.filter((r) => r.severity !== "info").slice(0, 2);
   const netColor =
@@ -121,20 +121,13 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="bg-surface border border-border rounded-lg p-4">
-        <div className="flex items-baseline justify-between mb-2">
-          <h2 className="font-display text-base text-ink">Ingresos por día (14 días)</h2>
-          <span className="text-xs text-muted">
-            Proyección próximos 30 días: {money(stats.projectedRevenueNext30)}
-          </span>
-        </div>
-        <RevenueTrendChart
-          data={stats.revenueTrend}
-          ariaLabel={`Gráfico de línea: ingresos diarios de los últimos 14 días, entre ${money(
-            Math.min(...stats.revenueTrend.map((d) => d.revenue))
-          )} y ${money(Math.max(...stats.revenueTrend.map((d) => d.revenue)))}.`}
-        />
-      </div>
+      <RevenueTrendPanel
+        daily14={stats.revenueTrend}
+        daily30={stats.revenueTrend30}
+        monthly={revenueMonthlyTrend.map((m) => ({ date: m.label, revenue: m.revenue }))}
+        yearly={revenueYearlyTrend.map((y) => ({ date: y.label, revenue: y.revenue }))}
+        projectedRevenueNext30={stats.projectedRevenueNext30}
+      />
 
       <div className="bg-surface border border-border rounded-lg p-4">
         <h2 className="font-display text-base text-ink mb-2">

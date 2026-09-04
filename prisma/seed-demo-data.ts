@@ -283,6 +283,10 @@ async function main() {
               cashSessionId,
               total: service.price,
               paymentMethod,
+              // Sin esto, Prisma usa @default(now()) y la venta queda
+              // fechada el día real en que corre el seed, no el día
+              // histórico simulado — rompe todos los gráficos por mes.
+              createdAt: endTime,
               items: {
                 create: [{ description: service.name, quantity: 1, unitPrice: service.price }],
               },
@@ -318,6 +322,7 @@ async function main() {
             cashSessionId,
             total: Number(product.price) * quantity,
             paymentMethod: pick(["CASH", "CARD"] as const),
+            createdAt: new Date(year, month, day, 19, 0),
             items: {
               create: [
                 { productId: product.id, description: product.name, quantity, unitPrice: product.price },
@@ -366,6 +371,7 @@ async function main() {
           cashSessionId: giftCardSession.id,
           total: amount,
           paymentMethod: "CASH",
+          createdAt: giftCardSession.openedAt,
           items: { create: [{ description: "Giftcard", quantity: 1, unitPrice: amount }] },
         },
       });
@@ -392,6 +398,7 @@ async function main() {
             cashSessionId: giftCardSession.id,
             total: redeemAmount,
             paymentMethod: "GIFTCARD",
+            createdAt: new Date(giftCardSession.openedAt.getTime() + 3 * 60 * 60_000),
             items: {
               create: [{ description: `Canje giftcard ${giftCard.code}`, quantity: 1, unitPrice: redeemAmount }],
             },

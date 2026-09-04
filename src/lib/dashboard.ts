@@ -52,21 +52,23 @@ export async function getDashboardStats(businessId: string) {
   const ticketPromedio =
     last30Sales.length > 0 ? revenueLast30 / last30Sales.length : 0;
 
-  // Tendencia diaria de ingresos (últimos 14 días) para el gráfico y proyección
-  const dailyRevenueMap = new Map<string, number>();
-  for (let i = 13; i >= 0; i--) {
-    const key = daysAgo(i).toISOString().slice(0, 10);
-    dailyRevenueMap.set(key, 0);
-  }
-  for (const sale of last30Sales) {
-    const key = startOfDay(sale.createdAt).toISOString().slice(0, 10);
-    if (dailyRevenueMap.has(key)) {
-      dailyRevenueMap.set(key, (dailyRevenueMap.get(key) ?? 0) + Number(sale.total));
+  // Tendencia diaria de ingresos, en dos ventanas (14 y 30 días) para que el
+  // selector de período del dashboard pueda alternar sin otra consulta.
+  function dailyTrend(days: number) {
+    const map = new Map<string, number>();
+    for (let i = days - 1; i >= 0; i--) {
+      map.set(daysAgo(i).toISOString().slice(0, 10), 0);
     }
+    for (const sale of last30Sales) {
+      const key = startOfDay(sale.createdAt).toISOString().slice(0, 10);
+      if (map.has(key)) {
+        map.set(key, (map.get(key) ?? 0) + Number(sale.total));
+      }
+    }
+    return Array.from(map.entries()).map(([date, revenue]) => ({ date, revenue }));
   }
-  const revenueTrend = Array.from(dailyRevenueMap.entries()).map(
-    ([date, revenue]) => ({ date, revenue })
-  );
+  const revenueTrend = dailyTrend(14);
+  const revenueTrend30 = dailyTrend(30);
 
   // Proyección simple: promedio diario de los últimos 14 días * 30
   const avgDailyRevenue =
@@ -124,6 +126,7 @@ export async function getDashboardStats(businessId: string) {
       outstandingGiftCards._sum.balance ?? 0
     ),
     revenueTrend,
+    revenueTrend30,
     projectedRevenueNext30,
     topServices,
   };
