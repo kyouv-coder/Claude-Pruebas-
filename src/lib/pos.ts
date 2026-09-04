@@ -145,7 +145,15 @@ export async function sellProduct(
       where: { id: input.productId, businessId },
     });
 
-    if (product.stock < input.quantity) {
+    // Update condicionado (no leer-y-después-escribir): si dos ventas del
+    // mismo producto llegan al mismo tiempo, esta consulta es atómica a
+    // nivel de base de datos — solo una puede descontar stock que ya no
+    // alcanza, evitando dejarlo en negativo.
+    const decremented = await tx.product.updateMany({
+      where: { id: product.id, businessId, stock: { gte: input.quantity } },
+      data: { stock: { decrement: input.quantity } },
+    });
+    if (decremented.count === 0) {
       throw new Error(`Stock insuficiente. Quedan ${product.stock} unidades.`);
     }
 
@@ -167,11 +175,6 @@ export async function sellProduct(
           ],
         },
       },
-    });
-
-    await tx.product.update({
-      where: { id: product.id },
-      data: { stock: product.stock - input.quantity },
     });
 
     return sale;

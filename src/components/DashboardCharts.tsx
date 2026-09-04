@@ -14,6 +14,10 @@ import {
   ReferenceLine,
 } from "recharts";
 
+function money(n: number) {
+  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
+}
+
 export function RevenueTrendChart({
   data,
   ariaLabel,
@@ -39,10 +43,12 @@ export function RevenueTrendChart({
               borderRadius: 8,
               fontSize: 13,
             }}
+            formatter={(value) => [money(Number(value)), "Ingresos"]}
           />
           <Line
             type="monotone"
             dataKey="revenue"
+            name="Ingresos"
             stroke="var(--accent)"
             strokeWidth={2}
             dot={false}
@@ -79,8 +85,9 @@ export function TopServicesChart({
               borderRadius: 8,
               fontSize: 13,
             }}
+            formatter={(value) => [Number(value), "Reservas"]}
           />
-          <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="count" name="Reservas" fill="var(--accent)" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -109,8 +116,9 @@ export function NetProfitTrendChart({
               borderRadius: 8,
               fontSize: 13,
             }}
+            formatter={(value) => [money(Number(value)), "Ganancia neta"]}
           />
-          <Bar dataKey="net" radius={[4, 4, 0, 0]}>
+          <Bar dataKey="net" name="Ganancia neta" radius={[4, 4, 0, 0]}>
             {data.map((d, i) => (
               <Cell
                 key={i}

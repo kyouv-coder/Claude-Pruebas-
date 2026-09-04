@@ -5,15 +5,20 @@ export async function listClients(businessId: string) {
     where: { businessId },
     orderBy: { name: "asc" },
     include: {
-      bookings: { select: { id: true, startTime: true } },
+      bookings: { select: { id: true, startTime: true, status: true } },
       sales: { select: { total: true, createdAt: true } },
     },
   });
 
   return clients.map((c) => {
     const totalSpent = c.sales.reduce((sum, s) => sum + Number(s.total), 0);
+    // "Visita" = algo que realmente pasó — un turno completado o una
+    // venta cobrada. Un turno pendiente/confirmado todavía no ocurrió
+    // (mostrar su fecha como "última visita" sería una fecha futura,
+    // confuso), y uno cancelado o no-show tampoco fue una visita real.
+    const attendedBookings = c.bookings.filter((b) => b.status === "COMPLETED");
     const visitDates = [
-      ...c.bookings.map((b) => b.startTime),
+      ...attendedBookings.map((b) => b.startTime),
       ...c.sales.map((s) => s.createdAt),
     ];
     const lastVisit =
@@ -26,7 +31,7 @@ export async function listClients(businessId: string) {
       name: c.name,
       email: c.email,
       phone: c.phone,
-      bookingsCount: c.bookings.length,
+      bookingsCount: attendedBookings.length,
       totalSpent,
       lastVisit,
     };
