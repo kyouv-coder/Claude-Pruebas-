@@ -7,6 +7,7 @@ const links = [
   { href: "/admin/reservas", label: "Reservas" },
   { href: "/admin/caja", label: "Caja" },
   { href: "/admin/dashboard", label: "Dashboard" },
+  { href: "/admin/finanzas", label: "Finanzas" },
   { href: "/admin/configuracion", label: "Configuración" },
 ];
 

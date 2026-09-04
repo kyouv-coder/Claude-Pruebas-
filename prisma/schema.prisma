@@ -37,6 +37,15 @@ enum GiftCardTxType {
   REDEEM
 }
 
+enum ExpenseCategory {
+  IMPUESTOS
+  ALQUILER
+  INSUMOS
+  SUELDOS
+  SERVICIOS
+  OTRO
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -159,4 +168,15 @@ model SaleItem {
   description String
   quantity    Int     @default(1)
   unitPrice   Decimal @db.Decimal(10, 2)
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  date        DateTime
+  category    ExpenseCategory
+  description String?
+  amount      Decimal         @db.Decimal(10, 2)
+  createdAt   DateTime        @default(now())
+
+  @@index([date])
 }

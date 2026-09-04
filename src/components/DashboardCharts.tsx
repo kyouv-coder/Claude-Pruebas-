@@ -5,11 +5,13 @@ import {
   Line,
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 
 export function RevenueTrendChart({
@@ -72,6 +74,39 @@ export function TopServicesChart({
           }}
         />
         <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
+
+export function NetProfitTrendChart({
+  data,
+}: {
+  data: { label: string; net: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+        <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--muted)" }} />
+        <YAxis tick={{ fontSize: 11, fill: "var(--muted)" }} />
+        <ReferenceLine y={0} stroke="var(--border)" />
+        <Tooltip
+          contentStyle={{
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 8,
+            fontSize: 13,
+          }}
+        />
+        <Bar dataKey="net" radius={[4, 4, 0, 0]}>
+          {data.map((d, i) => (
+            <Cell
+              key={i}
+              fill={d.net >= 0 ? "var(--success)" : "var(--danger)"}
+            />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );

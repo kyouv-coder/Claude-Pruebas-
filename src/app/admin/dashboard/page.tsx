@@ -1,6 +1,12 @@
+import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
+import { getMonthlyFinancials, getMonthlyTrend, currentYearMonth } from "@/lib/finance";
 import { StatCard } from "@/components/StatCard";
-import { RevenueTrendChart, TopServicesChart } from "@/components/DashboardCharts";
+import {
+  RevenueTrendChart,
+  TopServicesChart,
+  NetProfitTrendChart,
+} from "@/components/DashboardCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +19,18 @@ function pct(n: number) {
 }
 
 export default async function DashboardPage() {
-  const stats = await getDashboardStats();
+  const { year, month } = currentYearMonth();
+  const [stats, monthFinancials, netTrend] = await Promise.all([
+    getDashboardStats(),
+    getMonthlyFinancials(year, month),
+    getMonthlyTrend(6),
+  ]);
+  const netColor =
+    monthFinancials.net > 0
+      ? "text-success"
+      : monthFinancials.net < 0
+        ? "text-danger"
+        : "text-ink";
 
   return (
     <div className="flex flex-col gap-6">
@@ -84,6 +101,43 @@ export default async function DashboardPage() {
             Todavía no hay reservas para calcular este ranking.
           </p>
         )}
+      </div>
+
+      <div className="bg-surface border border-border rounded-lg p-4">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="font-display text-base text-ink">
+            Resultado del mes (ingresos − gastos)
+          </h2>
+          <Link
+            href="/admin/finanzas"
+            className="text-xs text-accent hover:underline"
+          >
+            Cargar gastos e impuestos →
+          </Link>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3 mb-4">
+          <div>
+            <div className="text-xs text-muted">Ingresos</div>
+            <div className="font-display text-xl text-ink mt-1">
+              {money(monthFinancials.revenue)}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted">Gastos</div>
+            <div className="font-display text-xl text-ink mt-1">
+              {money(monthFinancials.expenses)}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-muted">Ganancia neta</div>
+            <div className={`font-display text-xl mt-1 ${netColor}`}>
+              {money(monthFinancials.net)}
+            </div>
+          </div>
+        </div>
+        <NetProfitTrendChart
+          data={netTrend.map((m) => ({ label: m.label, net: m.net }))}
+        />
       </div>
     </div>
   );
