@@ -92,15 +92,26 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 | `git-worktree` / `git-worktree-status` / `git-worktree-clean` | Trabajar en paralelo sin mezclar ramas de distintos clientes |
 | `session-save` / `handoff-create` / `handoff-resume` | Guardar y retomar contexto entre sesiones |
 | `skill-creator` | Crear skills propias para tareas repetitivas de cliente en cliente |
+| `pyme-saas-scaffold` | Receta propia (extraída de este proyecto) para armar reservas + caja + giftcards + dashboard en el próximo cliente pyme, con el stack y los patrones ya probados acá |
+
+### 7. Diseño y accesibilidad
+| Skill | Para qué sirve |
+|---|---|
+| `hallmark` | Diseño anti-genérico para páginas/apps nuevas, auditorías y rediseños |
+| `no-ai-design-slop` / `audit-ai-design-slop` | Detectar y evitar el look genérico de IA (gradientes de más, tarjetas glossy, paleta gris/negro por defecto) |
+| `design-first-ui-prompting` | Prompts spec-driven para generar UI consistente |
+| `editorial-service-booking` | Patrón visual para negocios con turnos (spas, salones, clínicas): papel cálido, serif+sans, acento contenido |
+| `tailwindcss-design` | Recetas y convenciones de Tailwind para UI prolija |
 
 ## Flujo sugerido para un proyecto nuevo de pyme
 
 1. **Validar**: `project-sizing-guide` + `vc-industry-research` para dimensionar y confirmar que vale la pena.
-2. **Armar el esqueleto**: `scaffold` (o `nextjs-developer` si es web).
+2. **Armar el esqueleto**: `pyme-saas-scaffold` (receta propia con el stack completo) o `scaffold`/`nextjs-developer` para casos más genéricos.
 3. **Construir con tests primero**: `tdd-workflow-guide` + `generate-tests`.
-4. **Antes de entregar**: `secure-code-review` / `security-check`, `regulatory-audit-generator` si aplica.
-5. **Entregar**: `commit` → `pr` → `ship`, con `release-notes-generator` para el reporte al cliente.
-6. **Siguiente cliente**: `git-worktree` para no mezclar con el proyecto anterior, `session-save`/`handoff-create` para pausar y retomar.
+4. **Diseño**: `hallmark` + `editorial-service-booking` (o la skill de diseño que corresponda al rubro) antes de dar por terminada una pantalla.
+5. **Antes de entregar**: `secure-code-review` / `security-check`, `regulatory-audit-generator` si aplica.
+6. **Entregar**: `commit` → `pr` → `ship`, con `release-notes-generator` para el reporte al cliente.
+7. **Siguiente cliente**: `git-worktree` para no mezclar con el proyecto anterior, `session-save`/`handoff-create` para pausar y retomar.
 
 ## Origen de las skills
 
