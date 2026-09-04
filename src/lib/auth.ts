@@ -1,0 +1,129 @@
+import { cookies } from "next/headers";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "@/lib/session";
+
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 días
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_MINUTES = 15;
+
+// A hash of an unguessable value, used only so "user not found" takes the
+// same time as "user found, wrong password" — otherwise response timing
+// leaks which emails have an account.
+const DUMMY_HASH =
+  "$2a$10$CwTycUXWue0Thq9StjUM0uJ8vJ5EexZO/Nkl6P6dLPwUv3rHKvYh6";
+
+export async function hashPassword(password: string) {
+  return bcrypt.hash(password, 10);
+}
+
+export async function signUp(input: {
+  businessName: string;
+  name: string;
+  email: string;
+  password: string;
+}) {
+  const passwordHash = await hashPassword(input.password);
+
+  return prisma.$transaction(async (tx) => {
+    const business = await tx.business.create({
+      data: { name: input.businessName },
+    });
+    const user = await tx.user.create({
+      data: {
+        businessId: business.id,
+        name: input.name,
+        email: input.email,
+        passwordHash,
+        role: "ADMIN",
+      },
+    });
+    return { business, user };
+  });
+}
+
+export async function verifyCredentials(email: string, password: string) {
+  const user = await prisma.user.findFirst({
+    where: { email, role: "ADMIN", active: true },
+  });
+
+  if (user?.lockedUntil && user.lockedUntil > new Date()) {
+    // Still run a comparison so a locked account doesn't respond faster
+    // than a normal failed attempt and leak lockout state via timing.
+    await bcrypt.compare(password, DUMMY_HASH);
+    return null;
+  }
+
+  const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
+
+  if (!user || !valid) {
+    if (user) {
+      const attempts = user.failedLoginAttempts + 1;
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failedLoginAttempts: attempts,
+          lockedUntil:
+            attempts >= MAX_FAILED_ATTEMPTS
+              ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000)
+              : null,
+        },
+      });
+    }
+    return null;
+  }
+
+  if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+  }
+
+  return user;
+}
+
+export async function createSession(userId: string) {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    throw new Error("AUTH_SECRET no está configurado en el servidor.");
+  }
+  const token = await createSessionToken(userId, secret, SESSION_MAX_AGE_SECONDS);
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  });
+}
+
+export async function destroySession() {
+  const cookieStore = await cookies();
+  cookieStore.delete(SESSION_COOKIE);
+}
+
+export async function requireBusinessId() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("No hay una sesión activa.");
+  return user.businessId;
+}
+
+export async function getCurrentUser() {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) return null;
+
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+
+  const session = await verifySessionToken(token, secret);
+  if (!session) return null;
+
+  return prisma.user.findUnique({
+    where: { id: session.sub },
+    include: { business: true },
+  });
+}

@@ -1,0 +1,225 @@
+// Prisma schema — Sistema de gestión de reservas para spa (MVP)
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+  GIFTCARD
+}
+
+enum GiftCardTxType {
+  ISSUE
+  TOPUP
+  REDEEM
+}
+
+enum ExpenseCategory {
+  IMPUESTOS
+  ALQUILER
+  INSUMOS
+  SUELDOS
+  SERVICIOS
+  OTRO
+}
+
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users        User[]
+  services     Service[]
+  clients      Client[]
+  bookings     Booking[]
+  giftCards    GiftCard[]
+  cashSessions CashRegisterSession[]
+  sales        Sale[]
+  expenses     Expense[]
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  business            Business  @relation(fields: [businessId], references: [id])
+  businessId          String
+  name                String
+  email               String    @unique
+  passwordHash        String
+  role                Role      @default(STAFF)
+  active              Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime  @default(now())
+
+  bookings     Booking[]             @relation("StaffBookings")
+  cashSessions CashRegisterSession[]
+
+  @@index([businessId])
+}
+
+model Service {
+  id              String   @id @default(cuid())
+  business        Business @relation(fields: [businessId], references: [id])
+  businessId      String
+  name            String
+  description     String?
+  durationMinutes Int
+  price           Decimal  @db.Decimal(10, 2)
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  bookings Booking[]
+
+  @@unique([businessId, name])
+}
+
+model Client {
+  id         String   @id @default(cuid())
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+  name       String
+  email      String?
+  phone      String?
+  notes      String?
+  createdAt  DateTime @default(now())
+
+  bookings  Booking[]
+  giftCards GiftCard[]
+  sales     Sale[]
+
+  @@unique([businessId, email])
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  business   Business      @relation(fields: [businessId], references: [id])
+  businessId String
+  client     Client        @relation(fields: [clientId], references: [id])
+  clientId   String
+  service    Service       @relation(fields: [serviceId], references: [id])
+  serviceId  String
+  staff      User          @relation("StaffBookings", fields: [staffId], references: [id])
+  staffId    String
+  startTime  DateTime
+  endTime    DateTime
+  status     BookingStatus @default(PENDING)
+  notes      String?
+  createdAt  DateTime      @default(now())
+
+  sale Sale?
+
+  @@index([businessId, staffId, startTime])
+  @@index([businessId, clientId])
+}
+
+model GiftCard {
+  id           String    @id @default(cuid())
+  business     Business  @relation(fields: [businessId], references: [id])
+  businessId   String
+  code         String
+  initialValue Decimal   @db.Decimal(10, 2)
+  balance      Decimal   @db.Decimal(10, 2)
+  active       Boolean   @default(true)
+  expiresAt    DateTime?
+  purchasedBy  Client?   @relation(fields: [clientId], references: [id])
+  clientId     String?
+  createdAt    DateTime  @default(now())
+
+  transactions GiftCardTransaction[]
+
+  @@unique([businessId, code])
+}
+
+model GiftCardTransaction {
+  id         String         @id @default(cuid())
+  giftCard   GiftCard       @relation(fields: [giftCardId], references: [id])
+  giftCardId String
+  type       GiftCardTxType
+  amount     Decimal        @db.Decimal(10, 2)
+  sale       Sale?          @relation(fields: [saleId], references: [id])
+  saleId     String?
+  createdAt  DateTime       @default(now())
+}
+
+model CashRegisterSession {
+  id            String    @id @default(cuid())
+  business      Business  @relation(fields: [businessId], references: [id])
+  businessId    String
+  openedBy      User      @relation(fields: [openedById], references: [id])
+  openedById    String
+  openedAt      DateTime  @default(now())
+  closedAt      DateTime?
+  openingAmount Decimal   @db.Decimal(10, 2)
+  closingAmount Decimal?  @db.Decimal(10, 2)
+  notes         String?
+
+  sales Sale[]
+
+  @@index([businessId])
+}
+
+model Sale {
+  id            String              @id @default(cuid())
+  business      Business            @relation(fields: [businessId], references: [id])
+  businessId    String
+  client        Client?             @relation(fields: [clientId], references: [id])
+  clientId      String?
+  booking       Booking?            @relation(fields: [bookingId], references: [id])
+  bookingId     String?             @unique
+  cashSession   CashRegisterSession @relation(fields: [cashSessionId], references: [id])
+  cashSessionId String
+  total         Decimal             @db.Decimal(10, 2)
+  paymentMethod PaymentMethod
+  createdAt     DateTime            @default(now())
+
+  items      SaleItem[]
+  giftCardTx GiftCardTransaction[]
+
+  @@index([businessId, cashSessionId])
+  @@index([businessId, createdAt])
+}
+
+model SaleItem {
+  id          String  @id @default(cuid())
+  sale        Sale    @relation(fields: [saleId], references: [id])
+  saleId      String
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Decimal @db.Decimal(10, 2)
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  business    Business        @relation(fields: [businessId], references: [id])
+  businessId  String
+  date        DateTime
+  category    ExpenseCategory
+  description String?
+  amount      Decimal         @db.Decimal(10, 2)
+  createdAt   DateTime        @default(now())
+
+  @@index([businessId, date])
+}
