@@ -17,6 +17,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <h1 className="font-display text-2xl text-ink">Dashboard</h1>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Reservas de hoy"
@@ -53,24 +55,24 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="bg-white border rounded-lg p-4">
+      <div className="bg-surface border border-border rounded-lg p-4">
         <div className="flex items-baseline justify-between mb-2">
-          <h2 className="font-semibold text-sm">Ingresos por día (14 días)</h2>
-          <span className="text-xs text-neutral-500">
+          <h2 className="font-display text-base text-ink">Ingresos por día (14 días)</h2>
+          <span className="text-xs text-muted">
             Proyección próximos 30 días: {money(stats.projectedRevenueNext30)}
           </span>
         </div>
         <RevenueTrendChart data={stats.revenueTrend} />
       </div>
 
-      <div className="bg-white border rounded-lg p-4">
-        <h2 className="font-semibold text-sm mb-2">
+      <div className="bg-surface border border-border rounded-lg p-4">
+        <h2 className="font-display text-base text-ink mb-2">
           Servicios más solicitados (30 días)
         </h2>
         {stats.topServices.length > 0 ? (
           <TopServicesChart data={stats.topServices} />
         ) : (
-          <p className="text-sm text-neutral-500 py-6">
+          <p className="text-sm text-muted py-6">
             Todavía no hay reservas para calcular este ranking.
           </p>
         )}

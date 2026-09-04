@@ -10,17 +10,33 @@ import {
 } from "@/lib/pos";
 import type { PaymentMethod } from "@/generated/prisma";
 
-export async function openCashSessionAction(formData: FormData) {
+export type ActionState = { error?: string };
+
+export async function openCashSessionAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const openingAmount = Number(formData.get("openingAmount") || 0);
+  if (!(openingAmount >= 0)) {
+    return { error: "Ingresá un monto inicial válido." };
+  }
   await openCashSession(openingAmount);
   revalidatePath("/admin/caja");
+  return {};
 }
 
-export async function closeCashSessionAction(formData: FormData) {
+export async function closeCashSessionAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const sessionId = String(formData.get("sessionId") || "");
   const closingAmount = Number(formData.get("closingAmount") || 0);
+  if (!(closingAmount >= 0)) {
+    return { error: "Ingresá un monto de cierre válido." };
+  }
   await closeCashSession(sessionId, closingAmount);
   revalidatePath("/admin/caja");
+  return {};
 }
 
 export async function chargeBookingAction(formData: FormData) {
@@ -32,7 +48,10 @@ export async function chargeBookingAction(formData: FormData) {
   revalidatePath("/admin/dashboard");
 }
 
-export async function sellGiftCardAction(formData: FormData) {
+export async function sellGiftCardAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const cashSessionId = String(formData.get("cashSessionId") || "");
   const clientName = String(formData.get("clientName") || "").trim();
   const clientPhone = String(formData.get("clientPhone") || "").trim();
@@ -40,8 +59,11 @@ export async function sellGiftCardAction(formData: FormData) {
   const amount = Number(formData.get("amount") || 0);
   const paymentMethod = String(formData.get("paymentMethod") || "CASH") as PaymentMethod;
 
-  if (!clientName || amount <= 0) {
-    throw new Error("Faltan datos para vender la giftcard");
+  if (!clientName) {
+    return { error: "Ingresá el nombre del cliente." };
+  }
+  if (!(amount > 0)) {
+    return { error: "El monto debe ser mayor a 0." };
   }
 
   await sellGiftCard({
@@ -54,18 +76,35 @@ export async function sellGiftCardAction(formData: FormData) {
   });
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
+  return {};
 }
 
-export async function redeemGiftCardAction(formData: FormData) {
+export async function redeemGiftCardAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const cashSessionId = String(formData.get("cashSessionId") || "");
   const code = String(formData.get("code") || "").trim().toUpperCase();
   const amount = Number(formData.get("amount") || 0);
 
-  if (!code || amount <= 0) {
-    throw new Error("Faltan datos para canjear la giftcard");
+  if (!code) {
+    return { error: "Ingresá el código de la giftcard." };
+  }
+  if (!(amount > 0)) {
+    return { error: "El monto debe ser mayor a 0." };
   }
 
-  await redeemGiftCard({ code, amount, cashSessionId });
+  try {
+    await redeemGiftCard({ code, amount, cashSessionId });
+  } catch (e) {
+    if (e instanceof Error && e.message.includes("Argument `where`")) {
+      return { error: "No se encontró ninguna giftcard con ese código." };
+    }
+    return {
+      error: e instanceof Error ? e.message : "No se pudo canjear la giftcard.",
+    };
+  }
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
+  return {};
 }
