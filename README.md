@@ -69,12 +69,12 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 ### 3. Calidad sin perder velocidad
 | Skill | Para qué sirve |
 |---|---|
-| `tdd-workflow-guide` / `test-driven-dev` | Ciclo red-green-refactor, testing primero |
+| `test-driven-dev` | Ciclo red-green-refactor, testing primero |
 | `generate-tests` | Generar tests para código existente |
 | `refactor` | Refactor guiado sin sobre-ingeniería |
 | `optimize` | Optimización de performance |
 | `repo-audit` | Hotspots de código, ownership, secret scanning en el historial |
-| `secure-code-review` / `security` / `security-audit` / `security-check` | Revisión de seguridad (OWASP Top 10) antes de entregar |
+| `secure-code-review` | Revisión de seguridad (OWASP Top 10) antes de entregar — la usamos varias veces sobre este mismo proyecto, es el workhorse real |
 | `sentry` | Consultar errores de producción vía la API de Sentry (solo lectura) — requiere `SENTRY_AUTH_TOKEN` y que el proyecto ya tenga Sentry configurado |
 | `web-accessibility` | Auditoría WCAG 2.1: contraste, teclado, lectores de pantalla, formularios |
 | `web-quality-audit` | Auditoría completa (performance, accesibilidad, SEO, buenas prácticas) tipo Lighthouse, en un solo pase |
@@ -99,14 +99,12 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 | `context-budget` | Auditar qué está llenando la ventana de contexto (agentes, skills, MCP, rules) |
 | `token-budget-advisor` | Gestión de presupuesto de tokens |
 | `unified-memory` | Memoria compartida entre Claude, Codex, Cursor, OpenCode y otros agentes |
-| `security-review` | Checklist de seguridad para auth, inputs, secrets, endpoints, pagos |
-| `security-scan` | Audita el propio `.claude/` (config, hooks, MCP) en busca de riesgos de inyección |
+| `security-scan` | Audita el propio `.claude/` (config, hooks, MCP) en busca de riesgos de inyección — distinto de `secure-code-review`: este audita nuestra config de Claude, no el código de la app |
 
 ### 6. Trabajar con varios clientes/proyectos a la vez
 | Skill | Para qué sirve |
 |---|---|
-| `git-worktree` / `git-worktree-status` / `git-worktree-clean` | Trabajar en paralelo sin mezclar ramas de distintos clientes |
-| `session-save` / `handoff-create` / `handoff-resume` | Guardar y retomar contexto entre sesiones |
+| `handoff-create` / `handoff-resume` | Guardar y retomar contexto entre sesiones |
 | `skill-creator` | Crear skills propias para tareas repetitivas de cliente en cliente |
 | `pyme-saas-scaffold` | Receta propia (extraída de este proyecto) para armar reservas + caja + giftcards + dashboard en el próximo cliente pyme, con el stack y los patrones ya probados acá |
 
@@ -114,27 +112,46 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 | Skill | Para qué sirve |
 |---|---|
 | `hallmark` | Diseño anti-genérico para páginas/apps nuevas, auditorías y rediseños |
-| `no-ai-design-slop` / `audit-ai-design-slop` | Detectar y evitar el look genérico de IA (gradientes de más, tarjetas glossy, paleta gris/negro por defecto) |
+| `no-ai-design-slop` | Quality gate pasivo mientras se construye UI, para no meter clichés de IA desde el principio |
+| `audit-ai-design-slop` | Auditoría de algo ya construido (evidencia + plan de limpieza), complementa a `no-ai-design-slop` |
 | `design-first-ui-prompting` | Prompts spec-driven para generar UI consistente |
 | `editorial-service-booking` | Patrón visual para negocios con turnos (spas, salones, clínicas): papel cálido, serif+sans, acento contenido |
 | `tailwindcss-design` | Recetas y convenciones de Tailwind para UI prolija |
+
+### 8. Visibilidad en buscadores de IA
+| Skill | Para qué sirve |
+|---|---|
+| `geo-llmstxt` | Generar/validar un `llms.txt` — el equivalente a `robots.txt` pero para que ChatGPT/Perplexity/etc. entiendan de qué trata el sitio. Útil el día que este SaaS tenga una landing pública propia |
+
+## Agente propio: pyme-engineer
+
+`.claude/agents/pyme-engineer.md` formaliza el rol de "ingeniero/administrador de guardia" de este proyecto: retoma el roadmap pendiente del README, elige un ítem acotado y técnico (nunca decisiones de negocio), lo implementa, valida con `tsc`/`lint`/`build`, y pushea. Es el agente que dispara la Routine programada de mantenimiento (cada 6 horas) para que el desarrollo siga avanzando sin supervisión directa, con límites duros explícitos (nunca mergea a `main`, nunca toca la base de producción, nunca inventa decisiones de negocio).
 
 ## Flujo sugerido para un proyecto nuevo de pyme
 
 1. **Validar**: `project-sizing-guide` + `vc-industry-research` para dimensionar y confirmar que vale la pena.
 2. **Armar el esqueleto**: `pyme-saas-scaffold` (receta propia con el stack completo) o `scaffold`/`nextjs-developer` para casos más genéricos.
-3. **Construir con tests primero**: `tdd-workflow-guide` + `generate-tests`.
+3. **Construir con tests primero**: `test-driven-dev` + `generate-tests`.
 4. **Diseño**: `hallmark` + `editorial-service-booking` (o la skill de diseño que corresponda al rubro) antes de dar por terminada una pantalla.
-5. **Antes de entregar**: `secure-code-review` / `security-check`, `regulatory-audit-generator` si aplica.
+5. **Antes de entregar**: `secure-code-review`, `regulatory-audit-generator` si aplica.
 6. **Entregar**: `commit` → `pr` → `ship`, con `release-notes-generator` para el reporte al cliente.
-7. **Siguiente cliente**: `git-worktree` para no mezclar con el proyecto anterior, `session-save`/`handoff-create` para pausar y retomar.
+7. **Siguiente cliente**: `handoff-create` para pausar y retomar contexto.
 
 ## Origen de las skills
 
-Curadas desde cuatro repos públicos de Claude Code:
+Curadas desde cinco repos públicos de Claude Code:
 - [zebbern/claude-code-guide](https://github.com/zebbern/claude-code-guide)
 - [FlorianBruniaux/claude-code-ultimate-guide](https://github.com/FlorianBruniaux/claude-code-ultimate-guide)
 - [affaan-m/ECC](https://github.com/affaan-m/ECC)
 - [tech-leads-club/agent-skills](https://github.com/tech-leads-club/agent-skills)
+- [zubair-trabzada/geo-seo-claude](https://github.com/zubair-trabzada/geo-seo-claude) (solo `geo-llmstxt` — el resto es un toolkit de auditorías SEO para agencias, no aplica a este proyecto)
 
-Se seleccionó un subconjunto orientado a negocio/producto, no el catálogo completo (que incluye pentesting, contenido educativo, etc. no relevante para este repo).
+Se seleccionó un subconjunto orientado a negocio/producto, no el catálogo completo (que incluye pentesting, contenido educativo, etc. no relevante para este repo). Periódicamente se audita y se sacan duplicados — ver "Pasada de limpieza" más abajo.
+
+### Pasada de limpieza (56 → 47 skills)
+
+Usando la skill `context-budget` sobre nuestro propio `.claude/`, se sacaron 9 skills redundantes o muertas:
+- **4 duplicados de seguridad** (`security`, `security-audit`, `security-check`, `security-review`) — quedó solo `secure-code-review` (el que realmente usamos) + `security-scan` (que audita algo distinto: la config de Claude, no el código de la app).
+- **3 de git-worktree** (`git-worktree`, `git-worktree-status`, `git-worktree-clean`) — referenciaban comandos en `.claude/commands/` que nunca existieron en este repo, y este proyecto no trabaja con worktrees paralelos.
+- **`tdd-workflow-guide`** — duplicado casi exacto de `test-driven-dev`.
+- **`session-save`** — duplicado de `handoff-create` (que además tiene su contraparte `handoff-resume`, cosa que `session-save` no tenía).
