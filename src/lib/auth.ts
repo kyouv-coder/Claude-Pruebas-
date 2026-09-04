@@ -19,6 +19,24 @@ export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
 
+const SIGNUP_WINDOW_MINUTES = 60;
+const SIGNUP_MAX_ATTEMPTS = 5;
+
+// Registrado en DB (no en memoria) porque cada invocación serverless
+// puede correr en una instancia distinta — un contador en memoria no
+// se compartiría entre requests.
+export async function checkSignupRateLimit(ip: string) {
+  const windowStart = new Date(Date.now() - SIGNUP_WINDOW_MINUTES * 60_000);
+  const recentAttempts = await prisma.signupAttempt.count({
+    where: { ip, createdAt: { gte: windowStart } },
+  });
+  return recentAttempts < SIGNUP_MAX_ATTEMPTS;
+}
+
+export async function recordSignupAttempt(ip: string) {
+  await prisma.signupAttempt.create({ data: { ip } });
+}
+
 export async function signUp(input: {
   businessName: string;
   name: string;

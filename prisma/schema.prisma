@@ -46,6 +46,14 @@ enum ExpenseCategory {
   OTRO
 }
 
+model SignupAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+}
+
 model Business {
   id               String   @id @default(cuid())
   name             String

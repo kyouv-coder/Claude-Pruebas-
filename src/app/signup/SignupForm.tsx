@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import Link from "next/link";
 import { signupAction, type ActionState } from "./actions";
 import { FormField, FormError, inputClass } from "@/components/FormField";
 
@@ -57,6 +58,18 @@ export function SignupForm() {
           className={inputClass}
         />
       </FormField>
+
+      <p className="text-xs text-muted">
+        Al crear tu cuenta aceptás los{" "}
+        <Link href="/terminos" target="_blank" className="text-accent hover:underline">
+          Términos de Servicio
+        </Link>{" "}
+        y la{" "}
+        <Link href="/privacidad" target="_blank" className="text-accent hover:underline">
+          Política de Privacidad
+        </Link>
+        .
+      </p>
 
       <button
         type="submit"
