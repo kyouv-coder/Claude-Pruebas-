@@ -9,6 +9,7 @@ import { StaffManager } from "./StaffManager";
 import { SlackForm } from "./SlackForm";
 import { PublicBookingLink } from "./PublicBookingLink";
 import { BusinessHoursForm } from "./BusinessHoursForm";
+import { CancellationPolicyForm } from "./CancellationPolicyForm";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,11 @@ export default async function ConfiguracionPage() {
       <section className="flex flex-col gap-4">
         <h2 className="font-display text-lg text-ink">Horario de atención</h2>
         <BusinessHoursForm hours={hours} isConfigured={hoursConfigured} />
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <h2 className="font-display text-lg text-ink">Política de cancelación</h2>
+        <CancellationPolicyForm currentPolicy={user?.business.cancellationPolicy ?? null} />
       </section>
 
       <section className="flex flex-col gap-4">

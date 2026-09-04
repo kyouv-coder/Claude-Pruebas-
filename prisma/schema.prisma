@@ -81,6 +81,7 @@ model Business {
   slug             String       @unique
   businessType     BusinessType @default(OTRO)
   slackWebhookUrl  String?
+  cancellationPolicy String?
   createdAt        DateTime     @default(now())
 
   users        User[]

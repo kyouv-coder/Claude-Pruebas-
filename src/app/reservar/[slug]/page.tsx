@@ -52,6 +52,13 @@ export default async function PublicBookingPage({
             />
           )}
         </div>
+
+        {business.cancellationPolicy && (
+          <div className="mt-4 text-xs text-muted bg-surface border border-border rounded-lg p-3">
+            <p className="font-medium text-ink mb-1">Política de cancelación</p>
+            <p className="whitespace-pre-line">{business.cancellationPolicy}</p>
+          </div>
+        )}
       </div>
     </div>
   );

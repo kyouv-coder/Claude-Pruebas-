@@ -12,6 +12,7 @@ import {
   updateStaff,
   setStaffActive,
   updateSlackWebhook,
+  updateCancellationPolicy,
 } from "@/lib/settings";
 import { saveBusinessHours, type DayHours } from "@/lib/business-hours";
 import { requireAdmin } from "@/lib/auth";
@@ -249,6 +250,21 @@ export async function toggleStaffActiveAction(id: string, active: boolean) {
   await setStaffActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
+}
+
+export async function updateCancellationPolicyAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const policy = String(formData.get("cancellationPolicy") || "").trim();
+  if (policy.length > 1000) {
+    return { error: "El texto es demasiado largo (máximo 1000 caracteres)." };
+  }
+
+  const businessId = await requireAdmin();
+  await updateCancellationPolicy(businessId, policy || null);
+  revalidatePath("/admin/configuracion");
+  return { success: policy ? "Política de cancelación guardada." : "Política de cancelación eliminada." };
 }
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;

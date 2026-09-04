@@ -85,6 +85,13 @@ export async function updateSlackWebhook(businessId: string, url: string | null)
   });
 }
 
+export async function updateCancellationPolicy(businessId: string, policy: string | null) {
+  return prisma.business.update({
+    where: { id: businessId },
+    data: { cancellationPolicy: policy },
+  });
+}
+
 export async function listAllStaff(businessId: string) {
   return prisma.user.findMany({
     where: { businessId, role: "STAFF" },
