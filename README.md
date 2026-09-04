@@ -71,6 +71,7 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 | `optimize` | Optimización de performance |
 | `repo-audit` | Hotspots de código, ownership, secret scanning en el historial |
 | `secure-code-review` / `security` / `security-audit` / `security-check` | Revisión de seguridad (OWASP Top 10) antes de entregar |
+| `sentry` | Consultar errores de producción vía la API de Sentry (solo lectura) — requiere `SENTRY_AUTH_TOKEN` y que el proyecto ya tenga Sentry configurado |
 
 ### 4. Flujo de trabajo / entrega
 | Skill | Para qué sirve |
@@ -124,9 +125,10 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 
 ## Origen de las skills
 
-Curadas desde tres repos públicos de Claude Code:
+Curadas desde cuatro repos públicos de Claude Code:
 - [zebbern/claude-code-guide](https://github.com/zebbern/claude-code-guide)
 - [FlorianBruniaux/claude-code-ultimate-guide](https://github.com/FlorianBruniaux/claude-code-ultimate-guide)
 - [affaan-m/ECC](https://github.com/affaan-m/ECC)
+- [tech-leads-club/agent-skills](https://github.com/tech-leads-club/agent-skills)
 
 Se seleccionó un subconjunto orientado a negocio/producto, no el catálogo completo (que incluye pentesting, contenido educativo, etc. no relevante para este repo).
