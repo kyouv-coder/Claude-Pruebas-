@@ -2,8 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
-import { Prisma } from "@/generated/prisma";
+import { Prisma, type BusinessType } from "@/generated/prisma";
 import { signUp, createSession, checkSignupRateLimit, recordSignupAttempt } from "@/lib/auth";
+import { BUSINESS_TYPE_OPTIONS } from "@/lib/verticals";
 
 export type ActionState = { error?: string };
 
@@ -32,12 +33,16 @@ export async function signupAction(
   await recordSignupAttempt(ip);
 
   const businessName = String(formData.get("businessName") || "").trim();
+  const businessType = String(formData.get("businessType") || "") as BusinessType;
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
 
   if (!businessName) {
     return { error: "Ingresá el nombre de tu negocio." };
+  }
+  if (!BUSINESS_TYPE_OPTIONS.some((o) => o.value === businessType)) {
+    return { error: "Elegí el rubro de tu negocio." };
   }
   if (!name) {
     return { error: "Ingresá tu nombre." };
@@ -51,7 +56,7 @@ export async function signupAction(
 
   let userId: string;
   try {
-    const result = await signUp({ businessName, name, email, password });
+    const result = await signUp({ businessName, businessType, name, email, password });
     userId = result.user.id;
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {

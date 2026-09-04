@@ -12,9 +12,11 @@ const initialState: ActionState = {};
 export function BookingForm({
   services,
   staff,
+  ctaLabel = "Crear reserva",
 }: {
   services: Service[];
   staff: Staff[];
+  ctaLabel?: string;
 }) {
   const [state, formAction, pending] = useActionState(
     createBookingAction,
@@ -95,7 +97,7 @@ export function BookingForm({
         disabled={pending}
         className="bg-ink text-paper rounded-md px-3 py-2 text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
       >
-        {pending ? "Creando…" : "Crear reserva"}
+        {pending ? "Creando…" : ctaLabel}
       </button>
     </form>
   );

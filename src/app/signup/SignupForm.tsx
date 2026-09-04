@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { signupAction, type ActionState } from "./actions";
 import { FormField, FormError, inputClass } from "@/components/FormField";
+import { BUSINESS_TYPE_OPTIONS } from "@/lib/verticals";
 
 const initialState: ActionState = {};
 
@@ -24,6 +25,25 @@ export function SignupForm() {
           placeholder="Ej: Spa Luna"
           className={inputClass}
         />
+      </FormField>
+
+      <FormField label="Rubro de tu negocio" htmlFor="signupBusinessType" required>
+        <select
+          id="signupBusinessType"
+          name="businessType"
+          required
+          defaultValue=""
+          className={inputClass}
+        >
+          <option value="" disabled>
+            Elegí una opción…
+          </option>
+          {BUSINESS_TYPE_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
       </FormField>
 
       <FormField label="Tu nombre" htmlFor="signupName" required>

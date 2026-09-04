@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { listClients } from "@/lib/clients";
-import { requireBusinessId } from "@/lib/auth";
+import { requireBusinessId, getCurrentUser } from "@/lib/auth";
+import { getVerticalCopy } from "@/lib/verticals";
 
 export const dynamic = "force-dynamic";
 
@@ -10,16 +11,17 @@ function money(n: number) {
 
 export default async function ClientesPage() {
   const businessId = await requireBusinessId();
-  const clients = await listClients(businessId);
+  const [clients, user] = await Promise.all([listClients(businessId), getCurrentUser()]);
   const sorted = [...clients].sort((a, b) => b.totalSpent - a.totalSpent);
+  const copy = getVerticalCopy(user?.business.businessType);
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-display text-2xl text-ink">Clientes</h1>
+        <h1 className="font-display text-2xl text-ink">{copy.clientLabel}</h1>
         <p className="text-sm text-muted mt-1">
-          Historial y ficha de cada cliente: qué se hizo, cuánto gastó, y
-          notas para dar un servicio personalizado.
+          Historial y ficha de cada {copy.clientLabelSingular}: qué se hizo,
+          cuánto gastó, y notas para dar un servicio personalizado.
         </p>
       </div>
 

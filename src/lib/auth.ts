@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import type { BusinessType } from "@/generated/prisma";
 import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "@/lib/session";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 días
@@ -39,6 +40,7 @@ export async function recordSignupAttempt(ip: string) {
 
 export async function signUp(input: {
   businessName: string;
+  businessType: BusinessType;
   name: string;
   email: string;
   password: string;
@@ -47,7 +49,7 @@ export async function signUp(input: {
 
   return prisma.$transaction(async (tx) => {
     const business = await tx.business.create({
-      data: { name: input.businessName },
+      data: { name: input.businessName, businessType: input.businessType },
     });
     const user = await tx.user.create({
       data: {

@@ -3,29 +3,32 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const links = [
-  { href: "/admin/reservas", label: "Reservas", adminOnly: false },
-  { href: "/admin/caja", label: "Caja", adminOnly: false },
-  { href: "/admin/clientes", label: "Clientes", adminOnly: false },
-  { href: "/admin/giftcards", label: "Giftcards", adminOnly: false },
-  { href: "/admin/dashboard", label: "Dashboard", adminOnly: true },
-  { href: "/admin/recomendaciones", label: "Recomendaciones", adminOnly: true },
-  { href: "/admin/finanzas", label: "Finanzas", adminOnly: true },
-  { href: "/admin/configuracion", label: "Configuración", adminOnly: true },
-];
-
 export function AdminSidebar({
   businessName,
   operatorName,
   isAdmin,
+  bookingsNavLabel = "Reservas",
+  clientsNavLabel = "Clientes",
   logoutAction,
 }: {
   businessName?: string;
   operatorName?: string;
   isAdmin?: boolean;
+  bookingsNavLabel?: string;
+  clientsNavLabel?: string;
   logoutAction: () => void;
 }) {
   const pathname = usePathname();
+  const links = [
+    { href: "/admin/reservas", label: bookingsNavLabel, adminOnly: false },
+    { href: "/admin/caja", label: "Caja", adminOnly: false },
+    { href: "/admin/clientes", label: clientsNavLabel, adminOnly: false },
+    { href: "/admin/giftcards", label: "Giftcards", adminOnly: false },
+    { href: "/admin/dashboard", label: "Dashboard", adminOnly: true },
+    { href: "/admin/recomendaciones", label: "Recomendaciones", adminOnly: true },
+    { href: "/admin/finanzas", label: "Finanzas", adminOnly: true },
+    { href: "/admin/configuracion", label: "Configuración", adminOnly: true },
+  ];
   const visibleLinks = links.filter((link) => !link.adminOnly || isAdmin);
 
   return (

@@ -46,6 +46,19 @@ enum ExpenseCategory {
   OTRO
 }
 
+// Determina el "vocabulario" que ve cada negocio (nav, títulos, textos).
+// El modelo de datos subyacente (reservas de un servicio con un
+// profesional en un horario) sigue siendo el mismo para todos los
+// rubros — esto personaliza el lenguaje, no todavía el flujo completo.
+enum BusinessType {
+  SPA
+  PELUQUERIA_BARBERIA
+  RESTAURANTE
+  PANADERIA_CAFETERIA
+  TRANSPORTE
+  OTRO
+}
+
 model SignupAttempt {
   id        String   @id @default(cuid())
   ip        String
@@ -55,10 +68,11 @@ model SignupAttempt {
 }
 
 model Business {
-  id               String   @id @default(cuid())
+  id               String       @id @default(cuid())
   name             String
+  businessType     BusinessType @default(OTRO)
   slackWebhookUrl  String?
-  createdAt        DateTime @default(now())
+  createdAt        DateTime     @default(now())
 
   users        User[]
   services     Service[]

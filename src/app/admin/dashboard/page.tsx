@@ -2,7 +2,8 @@ import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
 import { getMonthlyFinancials, getMonthlyTrend, currentYearMonth } from "@/lib/finance";
 import { getRecommendations } from "@/lib/insights";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, getCurrentUser } from "@/lib/auth";
+import { getVerticalCopy } from "@/lib/verticals";
 import { StatCard } from "@/components/StatCard";
 import {
   RevenueTrendChart,
@@ -23,12 +24,14 @@ function pct(n: number) {
 export default async function DashboardPage() {
   const businessId = await requireAdmin();
   const { year, month } = currentYearMonth();
-  const [stats, monthFinancials, netTrend, recommendations] = await Promise.all([
+  const [stats, monthFinancials, netTrend, recommendations, user] = await Promise.all([
     getDashboardStats(businessId),
     getMonthlyFinancials(businessId, year, month),
     getMonthlyTrend(businessId, 6),
     getRecommendations(businessId),
+    getCurrentUser(),
   ]);
+  const copy = getVerticalCopy(user?.business.businessType);
   const topRecommendations = recommendations.filter((r) => r.severity !== "info").slice(0, 2);
   const netColor =
     monthFinancials.net > 0
@@ -39,7 +42,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-display text-2xl text-ink">Dashboard</h1>
+      <div>
+        <h1 className="font-display text-2xl text-ink">Dashboard</h1>
+        <p className="text-sm text-muted mt-1">{copy.tagline}</p>
+      </div>
 
       {!stats.hasActivity && (
         <div className="bg-accent-soft border border-border rounded-lg p-4 text-sm text-ink">

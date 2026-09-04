@@ -1,5 +1,6 @@
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { getCurrentUser } from "@/lib/auth";
+import { getVerticalCopy } from "@/lib/verticals";
 import { logoutAction } from "./actions";
 
 export default async function AdminLayout({
@@ -8,6 +9,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const user = await getCurrentUser();
+  const copy = getVerticalCopy(user?.business.businessType);
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -21,6 +23,8 @@ export default async function AdminLayout({
         businessName={user?.business.name}
         operatorName={user?.name}
         isAdmin={user?.role === "ADMIN"}
+        bookingsNavLabel={copy.bookingsNav}
+        clientsNavLabel={copy.clientLabel}
         logoutAction={logoutAction}
       />
       <main id="main-content" tabIndex={-1} className="flex-1 px-6 py-8 max-w-6xl">

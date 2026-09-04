@@ -20,7 +20,9 @@ async function main() {
     ? await prisma.business.findUniqueOrThrow({
         where: { id: existingAdmin.businessId },
       })
-    : await prisma.business.create({ data: { name: BUSINESS_NAME } });
+    : await prisma.business.create({
+        data: { name: BUSINESS_NAME, businessType: "SPA" },
+      });
 
   const admin = await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
