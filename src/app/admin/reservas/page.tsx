@@ -46,7 +46,15 @@ export default async function ReservasPage() {
       <div className="grid gap-8 lg:grid-cols-[380px_1fr]">
         <section className="bg-surface border border-border rounded-lg p-5 h-fit">
           <h2 className="font-display text-lg text-ink mb-4">{copy.newBookingCta}</h2>
-          <BookingForm services={services} staff={staff} ctaLabel={copy.newBookingCta} />
+          <BookingForm
+            services={services.map((s) => ({
+              id: s.id,
+              name: s.name,
+              durationMinutes: s.durationMinutes,
+            }))}
+            staff={staff.map((s) => ({ id: s.id, name: s.name }))}
+            ctaLabel={copy.newBookingCta}
+          />
           {services.length === 0 && (
             <p className="text-xs text-muted mt-3">
               No hay {copy.serviceLabel.toLowerCase()} cargados todavía — corré{" "}
