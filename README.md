@@ -26,6 +26,16 @@ npm run dev
 
 Abrí [http://localhost:3000](http://localhost:3000) — te redirige a `/login`. Con el seed corrido, entrás como admin con `admin@spa.local` / `changeme123`, o como staff con `staff@spa.local` / `changeme123` (ambas cambiables desde "Mi cuenta"), o creá tu propia cuenta en `/signup`.
 
+### Para traer cambios nuevos y correr todo de una
+
+Una vez que ya clonaste el repo y tenés el `.env` configurado, en vez de acordarte de cada paso suelto (`git pull`, `npm install`, migraciones, regenerar Prisma, cortar un servidor viejo que haya quedado colgado):
+
+```bash
+npm run actualizar
+```
+
+Hace todo eso en orden y levanta el servidor al final.
+
 ### Pendiente / gaps conocidos
 
 - **Facturación electrónica**: no hay integración automática con ningún proveedor (Bsale u otro) — decisión consciente por ahora: en `Finanzas` cada venta tiene un botón para subir una foto o PDF del comprobante emitido aparte (por Bsale u otro sistema), y queda guardado junto a la venta. Si más adelante se quiere automatizar la emisión (no solo adjuntar), ahí sí hace falta el token de API de Bsale.
