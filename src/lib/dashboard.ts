@@ -12,7 +12,7 @@ function daysAgo(n: number) {
   return d;
 }
 
-export async function getDashboardStats() {
+export async function getDashboardStats(businessId: string) {
   const today = startOfDay(new Date());
   const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
   const last30 = daysAgo(30);
@@ -25,21 +25,21 @@ export async function getDashboardStats() {
     outstandingGiftCards,
     bookingsLast30,
   ] = await Promise.all([
-    prisma.user.count({ where: { role: "STAFF", active: true } }),
+    prisma.user.count({ where: { businessId, role: "STAFF", active: true } }),
     prisma.booking.findMany({
-      where: { startTime: { gte: today, lt: tomorrow } },
+      where: { businessId, startTime: { gte: today, lt: tomorrow } },
       include: { service: true },
     }),
     prisma.sale.findMany({
-      where: { createdAt: { gte: last30 } },
+      where: { businessId, createdAt: { gte: last30 } },
       select: { total: true, createdAt: true },
     }),
     prisma.giftCard.aggregate({
-      where: { active: true },
+      where: { businessId, active: true },
       _sum: { balance: true },
     }),
     prisma.booking.findMany({
-      where: { startTime: { gte: last30 } },
+      where: { businessId, startTime: { gte: last30 } },
       select: { status: true, service: { select: { name: true } } },
     }),
   ]);

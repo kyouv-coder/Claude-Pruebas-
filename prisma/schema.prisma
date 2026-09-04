@@ -46,8 +46,25 @@ enum ExpenseCategory {
   OTRO
 }
 
+model Business {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  users        User[]
+  services     Service[]
+  clients      Client[]
+  bookings     Booking[]
+  giftCards    GiftCard[]
+  cashSessions CashRegisterSession[]
+  sales        Sale[]
+  expenses     Expense[]
+}
+
 model User {
   id                  String    @id @default(cuid())
+  business            Business  @relation(fields: [businessId], references: [id])
+  businessId          String
   name                String
   email               String    @unique
   passwordHash        String
@@ -59,11 +76,15 @@ model User {
 
   bookings     Booking[]             @relation("StaffBookings")
   cashSessions CashRegisterSession[]
+
+  @@index([businessId])
 }
 
 model Service {
   id              String   @id @default(cuid())
-  name            String   @unique
+  business        Business @relation(fields: [businessId], references: [id])
+  businessId      String
+  name            String
   description     String?
   durationMinutes Int
   price           Decimal  @db.Decimal(10, 2)
@@ -71,44 +92,54 @@ model Service {
   createdAt       DateTime @default(now())
 
   bookings Booking[]
+
+  @@unique([businessId, name])
 }
 
 model Client {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  phone     String?
-  notes     String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  business   Business @relation(fields: [businessId], references: [id])
+  businessId String
+  name       String
+  email      String?
+  phone      String?
+  notes      String?
+  createdAt  DateTime @default(now())
 
   bookings  Booking[]
   giftCards GiftCard[]
   sales     Sale[]
+
+  @@unique([businessId, email])
 }
 
 model Booking {
-  id        String        @id @default(cuid())
-  client    Client        @relation(fields: [clientId], references: [id])
-  clientId  String
-  service   Service       @relation(fields: [serviceId], references: [id])
-  serviceId String
-  staff     User          @relation("StaffBookings", fields: [staffId], references: [id])
-  staffId   String
-  startTime DateTime
-  endTime   DateTime
-  status    BookingStatus @default(PENDING)
-  notes     String?
-  createdAt DateTime      @default(now())
+  id         String        @id @default(cuid())
+  business   Business      @relation(fields: [businessId], references: [id])
+  businessId String
+  client     Client        @relation(fields: [clientId], references: [id])
+  clientId   String
+  service    Service       @relation(fields: [serviceId], references: [id])
+  serviceId  String
+  staff      User          @relation("StaffBookings", fields: [staffId], references: [id])
+  staffId    String
+  startTime  DateTime
+  endTime    DateTime
+  status     BookingStatus @default(PENDING)
+  notes      String?
+  createdAt  DateTime      @default(now())
 
   sale Sale?
 
-  @@index([staffId, startTime])
-  @@index([clientId])
+  @@index([businessId, staffId, startTime])
+  @@index([businessId, clientId])
 }
 
 model GiftCard {
   id           String    @id @default(cuid())
-  code         String    @unique
+  business     Business  @relation(fields: [businessId], references: [id])
+  businessId   String
+  code         String
   initialValue Decimal   @db.Decimal(10, 2)
   balance      Decimal   @db.Decimal(10, 2)
   active       Boolean   @default(true)
@@ -118,6 +149,8 @@ model GiftCard {
   createdAt    DateTime  @default(now())
 
   transactions GiftCardTransaction[]
+
+  @@unique([businessId, code])
 }
 
 model GiftCardTransaction {
@@ -133,6 +166,8 @@ model GiftCardTransaction {
 
 model CashRegisterSession {
   id            String    @id @default(cuid())
+  business      Business  @relation(fields: [businessId], references: [id])
+  businessId    String
   openedBy      User      @relation(fields: [openedById], references: [id])
   openedById    String
   openedAt      DateTime  @default(now())
@@ -142,10 +177,14 @@ model CashRegisterSession {
   notes         String?
 
   sales Sale[]
+
+  @@index([businessId])
 }
 
 model Sale {
   id            String              @id @default(cuid())
+  business      Business            @relation(fields: [businessId], references: [id])
+  businessId    String
   client        Client?             @relation(fields: [clientId], references: [id])
   clientId      String?
   booking       Booking?            @relation(fields: [bookingId], references: [id])
@@ -159,8 +198,8 @@ model Sale {
   items      SaleItem[]
   giftCardTx GiftCardTransaction[]
 
-  @@index([cashSessionId])
-  @@index([createdAt])
+  @@index([businessId, cashSessionId])
+  @@index([businessId, createdAt])
 }
 
 model SaleItem {
@@ -174,11 +213,13 @@ model SaleItem {
 
 model Expense {
   id          String          @id @default(cuid())
+  business    Business        @relation(fields: [businessId], references: [id])
+  businessId  String
   date        DateTime
   category    ExpenseCategory
   description String?
   amount      Decimal         @db.Decimal(10, 2)
   createdAt   DateTime        @default(now())
 
-  @@index([date])
+  @@index([businessId, date])
 }

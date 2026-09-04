@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createBooking, updateBookingStatus } from "@/lib/bookings";
+import { requireBusinessId } from "@/lib/auth";
 
 export type ActionState = { error?: string; success?: string };
 
@@ -27,7 +28,9 @@ export async function createBookingAction(
     return { error: "La fecha u hora ingresada no es válida." };
   }
 
-  await createBooking({
+  const businessId = await requireBusinessId();
+
+  await createBooking(businessId, {
     clientName,
     clientPhone: clientPhone || undefined,
     clientEmail: clientEmail || undefined,
@@ -42,6 +45,7 @@ export async function createBookingAction(
 }
 
 export async function cancelBookingAction(bookingId: string) {
-  await updateBookingStatus(bookingId, "CANCELLED");
+  const businessId = await requireBusinessId();
+  await updateBookingStatus(businessId, bookingId, "CANCELLED");
   revalidatePath("/admin/reservas");
 }

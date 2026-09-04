@@ -12,22 +12,30 @@ export function currentYearMonth() {
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
-export async function listExpensesForMonth(year: number, month: number) {
+export async function listExpensesForMonth(
+  businessId: string,
+  year: number,
+  month: number
+) {
   const { start, end } = monthRange(year, month);
   return prisma.expense.findMany({
-    where: { date: { gte: start, lt: end } },
+    where: { businessId, date: { gte: start, lt: end } },
     orderBy: { date: "desc" },
   });
 }
 
-export async function createExpense(input: {
-  date: Date;
-  category: ExpenseCategory;
-  description?: string;
-  amount: number;
-}) {
+export async function createExpense(
+  businessId: string,
+  input: {
+    date: Date;
+    category: ExpenseCategory;
+    description?: string;
+    amount: number;
+  }
+) {
   return prisma.expense.create({
     data: {
+      businessId,
       date: input.date,
       category: input.category,
       description: input.description || null,
@@ -36,20 +44,24 @@ export async function createExpense(input: {
   });
 }
 
-export async function deleteExpense(id: string) {
-  return prisma.expense.delete({ where: { id } });
+export async function deleteExpense(businessId: string, id: string) {
+  return prisma.expense.delete({ where: { id, businessId } });
 }
 
-export async function getMonthlyFinancials(year: number, month: number) {
+export async function getMonthlyFinancials(
+  businessId: string,
+  year: number,
+  month: number
+) {
   const { start, end } = monthRange(year, month);
 
   const [sales, expenses] = await Promise.all([
     prisma.sale.findMany({
-      where: { createdAt: { gte: start, lt: end } },
+      where: { businessId, createdAt: { gte: start, lt: end } },
       select: { total: true },
     }),
     prisma.expense.findMany({
-      where: { date: { gte: start, lt: end } },
+      where: { businessId, date: { gte: start, lt: end } },
       select: { amount: true },
     }),
   ]);
@@ -66,7 +78,7 @@ export async function getMonthlyFinancials(year: number, month: number) {
   };
 }
 
-export async function getMonthlyTrend(monthsBack = 6) {
+export async function getMonthlyTrend(businessId: string, monthsBack = 6) {
   const now = new Date();
   const months: { year: number; month: number; label: string }[] = [];
   for (let i = monthsBack - 1; i >= 0; i--) {
@@ -80,7 +92,7 @@ export async function getMonthlyTrend(monthsBack = 6) {
 
   const results = await Promise.all(
     months.map(async (m) => {
-      const financials = await getMonthlyFinancials(m.year, m.month);
+      const financials = await getMonthlyFinancials(businessId, m.year, m.month);
       return { ...m, ...financials };
     })
   );

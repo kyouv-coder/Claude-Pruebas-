@@ -1,13 +1,15 @@
 import { listAllServices, listAllStaff } from "@/lib/settings";
+import { requireBusinessId } from "@/lib/auth";
 import { ServiceManager } from "./ServiceManager";
 import { StaffManager } from "./StaffManager";
 
 export const dynamic = "force-dynamic";
 
 export default async function ConfiguracionPage() {
+  const businessId = await requireBusinessId();
   const [services, staff] = await Promise.all([
-    listAllServices(),
-    listAllStaff(),
+    listAllServices(businessId),
+    listAllStaff(businessId),
   ]);
 
   const serviceRows = services.map((s) => ({

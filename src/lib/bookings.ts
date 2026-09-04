@@ -1,36 +1,40 @@
 import { prisma } from "@/lib/prisma";
 import type { BookingStatus } from "@/generated/prisma";
 
-export async function listServices() {
+export async function listServices(businessId: string) {
   return prisma.service.findMany({
-    where: { active: true },
+    where: { businessId, active: true },
     orderBy: { name: "asc" },
   });
 }
 
-export async function listStaff() {
+export async function listStaff(businessId: string) {
   return prisma.user.findMany({
-    where: { role: "STAFF", active: true },
+    where: { businessId, role: "STAFF", active: true },
     orderBy: { name: "asc" },
   });
 }
 
-export async function listUpcomingBookings(limit = 50) {
+export async function listUpcomingBookings(businessId: string, limit = 50) {
   return prisma.booking.findMany({
-    where: { startTime: { gte: new Date() } },
+    where: { businessId, startTime: { gte: new Date() } },
     orderBy: { startTime: "asc" },
     take: limit,
     include: { client: true, service: true, staff: true },
   });
 }
 
-export async function findOrCreateClient(input: {
-  name: string;
-  phone?: string;
-  email?: string;
-}) {
+export async function findOrCreateClient(
+  businessId: string,
+  input: {
+    name: string;
+    phone?: string;
+    email?: string;
+  }
+) {
   const existing = await prisma.client.findFirst({
     where: {
+      businessId,
       OR: [
         input.email ? { email: input.email } : undefined,
         input.phone ? { phone: input.phone } : undefined,
@@ -41,6 +45,7 @@ export async function findOrCreateClient(input: {
 
   return prisma.client.create({
     data: {
+      businessId,
       name: input.name,
       phone: input.phone || null,
       email: input.email || null,
@@ -48,19 +53,22 @@ export async function findOrCreateClient(input: {
   });
 }
 
-export async function createBooking(input: {
-  clientName: string;
-  clientPhone?: string;
-  clientEmail?: string;
-  serviceId: string;
-  staffId: string;
-  startTime: Date;
-  notes?: string;
-}) {
-  const service = await prisma.service.findUniqueOrThrow({
-    where: { id: input.serviceId },
+export async function createBooking(
+  businessId: string,
+  input: {
+    clientName: string;
+    clientPhone?: string;
+    clientEmail?: string;
+    serviceId: string;
+    staffId: string;
+    startTime: Date;
+    notes?: string;
+  }
+) {
+  const service = await prisma.service.findFirstOrThrow({
+    where: { id: input.serviceId, businessId },
   });
-  const client = await findOrCreateClient({
+  const client = await findOrCreateClient(businessId, {
     name: input.clientName,
     phone: input.clientPhone,
     email: input.clientEmail,
@@ -71,6 +79,7 @@ export async function createBooking(input: {
 
   return prisma.booking.create({
     data: {
+      businessId,
       clientId: client.id,
       serviceId: service.id,
       staffId: input.staffId,
@@ -81,6 +90,13 @@ export async function createBooking(input: {
   });
 }
 
-export async function updateBookingStatus(id: string, status: BookingStatus) {
-  return prisma.booking.update({ where: { id }, data: { status } });
+export async function updateBookingStatus(
+  businessId: string,
+  id: string,
+  status: BookingStatus
+) {
+  return prisma.booking.update({
+    where: { id, businessId },
+    data: { status },
+  });
 }

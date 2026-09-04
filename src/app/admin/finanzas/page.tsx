@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { listExpensesForMonth, getMonthlyFinancials, currentYearMonth } from "@/lib/finance";
+import { requireBusinessId } from "@/lib/auth";
 import { ExpenseForm } from "./ExpenseForm";
 import { ExpenseList } from "./ExpenseList";
 
@@ -26,14 +27,15 @@ export default async function FinanzasPage({
 }: {
   searchParams: Promise<{ year?: string; month?: string }>;
 }) {
+  const businessId = await requireBusinessId();
   const params = await searchParams;
   const current = currentYearMonth();
   const year = Number(params.year) || current.year;
   const month = Number(params.month) || current.month;
 
   const [expenses, financials] = await Promise.all([
-    listExpensesForMonth(year, month),
-    getMonthlyFinancials(year, month),
+    listExpensesForMonth(businessId, year, month),
+    getMonthlyFinancials(businessId, year, month),
   ]);
 
   const expenseRows = expenses.map((e) => ({

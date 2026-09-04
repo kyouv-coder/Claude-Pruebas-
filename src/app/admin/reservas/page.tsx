@@ -1,4 +1,5 @@
 import { listServices, listStaff, listUpcomingBookings } from "@/lib/bookings";
+import { requireBusinessId } from "@/lib/auth";
 import { BookingForm } from "./BookingForm";
 import { CancelBookingButton } from "./CancelBookingButton";
 
@@ -23,10 +24,11 @@ const statusColor: Record<string, string> = {
 };
 
 export default async function ReservasPage() {
+  const businessId = await requireBusinessId();
   const [services, staff, bookings] = await Promise.all([
-    listServices(),
-    listStaff(),
-    listUpcomingBookings(),
+    listServices(businessId),
+    listStaff(businessId),
+    listUpcomingBookings(businessId),
   ]);
 
   return (

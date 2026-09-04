@@ -8,30 +8,34 @@ async function getOperator() {
   return user;
 }
 
-export async function getOpenCashSession() {
+export async function getOpenCashSession(businessId: string) {
   return prisma.cashRegisterSession.findFirst({
-    where: { closedAt: null },
+    where: { businessId, closedAt: null },
     orderBy: { openedAt: "desc" },
   });
 }
 
-export async function openCashSession(openingAmount: number) {
+export async function openCashSession(businessId: string, openingAmount: number) {
   const operator = await getOperator();
   return prisma.cashRegisterSession.create({
-    data: { openedById: operator.id, openingAmount },
+    data: { businessId, openedById: operator.id, openingAmount },
   });
 }
 
-export async function closeCashSession(sessionId: string, closingAmount: number) {
+export async function closeCashSession(
+  businessId: string,
+  sessionId: string,
+  closingAmount: number
+) {
   return prisma.cashRegisterSession.update({
-    where: { id: sessionId },
+    where: { id: sessionId, businessId },
     data: { closedAt: new Date(), closingAmount },
   });
 }
 
-export async function getCashSessionSummary(sessionId: string) {
+export async function getCashSessionSummary(businessId: string, sessionId: string) {
   const sales = await prisma.sale.findMany({
-    where: { cashSessionId: sessionId },
+    where: { businessId, cashSessionId: sessionId },
     select: { total: true, paymentMethod: true },
   });
   const total = sales.reduce((sum, s) => sum + Number(s.total), 0);
@@ -42,13 +46,14 @@ export async function getCashSessionSummary(sessionId: string) {
   return { salesCount: sales.length, total, byMethod };
 }
 
-export async function getTodaysUnpaidBookings() {
+export async function getTodaysUnpaidBookings(businessId: string) {
   const today = new Date();
   const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
 
   return prisma.booking.findMany({
     where: {
+      businessId,
       startTime: { gte: start, lt: end },
       status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
       sale: null,
@@ -59,18 +64,20 @@ export async function getTodaysUnpaidBookings() {
 }
 
 export async function chargeBooking(
+  businessId: string,
   bookingId: string,
   cashSessionId: string,
   paymentMethod: PaymentMethod
 ) {
-  const booking = await prisma.booking.findUniqueOrThrow({
-    where: { id: bookingId },
+  const booking = await prisma.booking.findFirstOrThrow({
+    where: { id: bookingId, businessId },
     include: { service: true },
   });
 
   return prisma.$transaction(async (tx) => {
     const sale = await tx.sale.create({
       data: {
+        businessId,
         clientId: booking.clientId,
         bookingId: booking.id,
         cashSessionId,
@@ -99,16 +106,20 @@ function generateGiftCardCode() {
   return `GC-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 }
 
-export async function sellGiftCard(input: {
-  clientName: string;
-  clientPhone?: string;
-  clientEmail?: string;
-  amount: number;
-  paymentMethod: PaymentMethod;
-  cashSessionId: string;
-}) {
+export async function sellGiftCard(
+  businessId: string,
+  input: {
+    clientName: string;
+    clientPhone?: string;
+    clientEmail?: string;
+    amount: number;
+    paymentMethod: PaymentMethod;
+    cashSessionId: string;
+  }
+) {
   const client = await prisma.client.create({
     data: {
+      businessId,
       name: input.clientName,
       phone: input.clientPhone || null,
       email: input.clientEmail || null,
@@ -118,6 +129,7 @@ export async function sellGiftCard(input: {
   return prisma.$transaction(async (tx) => {
     const sale = await tx.sale.create({
       data: {
+        businessId,
         clientId: client.id,
         cashSessionId: input.cashSessionId,
         total: input.amount,
@@ -136,6 +148,7 @@ export async function sellGiftCard(input: {
 
     const giftCard = await tx.giftCard.create({
       data: {
+        businessId,
         code: generateGiftCardCode(),
         initialValue: input.amount,
         balance: input.amount,
@@ -156,13 +169,16 @@ export async function sellGiftCard(input: {
   });
 }
 
-export async function redeemGiftCard(input: {
-  code: string;
-  amount: number;
-  cashSessionId: string;
-}) {
-  const giftCard = await prisma.giftCard.findUniqueOrThrow({
-    where: { code: input.code },
+export async function redeemGiftCard(
+  businessId: string,
+  input: {
+    code: string;
+    amount: number;
+    cashSessionId: string;
+  }
+) {
+  const giftCard = await prisma.giftCard.findFirstOrThrow({
+    where: { code: input.code, businessId },
   });
 
   if (!giftCard.active) throw new Error("La giftcard no está activa");
@@ -173,6 +189,7 @@ export async function redeemGiftCard(input: {
   return prisma.$transaction(async (tx) => {
     const sale = await tx.sale.create({
       data: {
+        businessId,
         clientId: giftCard.clientId,
         cashSessionId: input.cashSessionId,
         total: input.amount,

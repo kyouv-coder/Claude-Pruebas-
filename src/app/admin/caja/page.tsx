@@ -3,6 +3,7 @@ import {
   getCashSessionSummary,
   getTodaysUnpaidBookings,
 } from "@/lib/pos";
+import { requireBusinessId } from "@/lib/auth";
 import { chargeBookingAction } from "./actions";
 import {
   OpenCashForm,
@@ -18,7 +19,8 @@ function money(n: number) {
 }
 
 export default async function CajaPage() {
-  const session = await getOpenCashSession();
+  const businessId = await requireBusinessId();
+  const session = await getOpenCashSession(businessId);
 
   if (!session) {
     return (
@@ -33,8 +35,8 @@ export default async function CajaPage() {
   }
 
   const [summary, pendingBookings] = await Promise.all([
-    getCashSessionSummary(session.id),
-    getTodaysUnpaidBookings(),
+    getCashSessionSummary(businessId, session.id),
+    getTodaysUnpaidBookings(businessId),
   ]);
 
   return (

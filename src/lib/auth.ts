@@ -18,6 +18,31 @@ export async function hashPassword(password: string) {
   return bcrypt.hash(password, 10);
 }
 
+export async function signUp(input: {
+  businessName: string;
+  name: string;
+  email: string;
+  password: string;
+}) {
+  const passwordHash = await hashPassword(input.password);
+
+  return prisma.$transaction(async (tx) => {
+    const business = await tx.business.create({
+      data: { name: input.businessName },
+    });
+    const user = await tx.user.create({
+      data: {
+        businessId: business.id,
+        name: input.name,
+        email: input.email,
+        passwordHash,
+        role: "ADMIN",
+      },
+    });
+    return { business, user };
+  });
+}
+
 export async function verifyCredentials(email: string, password: string) {
   const user = await prisma.user.findFirst({
     where: { email, role: "ADMIN", active: true },
@@ -80,6 +105,12 @@ export async function destroySession() {
   cookieStore.delete(SESSION_COOKIE);
 }
 
+export async function requireBusinessId() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("No hay una sesión activa.");
+  return user.businessId;
+}
+
 export async function getCurrentUser() {
   const secret = process.env.AUTH_SECRET;
   if (!secret) return null;
@@ -91,5 +122,8 @@ export async function getCurrentUser() {
   const session = await verifySessionToken(token, secret);
   if (!session) return null;
 
-  return prisma.user.findUnique({ where: { id: session.sub } });
+  return prisma.user.findUnique({
+    where: { id: session.sub },
+    include: { business: true },
+  });
 }

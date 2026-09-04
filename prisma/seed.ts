@@ -4,16 +4,28 @@ import { PrismaClient } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
 
+const BUSINESS_NAME = process.env.SEED_BUSINESS_NAME || "Spa Demo";
 const ADMIN_EMAIL = process.env.SEED_ADMIN_EMAIL || "admin@spa.local";
 const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "changeme123";
 
 async function main() {
   const adminPasswordHash = await bcrypt.hash(ADMIN_PASSWORD, 10);
 
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: ADMIN_EMAIL },
+  });
+
+  const business = existingAdmin
+    ? await prisma.business.findUniqueOrThrow({
+        where: { id: existingAdmin.businessId },
+      })
+    : await prisma.business.create({ data: { name: BUSINESS_NAME } });
+
   const admin = await prisma.user.upsert({
     where: { email: ADMIN_EMAIL },
     update: { passwordHash: adminPasswordHash },
     create: {
+      businessId: business.id,
       name: "Administración",
       email: ADMIN_EMAIL,
       passwordHash: adminPasswordHash,
@@ -25,6 +37,7 @@ async function main() {
     where: { email: "staff@spa.local" },
     update: {},
     create: {
+      businessId: business.id,
       name: "Terapeuta Principal",
       email: "staff@spa.local",
       // El staff no inicia sesión (solo ADMIN) — este hash nunca se usa para login.
@@ -40,14 +53,15 @@ async function main() {
       { name: "Masaje descontracturante", durationMinutes: 50, price: 16000 },
     ].map((s) =>
       prisma.service.upsert({
-        where: { name: s.name },
+        where: { businessId_name: { businessId: business.id, name: s.name } },
         update: {},
-        create: s,
+        create: { ...s, businessId: business.id },
       })
     )
   );
 
   console.log({
+    business: business.name,
     admin: admin.email,
     adminPassword: process.env.SEED_ADMIN_PASSWORD
       ? "(definida por SEED_ADMIN_PASSWORD)"

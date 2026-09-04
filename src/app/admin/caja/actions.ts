@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@/generated/prisma";
 import {
   openCashSession,
   closeCashSession,
@@ -8,6 +9,7 @@ import {
   sellGiftCard,
   redeemGiftCard,
 } from "@/lib/pos";
+import { requireBusinessId } from "@/lib/auth";
 import type { PaymentMethod } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -20,7 +22,8 @@ export async function openCashSessionAction(
   if (!(openingAmount >= 0)) {
     return { error: "Ingresá un monto inicial válido." };
   }
-  await openCashSession(openingAmount);
+  const businessId = await requireBusinessId();
+  await openCashSession(businessId, openingAmount);
   revalidatePath("/admin/caja");
   return { success: "Caja abierta." };
 }
@@ -34,7 +37,8 @@ export async function closeCashSessionAction(
   if (!(closingAmount >= 0)) {
     return { error: "Ingresá un monto de cierre válido." };
   }
-  await closeCashSession(sessionId, closingAmount);
+  const businessId = await requireBusinessId();
+  await closeCashSession(businessId, sessionId, closingAmount);
   revalidatePath("/admin/caja");
   return { success: "Caja cerrada." };
 }
@@ -43,7 +47,8 @@ export async function chargeBookingAction(formData: FormData) {
   const bookingId = String(formData.get("bookingId") || "");
   const cashSessionId = String(formData.get("cashSessionId") || "");
   const paymentMethod = String(formData.get("paymentMethod") || "CASH") as PaymentMethod;
-  await chargeBooking(bookingId, cashSessionId, paymentMethod);
+  const businessId = await requireBusinessId();
+  await chargeBooking(businessId, bookingId, cashSessionId, paymentMethod);
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
 }
@@ -66,7 +71,9 @@ export async function sellGiftCardAction(
     return { error: "El monto debe ser mayor a 0." };
   }
 
-  await sellGiftCard({
+  const businessId = await requireBusinessId();
+
+  await sellGiftCard(businessId, {
     clientName,
     clientPhone: clientPhone || undefined,
     clientEmail: clientEmail || undefined,
@@ -94,10 +101,12 @@ export async function redeemGiftCardAction(
     return { error: "El monto debe ser mayor a 0." };
   }
 
+  const businessId = await requireBusinessId();
+
   try {
-    await redeemGiftCard({ code, amount, cashSessionId });
+    await redeemGiftCard(businessId, { code, amount, cashSessionId });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("Argument `where`")) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "No se encontró ninguna giftcard con ese código." };
     }
     return {

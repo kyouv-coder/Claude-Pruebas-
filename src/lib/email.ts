@@ -43,14 +43,10 @@ function formatBookingsTable(bookings: DailyBooking[]): string {
 }
 
 export async function sendDailyBookingsEmail(
+  to: string,
   bookings: DailyBooking[],
   dateLabel: string
 ) {
-  const to = process.env.ADMIN_EMAIL;
-  if (!to) {
-    throw new Error("ADMIN_EMAIL no está configurado");
-  }
-
   await resend.emails.send({
     from: process.env.EMAIL_FROM ?? "reservas@spa.local",
     to,

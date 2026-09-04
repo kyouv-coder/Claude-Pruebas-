@@ -12,9 +12,11 @@ const links = [
 ];
 
 export function AdminSidebar({
+  businessName,
   operatorName,
   logoutAction,
 }: {
+  businessName?: string;
   operatorName?: string;
   logoutAction: () => void;
 }) {
@@ -26,7 +28,9 @@ export function AdminSidebar({
       className="flex flex-wrap items-center md:flex-col md:items-stretch gap-1 md:gap-0.5 md:w-56 shrink-0 border-b md:border-b-0 md:border-r border-border px-4 py-4 md:py-8"
     >
       <div className="hidden md:block mb-6 px-2">
-        <span className="font-display text-lg text-ink">Spa</span>
+        <span className="font-display text-lg text-ink">
+          {businessName ?? "Administración"}
+        </span>
         <p className="text-xs text-muted mt-0.5">Administración</p>
       </div>
       {links.map((link) => {

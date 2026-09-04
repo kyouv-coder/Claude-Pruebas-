@@ -9,6 +9,7 @@ import {
   updateStaff,
   setStaffActive,
 } from "@/lib/settings";
+import { requireBusinessId } from "@/lib/auth";
 
 export type ActionState = { error?: string; success?: string };
 
@@ -36,8 +37,10 @@ export async function createServiceAction(
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
 
+  const businessId = await requireBusinessId();
+
   try {
-    await createService({
+    await createService(businessId, {
       name,
       description: description || undefined,
       durationMinutes,
@@ -68,8 +71,10 @@ export async function updateServiceAction(
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
 
+  const businessId = await requireBusinessId();
+
   try {
-    await updateService(id, {
+    await updateService(businessId, id, {
       name,
       description: description || undefined,
       durationMinutes,
@@ -87,7 +92,8 @@ export async function updateServiceAction(
 }
 
 export async function toggleServiceActiveAction(id: string, active: boolean) {
-  await setServiceActive(id, active);
+  const businessId = await requireBusinessId();
+  await setServiceActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
 }
@@ -103,8 +109,10 @@ export async function createStaffAction(
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
 
+  const businessId = await requireBusinessId();
+
   try {
-    await createStaff({ name, email });
+    await createStaff(businessId, { name, email });
   } catch (e) {
     if (e instanceof Error && e.message.includes("Unique constraint")) {
       return { error: "Ya existe una persona con ese email." };
@@ -127,8 +135,10 @@ export async function updateStaffAction(
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
 
+  const businessId = await requireBusinessId();
+
   try {
-    await updateStaff(id, { name, email });
+    await updateStaff(businessId, id, { name, email });
   } catch (e) {
     if (e instanceof Error && e.message.includes("Unique constraint")) {
       return { error: "Ya existe una persona con ese email." };
@@ -140,7 +150,8 @@ export async function updateStaffAction(
 }
 
 export async function toggleStaffActiveAction(id: string, active: boolean) {
-  await setStaffActive(id, active);
+  const businessId = await requireBusinessId();
+  await setStaffActive(businessId, id, active);
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
 }
