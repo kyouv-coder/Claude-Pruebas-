@@ -2,9 +2,11 @@ import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
 import { getMonthlyFinancials, getMonthlyTrend, currentYearMonth } from "@/lib/finance";
 import { getRecommendations } from "@/lib/insights";
+import { getOnboardingStatus } from "@/lib/onboarding";
 import { requireAdmin, getCurrentUser } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
 import { StatCard } from "@/components/StatCard";
+import { OnboardingChecklist } from "@/components/OnboardingChecklist";
 import {
   RevenueTrendChart,
   TopServicesChart,
@@ -24,12 +26,13 @@ function pct(n: number) {
 export default async function DashboardPage() {
   const businessId = await requireAdmin();
   const { year, month } = currentYearMonth();
-  const [stats, monthFinancials, netTrend, recommendations, user] = await Promise.all([
+  const [stats, monthFinancials, netTrend, recommendations, user, onboarding] = await Promise.all([
     getDashboardStats(businessId),
     getMonthlyFinancials(businessId, year, month),
     getMonthlyTrend(businessId, 6),
     getRecommendations(businessId),
     getCurrentUser(),
+    getOnboardingStatus(businessId),
   ]);
   const copy = getVerticalCopy(user?.business.businessType);
   const topRecommendations = recommendations.filter((r) => r.severity !== "info").slice(0, 2);
@@ -47,12 +50,16 @@ export default async function DashboardPage() {
         <p className="text-sm text-muted mt-1">{copy.tagline}</p>
       </div>
 
-      {!stats.hasActivity && (
-        <div className="bg-accent-soft border border-border rounded-lg p-4 text-sm text-ink">
-          Todavía no hay reservas ni ventas registradas. Las métricas de abajo
-          van a empezar a completarse en cuanto se cree la primera reserva y
-          se cobre en caja.
-        </div>
+      {!onboarding.isComplete ? (
+        <OnboardingChecklist status={onboarding} />
+      ) : (
+        !stats.hasActivity && (
+          <div className="bg-accent-soft border border-border rounded-lg p-4 text-sm text-ink">
+            Todavía no hay reservas ni ventas registradas. Las métricas de abajo
+            van a empezar a completarse en cuanto se cree la primera reserva y
+            se cobre en caja.
+          </div>
+        )
       )}
 
       {topRecommendations.length > 0 && (
