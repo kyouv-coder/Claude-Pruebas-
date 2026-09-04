@@ -58,7 +58,20 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 | `data-viz-renderer` | Dashboards e infografías HTML/SVG autocontenidas |
 | `timeline-builder` | Timelines de hitos del proyecto, roadmap visual |
 
-### 5. Trabajar con varios clientes/proyectos a la vez
+### 5. Performance, memoria y seguridad avanzada
+| Skill | Para qué sirve |
+|---|---|
+| `benchmark-optimization-loop` | Probar variantes y medir para elegir la implementación más rápida |
+| `parallel-execution-optimizer` | Paralelizar tareas (agentes, worktrees, tool calls) sin perder correctitud |
+| `content-hash-cache-pattern` | Cachear resultados costosos por hash de contenido, con auto-invalidación |
+| `prompt-optimizer` | Optimizar prompts y uso de tokens |
+| `context-budget` | Auditar qué está llenando la ventana de contexto (agentes, skills, MCP, rules) |
+| `token-budget-advisor` | Gestión de presupuesto de tokens |
+| `unified-memory` | Memoria compartida entre Claude, Codex, Cursor, OpenCode y otros agentes |
+| `security-review` | Checklist de seguridad para auth, inputs, secrets, endpoints, pagos |
+| `security-scan` | Audita el propio `.claude/` (config, hooks, MCP) en busca de riesgos de inyección |
+
+### 6. Trabajar con varios clientes/proyectos a la vez
 | Skill | Para qué sirve |
 |---|---|
 | `git-worktree` / `git-worktree-status` / `git-worktree-clean` | Trabajar en paralelo sin mezclar ramas de distintos clientes |
@@ -76,8 +89,9 @@ También se activan solas cuando el pedido calza con su descripción (ej: pedir 
 
 ## Origen de las skills
 
-Curadas desde dos repos públicos de Claude Code:
+Curadas desde tres repos públicos de Claude Code:
 - [zebbern/claude-code-guide](https://github.com/zebbern/claude-code-guide)
 - [FlorianBruniaux/claude-code-ultimate-guide](https://github.com/FlorianBruniaux/claude-code-ultimate-guide)
+- [affaan-m/ECC](https://github.com/affaan-m/ECC)
 
 Se seleccionó un subconjunto orientado a negocio/producto, no el catálogo completo (que incluye pentesting, contenido educativo, etc. no relevante para este repo).
