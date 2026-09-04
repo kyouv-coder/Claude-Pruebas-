@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { createPublicBookingAction, type ActionState } from "./actions";
+import { getBusyTimesAction } from "./availability";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
 
 type Service = { id: string; name: string; durationMinutes: number; price: number };
@@ -25,6 +26,21 @@ export function PublicBookingForm({
   ctaLabel: string;
 }) {
   const [state, formAction, pending] = useActionState(createPublicBookingAction, initialState);
+  const [selectedStaffId, setSelectedStaffId] = useState(staff.length === 1 ? staff[0].id : "");
+  const [selectedDate, setSelectedDate] = useState("");
+  const [busyRanges, setBusyRanges] = useState<{ start: string; end: string }[]>([]);
+  const [loadingBusy, setLoadingBusy] = useState(false);
+
+  function refreshBusyTimes(staffId: string, date: string) {
+    if (!staffId || !date) {
+      setBusyRanges([]);
+      return;
+    }
+    setLoadingBusy(true);
+    getBusyTimesAction(slug, staffId, date)
+      .then((ranges) => setBusyRanges(ranges))
+      .finally(() => setLoadingBusy(false));
+  }
 
   if (state.success) {
     return (
@@ -75,7 +91,16 @@ export function PublicBookingForm({
 
       {staff.length > 1 && (
         <FormField label="Profesional" htmlFor="pbStaffId">
-          <select id="pbStaffId" name="staffId" className={inputClass}>
+          <select
+            id="pbStaffId"
+            name="staffId"
+            className={inputClass}
+            value={selectedStaffId}
+            onChange={(e) => {
+              setSelectedStaffId(e.target.value);
+              refreshBusyTimes(e.target.value, selectedDate);
+            }}
+          >
             <option value="">Sin preferencia</option>
             {staff.map((s) => (
               <option key={s.id} value={s.id}>
@@ -89,12 +114,33 @@ export function PublicBookingForm({
 
       <div className="flex gap-2">
         <FormField label="Fecha" htmlFor="pbDate" required>
-          <input id="pbDate" name="date" type="date" required className={inputClass} />
+          <input
+            id="pbDate"
+            name="date"
+            type="date"
+            required
+            className={inputClass}
+            value={selectedDate}
+            onChange={(e) => {
+              setSelectedDate(e.target.value);
+              refreshBusyTimes(selectedStaffId, e.target.value);
+            }}
+          />
         </FormField>
         <FormField label="Hora" htmlFor="pbTime" required>
           <input id="pbTime" name="time" type="time" required className={inputClass} />
         </FormField>
       </div>
+
+      {selectedStaffId && selectedDate && (
+        <p className="text-xs text-muted -mt-1" role="status" aria-live="polite">
+          {loadingBusy
+            ? "Consultando horarios ocupados…"
+            : busyRanges.length === 0
+              ? "No hay turnos ocupados ese día para este profesional."
+              : `Ocupado ese día: ${busyRanges.map((r) => `${r.start}–${r.end}`).join(", ")}`}
+        </p>
+      )}
 
       <FormField label="Notas (opcional)" htmlFor="pbNotes">
         <textarea id="pbNotes" name="notes" rows={2} className={inputClass} />
