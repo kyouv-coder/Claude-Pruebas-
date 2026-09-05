@@ -96,6 +96,41 @@ export function TopServicesChart({
   );
 }
 
+export function ExpensesByCategoryChart({
+  data,
+  ariaLabel,
+}: {
+  data: { label: string; amount: number }[];
+  ariaLabel: string;
+}) {
+  return (
+    <div role="img" aria-label={ariaLabel}>
+      <ResponsiveContainer width="100%" height={Math.max(160, data.length * 40)}>
+        <BarChart data={data} layout="vertical" aria-hidden="true">
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+          <XAxis type="number" tick={{ fontSize: 11, fill: "var(--muted)" }} />
+          <YAxis
+            type="category"
+            dataKey="label"
+            tick={{ fontSize: 11, fill: "var(--muted)" }}
+            width={140}
+          />
+          <Tooltip
+            contentStyle={{
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              fontSize: 13,
+            }}
+            formatter={(value) => [money(Number(value)), "Gasto"]}
+          />
+          <Bar dataKey="amount" name="Gasto" fill="var(--danger)" radius={[0, 4, 4, 0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
 export function NetProfitTrendChart({
   data,
   ariaLabel,

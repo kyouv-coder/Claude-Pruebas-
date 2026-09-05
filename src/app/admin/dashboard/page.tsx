@@ -1,13 +1,23 @@
 import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
-import { getMonthlyFinancials, getMonthlyTrend, getYearlyTrend, currentYearMonth } from "@/lib/finance";
+import {
+  getMonthlyFinancials,
+  getMonthlyTrend,
+  getYearlyTrend,
+  getExpensesByCategory,
+  currentYearMonth,
+} from "@/lib/finance";
 import { getRecommendations } from "@/lib/insights";
 import { getOnboardingStatus } from "@/lib/onboarding";
 import { requireAdmin, getCurrentUser } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
 import { StatCard } from "@/components/StatCard";
 import { OnboardingChecklist } from "@/components/OnboardingChecklist";
-import { TopServicesChart, NetProfitTrendChart } from "@/components/DashboardCharts";
+import {
+  TopServicesChart,
+  NetProfitTrendChart,
+  ExpensesByCategoryChart,
+} from "@/components/DashboardCharts";
 import { RevenueTrendPanel } from "@/components/RevenueTrendPanel";
 
 export const dynamic = "force-dynamic";
@@ -23,17 +33,27 @@ function pct(n: number) {
 export default async function DashboardPage() {
   const businessId = await requireAdmin();
   const { year, month } = currentYearMonth();
-  const [stats, monthFinancials, netTrend, revenueMonthlyTrend, revenueYearlyTrend, recommendations, user, onboarding] =
-    await Promise.all([
-      getDashboardStats(businessId),
-      getMonthlyFinancials(businessId, year, month),
-      getMonthlyTrend(businessId, 6),
-      getMonthlyTrend(businessId, 12),
-      getYearlyTrend(businessId, 3),
-      getRecommendations(businessId),
-      getCurrentUser(),
-      getOnboardingStatus(businessId),
-    ]);
+  const [
+    stats,
+    monthFinancials,
+    netTrend,
+    revenueMonthlyTrend,
+    revenueYearlyTrend,
+    expensesByCategory,
+    recommendations,
+    user,
+    onboarding,
+  ] = await Promise.all([
+    getDashboardStats(businessId),
+    getMonthlyFinancials(businessId, year, month),
+    getMonthlyTrend(businessId, 6),
+    getMonthlyTrend(businessId, 12),
+    getYearlyTrend(businessId, 3),
+    getExpensesByCategory(businessId, year, month),
+    getRecommendations(businessId),
+    getCurrentUser(),
+    getOnboardingStatus(businessId),
+  ]);
   const copy = getVerticalCopy(user?.business.businessType);
   const topRecommendations = recommendations.filter((r) => r.severity !== "info").slice(0, 2);
   const netColor =
@@ -168,7 +188,7 @@ export default async function DashboardPage() {
           </div>
           <div>
             <div className="text-xs text-muted">Gastos</div>
-            <div className="font-display text-xl text-ink mt-1">
+            <div className="font-display text-xl text-danger mt-1">
               {money(monthFinancials.expenses)}
             </div>
           </div>
@@ -185,6 +205,27 @@ export default async function DashboardPage() {
             .map((m) => `${m.label}: ${money(m.net)}`)
             .join("; ")}.`}
         />
+      </div>
+
+      <div className="bg-surface border border-border rounded-lg p-4">
+        <div className="flex items-baseline justify-between mb-4">
+          <h2 className="font-display text-base text-ink">Gastos del mes por categoría</h2>
+          <Link href="/admin/finanzas" className="text-xs text-accent hover:underline">
+            Ver detalle en Finanzas →
+          </Link>
+        </div>
+        {expensesByCategory.length > 0 ? (
+          <ExpensesByCategoryChart
+            data={expensesByCategory}
+            ariaLabel={`Gráfico de barras: gastos del mes por categoría, ${expensesByCategory
+              .map((e) => `${e.label}: ${money(e.amount)}`)
+              .join("; ")}.`}
+          />
+        ) : (
+          <p className="text-sm text-muted py-6">
+            Todavía no hay gastos cargados este mes.
+          </p>
+        )}
       </div>
     </div>
   );
