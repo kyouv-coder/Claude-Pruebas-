@@ -48,8 +48,8 @@ Hace todo eso en orden y levanta el servidor al final.
 - **Productos con foto y descripción**: igual que los servicios, cada producto (`Configuración → Productos`) ahora tiene descripción y foto propias, visibles en una vitrina en la página pública. El cliente puede pedir productos junto con su reserva (se pagan al retirarlos, como el servicio — no hay cobro online todavía) y el staff los ve listados junto a cada turno en `/admin/reservas`.
 - **Paleta blanco y negro**: se cambió `globals.css` de la paleta crema/verde original a blanco y negro puro, a pedido del usuario.
 - **Verificación en vivo del webhook de Slack**: se creó el canal `#pyme-notificaciones` y se cargó su Incoming Webhook en el negocio de prueba local, pero este sandbox bloquea las conexiones salientes a `hooks.slack.com` (política de red del entorno, no de la app), así que no se pudo confirmar que el mensaje llega de punta a punta. Falta probarlo contra un deploy real (Vercel no tiene esa restricción).
-- **Cobertura de tests**: hay una suite (`npm test`, 21 tests) sobre la lógica más crítica (CSV injection, slugs, horarios, doble reserva, canje de giftcards sin sobregiro), pero no cubre todo el código.
-- Sin deploy productivo todavía — falta correr `npx prisma migrate resolve --applied 20260904000000_init` una sola vez contra la base real antes del próximo `migrate deploy` (ver el mensaje del commit `fd5dfa0`).
+- **Cobertura de tests**: hay una suite (`npm test`, 27 tests) sobre la lógica más crítica (CSV injection, slugs, horarios, doble reserva, canje de giftcards sin sobregiro, validación y aislamiento multi-tenant de comprobantes adjuntos), pero no cubre todo el código.
+- Deploy productivo funcionando en Vercel (ver commits sobre Prisma binaryTargets, build con webpack en vez de Turbopack, y `postinstall: prisma generate`).
 
 ## Cómo usar las skills
 
