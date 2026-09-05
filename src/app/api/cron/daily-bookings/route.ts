@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendDailyBookingsEmail, type DailyBooking } from "@/lib/email";
+import { cleanupOldRateLimitAttempts } from "@/lib/maintenance";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -24,6 +25,8 @@ export async function GET(request: NextRequest) {
       users: { where: { role: "ADMIN", active: true }, take: 1 },
     },
   });
+
+  const cleanup = await cleanupOldRateLimitAttempts();
 
   let businessesNotified = 0;
 
@@ -57,5 +60,5 @@ export async function GET(request: NextRequest) {
     businessesNotified++;
   }
 
-  return NextResponse.json({ businessesNotified });
+  return NextResponse.json({ businessesNotified, ...cleanup });
 }

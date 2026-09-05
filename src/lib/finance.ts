@@ -24,6 +24,32 @@ export async function listExpensesForMonth(
   });
 }
 
+const CATEGORY_LABELS: Record<ExpenseCategory, string> = {
+  IMPUESTOS: "Impuestos",
+  ALQUILER: "Alquiler",
+  INSUMOS: "Insumos",
+  SUELDOS: "Sueldos",
+  SERVICIOS: "Servicios (luz, agua, etc.)",
+  OTRO: "Otro",
+};
+
+export async function getExpensesByCategory(businessId: string, year: number, month: number) {
+  const { start, end } = monthRange(year, month);
+  const expenses = await prisma.expense.groupBy({
+    by: ["category"],
+    where: { businessId, date: { gte: start, lt: end } },
+    _sum: { amount: true },
+  });
+
+  return expenses
+    .map((e) => ({
+      category: e.category,
+      label: CATEGORY_LABELS[e.category],
+      amount: Number(e._sum.amount ?? 0),
+    }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
 export async function createExpense(
   businessId: string,
   input: {
