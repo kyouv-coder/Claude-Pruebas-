@@ -56,14 +56,35 @@ export async function closeCashSessionAction(
   };
 }
 
-export async function chargeBookingAction(formData: FormData) {
+export async function chargeBookingAction(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
   const bookingId = String(formData.get("bookingId") || "");
   const cashSessionId = String(formData.get("cashSessionId") || "");
   const paymentMethod = String(formData.get("paymentMethod") || "CASH") as PaymentMethod;
   const businessId = await requireBusinessId();
-  await chargeBooking(businessId, bookingId, cashSessionId, paymentMethod);
+
+  try {
+    await chargeBooking(businessId, bookingId, cashSessionId, paymentMethod);
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      if (e.code === "P2025") {
+        return { error: "No se encontró la reserva." };
+      }
+      // Sale.bookingId es único: un doble clic o dos pestañas cobrando el
+      // mismo turno a la vez cae acá en vez de tirar la página entera.
+      if (e.code === "P2002") {
+        return { error: "Este turno ya fue cobrado." };
+      }
+    }
+    return {
+      error: e instanceof Error ? e.message : "No se pudo registrar el cobro.",
+    };
+  }
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
+  return { success: "Cobro registrado." };
 }
 
 export async function sellGiftCardAction(
