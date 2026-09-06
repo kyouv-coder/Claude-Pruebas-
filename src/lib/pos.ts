@@ -196,16 +196,20 @@ export async function sellGiftCard(
     cashSessionId: string;
   }
 ) {
-  const client = await prisma.client.create({
-    data: {
-      businessId,
-      name: input.clientName,
-      phone: input.clientPhone || null,
-      email: input.clientEmail || null,
-    },
-  });
-
   return prisma.$transaction(async (tx) => {
+    // El cliente se crea en la misma transacción que la venta y la
+    // giftcard: si algo después falla (ej. cashSessionId inválido), todo
+    // se revierte junto — antes quedaba un cliente fantasma sin giftcard
+    // ni venta, creado aparte y nunca limpiado.
+    const client = await tx.client.create({
+      data: {
+        businessId,
+        name: input.clientName,
+        phone: input.clientPhone || null,
+        email: input.clientEmail || null,
+      },
+    });
+
     const sale = await tx.sale.create({
       data: {
         businessId,
