@@ -127,4 +127,38 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
       })
     ).resolves.toMatchObject({ staffId });
   });
+
+  it("never lets two simultaneous bookings double-book the same staff/slot", async () => {
+    const start = new Date("2027-01-18T10:00:00Z");
+
+    // Dos reservas para el mismo profesional y horario en paralelo: sin la
+    // transacción serializable, ambas podrían pasar el chequeo de
+    // solapamiento antes de que ninguna hubiera insertado todavía.
+    const results = await Promise.allSettled([
+      createBooking(businessId, {
+        clientName: "Cliente Concurrente Uno",
+        clientEmail: "concurrente-uno@example.com",
+        serviceId,
+        staffId,
+        startTime: start,
+      }),
+      createBooking(businessId, {
+        clientName: "Cliente Concurrente Dos",
+        clientEmail: "concurrente-dos@example.com",
+        serviceId,
+        staffId,
+        startTime: start,
+      }),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+
+    const bookingsAtSlot = await prisma.booking.count({
+      where: { businessId, staffId, startTime: start },
+    });
+    expect(bookingsAtSlot).toBe(1);
+  });
 });
