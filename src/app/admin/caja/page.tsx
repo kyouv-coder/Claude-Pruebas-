@@ -6,13 +6,13 @@ import {
   getLastClosedCashSession,
 } from "@/lib/pos";
 import { requireBusinessId } from "@/lib/auth";
-import { chargeBookingAction } from "./actions";
 import {
   OpenCashForm,
   CloseCashForm,
   SellGiftCardForm,
   RedeemGiftCardForm,
   SellProductForm,
+  ChargeBookingForm,
 } from "./CajaForms";
 
 export const dynamic = "force-dynamic";
@@ -123,28 +123,7 @@ export default async function CajaPage() {
                   {b.service.name} ({money(Number(b.service.price))}) · {b.staff.name}
                 </div>
               </div>
-              <form action={chargeBookingAction} className="flex items-center gap-2">
-                <input type="hidden" name="bookingId" value={b.id} />
-                <input type="hidden" name="cashSessionId" value={session.id} />
-                <label htmlFor={`pm-${b.id}`} className="sr-only">
-                  Método de pago
-                </label>
-                <select
-                  id={`pm-${b.id}`}
-                  name="paymentMethod"
-                  className="border border-border rounded-md px-2 py-1 text-xs bg-surface text-ink"
-                >
-                  <option value="CASH">Efectivo</option>
-                  <option value="CARD">Tarjeta</option>
-                  <option value="TRANSFER">Transferencia</option>
-                </select>
-                <button
-                  type="submit"
-                  className="bg-ink text-paper rounded-md px-3 py-1.5 text-xs font-medium hover:opacity-90"
-                >
-                  Cobrar
-                </button>
-              </form>
+              <ChargeBookingForm bookingId={b.id} cashSessionId={session.id} />
             </div>
           ))}
         </div>

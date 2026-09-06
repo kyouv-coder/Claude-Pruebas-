@@ -7,6 +7,7 @@ import {
   sellGiftCardAction,
   redeemGiftCardAction,
   sellProductAction,
+  chargeBookingAction,
   type ActionState,
 } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
@@ -206,6 +207,45 @@ export function SellProductForm({
       >
         {pending ? "Vendiendo…" : "Vender producto"}
       </button>
+    </form>
+  );
+}
+
+export function ChargeBookingForm({
+  bookingId,
+  cashSessionId,
+}: {
+  bookingId: string;
+  cashSessionId: string;
+}) {
+  const [state, formAction, pending] = useActionState(chargeBookingAction, initialState);
+
+  return (
+    <form action={formAction} className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-2">
+        <input type="hidden" name="bookingId" value={bookingId} />
+        <input type="hidden" name="cashSessionId" value={cashSessionId} />
+        <label htmlFor={`pm-${bookingId}`} className="sr-only">
+          Método de pago
+        </label>
+        <select
+          id={`pm-${bookingId}`}
+          name="paymentMethod"
+          className="border border-border rounded-md px-2 py-1 text-xs bg-surface text-ink"
+        >
+          <option value="CASH">Efectivo</option>
+          <option value="CARD">Tarjeta</option>
+          <option value="TRANSFER">Transferencia</option>
+        </select>
+        <button
+          type="submit"
+          disabled={pending}
+          className="bg-ink text-paper rounded-md px-3 py-1.5 text-xs font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {pending ? "Cobrando…" : "Cobrar"}
+        </button>
+      </div>
+      {state.error && <p className="text-xs text-danger">{state.error}</p>}
     </form>
   );
 }
