@@ -2,7 +2,7 @@ import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
 import { Prisma } from "@/generated/prisma";
-import { sellProduct, chargeBooking } from "./pos";
+import { sellProduct, chargeBooking, sellGiftCard } from "./pos";
 
 // Test de integración contra Postgres real: mismo patrón que
 // giftcards.test.ts — sellProduct usa un update condicionado (no
@@ -98,6 +98,43 @@ describeIfDb("sellProduct — evita dejar el stock negativo", () => {
     const final = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
     expect(final.stock).toBe(2);
     expect(final.stock).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describeIfDb("sellGiftCard — no deja un cliente huérfano si falla la venta", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Giftcard Atomic Business",
+        businessType: "SPA",
+        slug: `test-giftcard-atomic-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("rolls back the client creation when the sale fails", async () => {
+    const clientName = "Cliente Fantasma";
+
+    await expect(
+      sellGiftCard(businessId, {
+        clientName,
+        amount: 5000,
+        paymentMethod: "CASH",
+        cashSessionId: "esta-caja-no-existe",
+      })
+    ).rejects.toThrow();
+
+    const orphan = await prisma.client.findFirst({ where: { businessId, name: clientName } });
+    expect(orphan).toBeNull();
   });
 });
 
