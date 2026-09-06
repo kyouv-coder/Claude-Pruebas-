@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import type { BookingStatus } from "@/generated/prisma";
 import { checkWithinBusinessHours } from "@/lib/business-hours";
@@ -92,22 +93,6 @@ export async function createBooking(
     }
   }
 
-  // Evita doble reserva: ¿el mismo profesional ya tiene un turno que se
-  // superpone con este horario? (dos intervalos se solapan si uno
-  // empieza antes de que el otro termine, en ambos sentidos)
-  const conflict = await prisma.booking.findFirst({
-    where: {
-      businessId,
-      staffId: input.staffId,
-      status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
-      startTime: { lt: endTime },
-      endTime: { gt: input.startTime },
-    },
-  });
-  if (conflict) {
-    throw new Error("Ese profesional ya tiene un turno reservado en ese horario.");
-  }
-
   const client = await findOrCreateClient(businessId, {
     name: input.clientName,
     phone: input.clientPhone,
@@ -128,32 +113,64 @@ export async function createBooking(
     );
   }
 
-  return prisma.booking.create({
-    data: {
-      businessId,
-      clientId: client.id,
-      serviceId: service.id,
-      staffId: input.staffId,
-      startTime: input.startTime,
-      endTime,
-      notes: input.notes || null,
-      productRequests:
-        validRequests.length > 0
-          ? {
-              create: validRequests.map((r) => ({
-                productId: r.productId,
-                quantity: r.quantity,
-              })),
-            }
-          : undefined,
-    },
-    include: {
-      client: true,
-      service: true,
-      staff: true,
-      productRequests: { include: { product: true } },
-    },
-  });
+  try {
+    // Chequeo de conflicto + creación en una sola transacción serializable:
+    // sin esto, dos reservas simultáneas para el mismo profesional/horario
+    // (dos clientes reservando el mismo slot al mismo tiempo desde la
+    // página pública) podían pasar ambas el chequeo antes de que ninguna
+    // hubiera insertado todavía, y terminar dobladas. Serializable hace que
+    // Postgres detecte ese solapamiento de escrituras y una de las dos
+    // transacciones falle con P2034 en vez de dejar el doble booking.
+    return await prisma.$transaction(
+      async (tx) => {
+        const conflict = await tx.booking.findFirst({
+          where: {
+            businessId,
+            staffId: input.staffId,
+            status: { in: ["PENDING", "CONFIRMED", "COMPLETED"] },
+            startTime: { lt: endTime },
+            endTime: { gt: input.startTime },
+          },
+        });
+        if (conflict) {
+          throw new Error("Ese profesional ya tiene un turno reservado en ese horario.");
+        }
+
+        return tx.booking.create({
+          data: {
+            businessId,
+            clientId: client.id,
+            serviceId: service.id,
+            staffId: input.staffId,
+            startTime: input.startTime,
+            endTime,
+            notes: input.notes || null,
+            productRequests:
+              validRequests.length > 0
+                ? {
+                    create: validRequests.map((r) => ({
+                      productId: r.productId,
+                      quantity: r.quantity,
+                    })),
+                  }
+                : undefined,
+          },
+          include: {
+            client: true,
+            service: true,
+            staff: true,
+            productRequests: { include: { product: true } },
+          },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034") {
+      throw new Error("Ese profesional ya tiene un turno reservado en ese horario.");
+    }
+    throw e;
+  }
 }
 
 export async function updateBookingStatus(
