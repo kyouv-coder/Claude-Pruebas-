@@ -113,15 +113,8 @@ export async function createBooking(
     );
   }
 
-  try {
-    // Chequeo de conflicto + creación en una sola transacción serializable:
-    // sin esto, dos reservas simultáneas para el mismo profesional/horario
-    // (dos clientes reservando el mismo slot al mismo tiempo desde la
-    // página pública) podían pasar ambas el chequeo antes de que ninguna
-    // hubiera insertado todavía, y terminar dobladas. Serializable hace que
-    // Postgres detecte ese solapamiento de escrituras y una de las dos
-    // transacciones falle con P2034 en vez de dejar el doble booking.
-    return await prisma.$transaction(
+  const runAttempt = () =>
+    prisma.$transaction(
       async (tx) => {
         const conflict = await tx.booking.findFirst({
           where: {
@@ -165,12 +158,35 @@ export async function createBooking(
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
     );
-  } catch (e) {
-    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034") {
-      throw new Error("Ese profesional ya tiene un turno reservado en ese horario.");
+
+  // Chequeo de conflicto + creación en una sola transacción serializable:
+  // sin esto, dos reservas simultáneas para el mismo profesional/horario
+  // (dos clientes reservando el mismo slot al mismo tiempo desde la página
+  // pública) podían pasar ambas el chequeo antes de que ninguna hubiera
+  // insertado todavía, y terminar dobladas. Serializable hace que Postgres
+  // detecte ese solapamiento de escrituras y una de las dos transacciones
+  // falle con P2034 — pero esa detección (SSI) puede dar falsos positivos
+  // entre transacciones que en realidad no se solapan, así que reintentamos
+  // antes de asumir que es un conflicto real: al reintentar, un conflicto
+  // genuino vuelve a fallar de forma determinística con el error de
+  // negocio de arriba (la otra reserva ya quedó confirmada en la DB), y uno
+  // falso simplemente se resuelve solo.
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await runAttempt();
+    } catch (e) {
+      const isSerializationFailure =
+        e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034";
+      if (!isSerializationFailure || attempt === MAX_ATTEMPTS) {
+        if (isSerializationFailure) {
+          throw new Error("Ese profesional ya tiene un turno reservado en ese horario.");
+        }
+        throw e;
+      }
     }
-    throw e;
   }
+  throw new Error("No se pudo crear la reserva, intentá de nuevo.");
 }
 
 export async function updateBookingStatus(
