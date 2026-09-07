@@ -60,7 +60,10 @@ export async function signupAction(
     userId = result.user.id;
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      return { error: "Ya existe una cuenta con ese email." };
+      const target = e.meta?.target;
+      if (Array.isArray(target) && target.includes("email")) {
+        return { error: "Ya existe una cuenta con ese email." };
+      }
     }
     return { error: "No se pudo crear la cuenta. Probá de nuevo." };
   }

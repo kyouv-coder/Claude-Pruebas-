@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import type { BusinessType } from "@/generated/prisma";
+import { Prisma, type BusinessType } from "@/generated/prisma";
 import { generateUniqueSlug } from "@/lib/slug";
 import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "@/lib/session";
 
@@ -47,23 +47,43 @@ export async function signUp(input: {
   password: string;
 }) {
   const passwordHash = await hashPassword(input.password);
-  const slug = await generateUniqueSlug(input.businessName);
 
-  return prisma.$transaction(async (tx) => {
-    const business = await tx.business.create({
-      data: { name: input.businessName, businessType: input.businessType, slug },
-    });
-    const user = await tx.user.create({
-      data: {
-        businessId: business.id,
-        name: input.name,
-        email: input.email,
-        passwordHash,
-        role: "ADMIN",
-      },
-    });
-    return { business, user };
-  });
+  // generateUniqueSlug chequea que el slug no exista y recién después se
+  // usa acá para crear el negocio — no es atómico. Dos registros con
+  // nombres de negocio parecidos casi al mismo tiempo (ej. dos "Spa Luna")
+  // pueden generar el mismo candidato y solo uno gana la carrera; el otro
+  // reintenta con un slug nuevo en vez de fallar con un P2002 que el
+  // caller interpretaría erróneamente como "email repetido".
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const slug = await generateUniqueSlug(input.businessName);
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const business = await tx.business.create({
+          data: { name: input.businessName, businessType: input.businessType, slug },
+        });
+        const user = await tx.user.create({
+          data: {
+            businessId: business.id,
+            name: input.name,
+            email: input.email,
+            passwordHash,
+            role: "ADMIN",
+          },
+        });
+        return { business, user };
+      });
+    } catch (e) {
+      const target = (e as { meta?: { target?: unknown } })?.meta?.target;
+      const isSlugConflict =
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        Array.isArray(target) &&
+        target.includes("slug");
+      if (!isSlugConflict || attempt === MAX_ATTEMPTS) throw e;
+    }
+  }
+  throw new Error("No se pudo crear la cuenta, intentá de nuevo.");
 }
 
 export async function verifyCredentials(email: string, password: string) {
