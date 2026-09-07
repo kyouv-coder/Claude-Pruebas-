@@ -245,7 +245,11 @@ export function ChargeBookingForm({
           {pending ? "Cobrando…" : "Cobrar"}
         </button>
       </div>
-      {state.error && <p className="text-xs text-danger">{state.error}</p>}
+      {state.error && (
+        <p role="alert" className="text-xs text-danger">
+          {state.error}
+        </p>
+      )}
     </form>
   );
 }
