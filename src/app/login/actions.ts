@@ -1,14 +1,35 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { verifyCredentials, createSession } from "@/lib/auth";
+import { headers } from "next/headers";
+import {
+  verifyCredentials,
+  createSession,
+  checkLoginRateLimit,
+  recordLoginAttempt,
+} from "@/lib/auth";
 
 export type ActionState = { error?: string };
+
+async function getClientIp() {
+  const headerList = await headers();
+  const realIp = headerList.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  const forwardedFor = headerList.get("x-forwarded-for");
+  return forwardedFor?.split(",")[0]?.trim() || "unknown";
+}
 
 export async function loginAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
+  const ip = await getClientIp();
+  const withinLimit = await checkLoginRateLimit(ip);
+  if (!withinLimit) {
+    return { error: "Demasiados intentos. Probá de nuevo en un rato." };
+  }
+  await recordLoginAttempt(ip);
+
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
   const next = String(formData.get("next") || "/admin/reservas");

@@ -14,6 +14,7 @@ describeIfDb("cleanupOldRateLimitAttempts", () => {
   afterEach(async () => {
     await prisma.signupAttempt.deleteMany({ where: { ip: { startsWith: "test-cleanup-" } } });
     await prisma.publicBookingAttempt.deleteMany({ where: { ip: { startsWith: "test-cleanup-" } } });
+    await prisma.loginAttempt.deleteMany({ where: { ip: { startsWith: "test-cleanup-" } } });
   });
 
   it("deletes attempts older than the retention window but keeps recent ones", async () => {
@@ -24,10 +25,13 @@ describeIfDb("cleanupOldRateLimitAttempts", () => {
     await prisma.signupAttempt.create({ data: { ip: "test-cleanup-recent", createdAt: recentDate } });
     await prisma.publicBookingAttempt.create({ data: { ip: "test-cleanup-old", createdAt: oldDate } });
     await prisma.publicBookingAttempt.create({ data: { ip: "test-cleanup-recent", createdAt: recentDate } });
+    await prisma.loginAttempt.create({ data: { ip: "test-cleanup-old", createdAt: oldDate } });
+    await prisma.loginAttempt.create({ data: { ip: "test-cleanup-recent", createdAt: recentDate } });
 
     const result = await cleanupOldRateLimitAttempts();
     expect(result.signupAttemptsDeleted).toBeGreaterThanOrEqual(1);
     expect(result.publicBookingAttemptsDeleted).toBeGreaterThanOrEqual(1);
+    expect(result.loginAttemptsDeleted).toBeGreaterThanOrEqual(1);
 
     const remainingSignup = await prisma.signupAttempt.findMany({
       where: { ip: { startsWith: "test-cleanup-" } },
@@ -35,7 +39,11 @@ describeIfDb("cleanupOldRateLimitAttempts", () => {
     const remainingBooking = await prisma.publicBookingAttempt.findMany({
       where: { ip: { startsWith: "test-cleanup-" } },
     });
+    const remainingLogin = await prisma.loginAttempt.findMany({
+      where: { ip: { startsWith: "test-cleanup-" } },
+    });
     expect(remainingSignup.map((r) => r.ip)).toEqual(["test-cleanup-recent"]);
     expect(remainingBooking.map((r) => r.ip)).toEqual(["test-cleanup-recent"]);
+    expect(remainingLogin.map((r) => r.ip)).toEqual(["test-cleanup-recent"]);
   });
 });

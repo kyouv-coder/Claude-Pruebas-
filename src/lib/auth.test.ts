@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { afterEach, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { signUp } from "./auth";
+import { signUp, checkLoginRateLimit, recordLoginAttempt } from "./auth";
 
 // Test de integración contra Postgres real: generateUniqueSlug chequea
 // existencia y crea el negocio en pasos separados (no atómico), así que la
@@ -50,5 +50,24 @@ describeIfDb("signUp — slugs únicos ante negocios con nombre parecido", () =>
 
     const slugs = fulfilled.map((r) => (r as PromiseFulfilledResult<Awaited<ReturnType<typeof signUp>>>).value.business.slug);
     expect(new Set(slugs).size).toBe(2);
+  });
+});
+
+describeIfDb("checkLoginRateLimit — límite de intentos de login por IP", () => {
+  const ip = `test-login-rate-${Date.now()}`;
+
+  afterEach(async () => {
+    await prisma.loginAttempt.deleteMany({ where: { ip } });
+  });
+
+  it("allows attempts under the limit and blocks once it's reached", async () => {
+    // Un email/contraseña equivocados no frena por sí solo a alguien
+    // probando muchos emails distintos desde la misma IP (credential
+    // stuffing) — por eso el límite es por IP, no por cuenta.
+    for (let i = 0; i < 20; i++) {
+      expect(await checkLoginRateLimit(ip)).toBe(true);
+      await recordLoginAttempt(ip);
+    }
+    expect(await checkLoginRateLimit(ip)).toBe(false);
   });
 });
