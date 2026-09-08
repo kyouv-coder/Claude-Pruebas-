@@ -3,7 +3,7 @@ import {
   listExpensesForMonth,
   listSalesForMonth,
   getMonthlyFinancials,
-  currentYearMonth,
+  resolveYearMonth,
 } from "@/lib/finance";
 import { requireAdmin } from "@/lib/auth";
 import { ExpenseForm } from "./ExpenseForm";
@@ -35,9 +35,7 @@ export default async function FinanzasPage({
 }) {
   const businessId = await requireAdmin();
   const params = await searchParams;
-  const current = currentYearMonth();
-  const year = Number(params.year) || current.year;
-  const month = Number(params.month) || current.month;
+  const { year, month } = resolveYearMonth(params.year, params.month);
 
   const [expenses, financials, sales] = await Promise.all([
     listExpensesForMonth(businessId, year, month),

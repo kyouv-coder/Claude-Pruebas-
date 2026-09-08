@@ -12,6 +12,25 @@ export function currentYearMonth() {
   return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
+// Año/mes vienen de un query param editable a mano en la URL (?year=&month=)
+// en tres lugares (la página de Finanzas y sus dos exports CSV). Sin
+// validar, un month=13 o month=-5 no falla — Date normaliza silenciosamente
+// a un año/mes distinto del que la pantalla dice estar mostrando. Cualquier
+// valor fuera de rango cae al mes actual en vez de mostrar datos de un
+// período equivocado.
+export function resolveYearMonth(
+  yearParam: string | null | undefined,
+  monthParam: string | null | undefined
+) {
+  const current = currentYearMonth();
+  const year = Number(yearParam);
+  const month = Number(monthParam);
+  return {
+    year: Number.isInteger(year) && year >= 2000 && year <= 2100 ? year : current.year,
+    month: Number.isInteger(month) && month >= 1 && month <= 12 ? month : current.month,
+  };
+}
+
 export async function listExpensesForMonth(
   businessId: string,
   year: number,
