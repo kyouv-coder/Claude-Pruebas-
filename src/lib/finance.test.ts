@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { attachSaleInvoice, getSaleInvoiceFile } from "./finance";
+import { attachSaleInvoice, getSaleInvoiceFile, resolveYearMonth, currentYearMonth } from "./finance";
 
 // Test de integración contra Postgres real: attachSaleInvoice valida tipo y
 // tamaño de archivo, y el aislamiento multi-tenant (no se puede adjuntar un
@@ -9,6 +9,37 @@ import { attachSaleInvoice, getSaleInvoiceFile } from "./finance";
 // en la base, no se puede probar de forma aislada.
 const hasDb = Boolean(process.env.DATABASE_URL);
 const describeIfDb = hasDb ? describe : describe.skip;
+
+describe("resolveYearMonth", () => {
+  it("accepts a valid year/month from query params", () => {
+    expect(resolveYearMonth("2026", "3")).toEqual({ year: 2026, month: 3 });
+  });
+
+  it("falls back to the current month for an out-of-range month", () => {
+    const current = currentYearMonth();
+    expect(resolveYearMonth("2026", "13")).toEqual({ year: 2026, month: current.month });
+    expect(resolveYearMonth("2026", "0")).toEqual({ year: 2026, month: current.month });
+    expect(resolveYearMonth("2026", "-5")).toEqual({ year: 2026, month: current.month });
+  });
+
+  it("falls back to the current year for an out-of-range year", () => {
+    const current = currentYearMonth();
+    expect(resolveYearMonth("1999", "3")).toEqual({ year: current.year, month: 3 });
+    expect(resolveYearMonth("2101", "3")).toEqual({ year: current.year, month: 3 });
+  });
+
+  it("falls back to the current year/month for missing or non-numeric params", () => {
+    const current = currentYearMonth();
+    expect(resolveYearMonth(null, null)).toEqual(current);
+    expect(resolveYearMonth(undefined, undefined)).toEqual(current);
+    expect(resolveYearMonth("abc", "xyz")).toEqual(current);
+  });
+
+  it("rejects a non-integer month instead of silently truncating it", () => {
+    const current = currentYearMonth();
+    expect(resolveYearMonth("2026", "3.5")).toEqual({ year: 2026, month: current.month });
+  });
+});
 
 describeIfDb("attachSaleInvoice", () => {
   let businessId: string;
