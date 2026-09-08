@@ -39,6 +39,27 @@ export async function recordSignupAttempt(ip: string) {
   await prisma.signupAttempt.create({ data: { ip } });
 }
 
+const LOGIN_WINDOW_MINUTES = 15;
+const LOGIN_MAX_ATTEMPTS = 20;
+
+// El bloqueo por cuenta (MAX_FAILED_ATTEMPTS más abajo) frena a alguien
+// probando muchas contraseñas contra un email — pero no a alguien probando
+// una contraseña contra muchos emails distintos desde la misma IP
+// (credential stuffing). El límite es más permisivo que el de signup
+// porque un usuario real tipeando mal su contraseña un par de veces es
+// mucho más común que registrando negocios repetidamente.
+export async function checkLoginRateLimit(ip: string) {
+  const windowStart = new Date(Date.now() - LOGIN_WINDOW_MINUTES * 60_000);
+  const recentAttempts = await prisma.loginAttempt.count({
+    where: { ip, createdAt: { gte: windowStart } },
+  });
+  return recentAttempts < LOGIN_MAX_ATTEMPTS;
+}
+
+export async function recordLoginAttempt(ip: string) {
+  await prisma.loginAttempt.create({ data: { ip } });
+}
+
 export async function signUp(input: {
   businessName: string;
   businessType: BusinessType;
