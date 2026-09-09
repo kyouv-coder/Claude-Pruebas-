@@ -83,6 +83,22 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
     expect(booking.productRequests[0]).toMatchObject({ productId, quantity: 2 });
   });
 
+  it("clamps a requested product quantity to the available stock instead of trusting the client", async () => {
+    const start = new Date("2027-01-19T10:00:00Z");
+    // El producto de prueba (productId) tiene stock: 10.
+    const booking = await createBooking(businessId, {
+      clientName: "Cliente Pide De Más",
+      clientEmail: "cliente-pide-de-mas@example.com",
+      serviceId,
+      staffId,
+      startTime: start,
+      productRequests: [{ productId, quantity: 9999 }],
+    });
+
+    expect(booking.productRequests).toHaveLength(1);
+    expect(booking.productRequests[0]).toMatchObject({ productId, quantity: 10 });
+  });
+
   it("rejects a booking that overlaps an existing one for the same staff", async () => {
     const start = new Date("2027-01-15T10:00:00Z");
     await createBooking(businessId, {

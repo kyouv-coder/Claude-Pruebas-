@@ -103,13 +103,20 @@ export async function createBooking(
   if (validRequests.length > 0) {
     const products = await prisma.product.findMany({
       where: { businessId, active: true, id: { in: validRequests.map((r) => r.productId) } },
-      select: { id: true },
+      select: { id: true, stock: true },
     });
-    const validIds = new Set(products.map((p) => p.id));
+    // La cantidad viene de un formulario público sin autenticar — el
+    // frontend ya la limita al stock, pero eso es solo UX, no protege
+    // nada. Sin este clamp acá, alguien podía pedir 9999 unidades de un
+    // producto con 2 en stock y esa cifra le quedaba en la nota al staff.
+    const stockById = new Map(products.map((p) => [p.id, p.stock]));
     validRequests.splice(
       0,
       validRequests.length,
-      ...validRequests.filter((r) => validIds.has(r.productId))
+      ...validRequests
+        .filter((r) => stockById.has(r.productId))
+        .map((r) => ({ ...r, quantity: Math.min(r.quantity, stockById.get(r.productId)!) }))
+        .filter((r) => r.quantity > 0)
     );
   }
 
