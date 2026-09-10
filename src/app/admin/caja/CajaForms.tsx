@@ -133,6 +133,9 @@ export function SellGiftCardForm({ cashSessionId }: { cashSessionId: string }) {
           </select>
         </FormField>
       </div>
+      <FormField label="Fecha de vencimiento (opcional)" htmlFor="gcExpiresAt">
+        <input id="gcExpiresAt" name="expiresAt" type="date" className={inputClass} />
+      </FormField>
       <button
         type="submit"
         disabled={pending}

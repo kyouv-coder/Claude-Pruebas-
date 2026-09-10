@@ -105,4 +105,24 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
     expect(Number(final.balance)).toBe(300);
     expect(Number(final.balance)).toBeGreaterThanOrEqual(0);
   });
+
+  it("stores the expiration date when provided, and leaves it null otherwise", async () => {
+    const expiresAt = new Date("2027-06-30T23:59:59");
+    const withExpiry = await sellGiftCard(businessId, {
+      clientName: "Cliente Con Vencimiento",
+      amount: 5000,
+      paymentMethod: "CASH",
+      cashSessionId,
+      expiresAt,
+    });
+    expect(withExpiry.expiresAt?.getTime()).toBe(expiresAt.getTime());
+
+    const withoutExpiry = await sellGiftCard(businessId, {
+      clientName: "Cliente Sin Vencimiento",
+      amount: 5000,
+      paymentMethod: "CASH",
+      cashSessionId,
+    });
+    expect(withoutExpiry.expiresAt).toBeNull();
+  });
 });

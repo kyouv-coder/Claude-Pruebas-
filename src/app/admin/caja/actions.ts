@@ -97,12 +97,21 @@ export async function sellGiftCardAction(
   const clientEmail = String(formData.get("clientEmail") || "").trim();
   const amount = Number(formData.get("amount") || 0);
   const paymentMethod = String(formData.get("paymentMethod") || "CASH") as PaymentMethod;
+  const expiresAtRaw = String(formData.get("expiresAt") || "").trim();
 
   if (!clientName) {
     return { error: "Ingresá el nombre del cliente." };
   }
   if (!(amount > 0)) {
     return { error: "El monto debe ser mayor a 0." };
+  }
+  let expiresAt: Date | undefined;
+  if (expiresAtRaw) {
+    const parsed = new Date(`${expiresAtRaw}T23:59:59`);
+    if (Number.isNaN(parsed.getTime())) {
+      return { error: "La fecha de vencimiento no es válida." };
+    }
+    expiresAt = parsed;
   }
 
   const businessId = await requireBusinessId();
@@ -114,6 +123,7 @@ export async function sellGiftCardAction(
     amount,
     paymentMethod,
     cashSessionId,
+    expiresAt,
   });
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
