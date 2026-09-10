@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@/generated/prisma";
 import {
   createService,
   updateService,
@@ -57,7 +58,7 @@ export async function createServiceAction(
       price,
     });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("Unique constraint")) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe un servicio con ese nombre." };
     }
     return { error: "No se pudo crear el servicio." };
@@ -91,7 +92,7 @@ export async function updateServiceAction(
       price,
     });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("Unique constraint")) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe un servicio con ese nombre." };
     }
     return { error: "No se pudo actualizar el servicio." };
@@ -155,7 +156,7 @@ export async function createProductAction(
   try {
     await createProduct(businessId, { name, description: description || undefined, price, stock });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("Unique constraint")) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe un producto con ese nombre." };
     }
     return { error: "No se pudo crear el producto." };
@@ -184,7 +185,7 @@ export async function updateProductAction(
   try {
     await updateProduct(businessId, id, { name, description: description || undefined, price, stock });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("Unique constraint")) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe un producto con ese nombre." };
     }
     return { error: "No se pudo actualizar el producto." };
@@ -262,7 +263,7 @@ export async function createStaffAction(
   try {
     await createStaff(businessId, { name, email, password });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("Unique constraint")) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe una persona con ese email." };
     }
     return { error: "No se pudo agregar a la persona." };
@@ -290,7 +291,7 @@ export async function updateStaffAction(
   try {
     await updateStaff(businessId, id, { name, email });
   } catch (e) {
-    if (e instanceof Error && e.message.includes("Unique constraint")) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe una persona con ese email." };
     }
     return { error: "No se pudo actualizar la persona." };
