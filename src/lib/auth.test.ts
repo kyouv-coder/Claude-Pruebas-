@@ -1,7 +1,8 @@
 import "dotenv/config";
-import { afterEach, describe, expect, it } from "vitest";
+import bcrypt from "bcryptjs";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { signUp, checkLoginRateLimit, recordLoginAttempt } from "./auth";
+import { signUp, checkLoginRateLimit, recordLoginAttempt, changePassword, hashPassword } from "./auth";
 
 // Test de integración contra Postgres real: generateUniqueSlug chequea
 // existencia y crea el negocio en pasos separados (no atómico), así que la
@@ -69,5 +70,73 @@ describeIfDb("checkLoginRateLimit — límite de intentos de login por IP", () =
       await recordLoginAttempt(ip);
     }
     expect(await checkLoginRateLimit(ip)).toBe(false);
+  });
+});
+
+describeIfDb("changePassword — bloqueo tras intentos fallidos con la contraseña actual", () => {
+  let businessId: string;
+  let userId: string;
+  const realPassword = "contrasena-real-123";
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test ChangePassword Business", businessType: "SPA", slug: `test-changepw-${Date.now()}` },
+    });
+    businessId = business.id;
+
+    const user = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test",
+        email: `admin-changepw-${Date.now()}@example.com`,
+        passwordHash: await hashPassword(realPassword),
+        role: "ADMIN",
+      },
+    });
+    userId = user.id;
+  });
+
+  afterEach(async () => {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.user.delete({ where: { id: userId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("locks the account after 5 wrong current-password attempts, same as login", async () => {
+    for (let i = 0; i < 5; i++) {
+      const result = await changePassword(userId, "contraseña-incorrecta", "nueva-contrasena-456");
+      expect(result.error).toBe("La contraseña actual no es correcta.");
+    }
+
+    // La sexta, incluso con la contraseña correcta, cae en el bloqueo.
+    const locked = await changePassword(userId, realPassword, "nueva-contrasena-456");
+    expect(locked.error).toMatch(/bloqueada temporalmente/);
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const stillHasOldPassword = await bcrypt.compare(realPassword, user.passwordHash);
+    expect(stillHasOldPassword).toBe(true);
+  });
+
+  it("resets the failed-attempts counter on a successful change", async () => {
+    await changePassword(userId, "contraseña-incorrecta", "nueva-contrasena-456");
+    const result = await changePassword(userId, realPassword, "nueva-contrasena-789");
+    expect(result.error).toBeNull();
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(user.failedLoginAttempts).toBe(0);
+    expect(user.lockedUntil).toBeNull();
+
+    // Dejar la contraseña como estaba para no afectar otros tests de este bloque.
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await hashPassword(realPassword) },
+    });
   });
 });

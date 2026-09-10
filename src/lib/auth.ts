@@ -176,13 +176,35 @@ export async function changePassword(
 ) {
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
 
+  // Mismo bloqueo que usa el login: sin esto, alguien con la sesión
+  // robada (cookie filtrada, dispositivo desatendido) podía probar la
+  // contraseña actual sin límite acá, algo que el propio login sí frena
+  // después de 5 intentos.
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    return { error: "Cuenta bloqueada temporalmente por demasiados intentos. Probá de nuevo más tarde." };
+  }
+
   const valid = await bcrypt.compare(currentPassword, user.passwordHash);
   if (!valid) {
+    const attempts = user.failedLoginAttempts + 1;
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        failedLoginAttempts: attempts,
+        lockedUntil:
+          attempts >= MAX_FAILED_ATTEMPTS
+            ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000)
+            : null,
+      },
+    });
     return { error: "La contraseña actual no es correcta." };
   }
 
   const passwordHash = await hashPassword(newPassword);
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+  });
   return { error: null };
 }
 
