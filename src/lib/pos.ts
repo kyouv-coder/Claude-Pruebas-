@@ -194,6 +194,7 @@ export async function sellGiftCard(
     amount: number;
     paymentMethod: PaymentMethod;
     cashSessionId: string;
+    expiresAt?: Date;
   }
 ) {
   return prisma.$transaction(async (tx) => {
@@ -236,6 +237,7 @@ export async function sellGiftCard(
         initialValue: input.amount,
         balance: input.amount,
         clientId: client.id,
+        expiresAt: input.expiresAt ?? null,
       },
     });
 
