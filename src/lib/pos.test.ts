@@ -2,7 +2,7 @@ import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
 import { Prisma } from "@/generated/prisma";
-import { sellProduct, chargeBooking, sellGiftCard } from "./pos";
+import { sellProduct, chargeBooking, sellGiftCard, closeCashSession } from "./pos";
 
 // Test de integración contra Postgres real: mismo patrón que
 // giftcards.test.ts — sellProduct usa un update condicionado (no
@@ -98,6 +98,79 @@ describeIfDb("sellProduct — evita dejar el stock negativo", () => {
     const final = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
     expect(final.stock).toBe(2);
     expect(final.stock).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describeIfDb("closeCashSession — no deja cerrar dos veces la misma caja", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Close Session Business",
+        businessType: "SPA",
+        slug: `test-close-session-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("rejects closing a session that's already closed", async () => {
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test",
+        email: `admin-close-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 1000 },
+    });
+
+    await closeCashSession(businessId, session.id, 1000);
+
+    // Un sessionId viejo reenviado (dos pestañas, doble clic) no debe poder
+    // pisar en silencio el cierre ya hecho con otro monto contado.
+    await expect(closeCashSession(businessId, session.id, 5000)).rejects.toMatchObject({
+      code: "P2025",
+    });
+
+    const final = await prisma.cashRegisterSession.findUniqueOrThrow({ where: { id: session.id } });
+    expect(Number(final.closingAmount)).toBe(1000);
+  });
+
+  it("never lets two simultaneous closes overwrite each other", async () => {
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test Dos",
+        email: `admin-close-2-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 0 },
+    });
+
+    const results = await Promise.allSettled([
+      closeCashSession(businessId, session.id, 2000),
+      closeCashSession(businessId, session.id, 3000),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    const rejected = results.filter((r) => r.status === "rejected");
+    expect(fulfilled).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
   });
 });
 

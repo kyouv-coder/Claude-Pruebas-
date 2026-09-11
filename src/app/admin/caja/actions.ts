@@ -46,7 +46,18 @@ export async function closeCashSessionAction(
     return { error: "Ingresá un monto de cierre válido." };
   }
   const businessId = await requireBusinessId();
-  const result = await closeCashSession(businessId, sessionId, closingAmount);
+  let result;
+  try {
+    result = await closeCashSession(businessId, sessionId, closingAmount);
+  } catch (e) {
+    revalidatePath("/admin/caja");
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return { error: "No se encontró una caja abierta con ese ID." };
+    }
+    return {
+      error: e instanceof Error ? e.message : "No se pudo cerrar la caja.",
+    };
+  }
   revalidatePath("/admin/caja");
 
   const money = (n: number) =>
