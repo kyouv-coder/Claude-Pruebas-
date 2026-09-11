@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import type { PaymentMethod } from "@/generated/prisma";
@@ -17,9 +18,46 @@ export async function getOpenCashSession(businessId: string) {
 
 export async function openCashSession(businessId: string, openingAmount: number) {
   const operator = await getOperator();
-  return prisma.cashRegisterSession.create({
-    data: { businessId, openedById: operator.id, openingAmount },
-  });
+
+  const runAttempt = () =>
+    prisma.$transaction(
+      async (tx) => {
+        const alreadyOpen = await tx.cashRegisterSession.findFirst({
+          where: { businessId, closedAt: null },
+        });
+        if (alreadyOpen) {
+          throw new Error("Ya hay una caja abierta para este negocio.");
+        }
+        return tx.cashRegisterSession.create({
+          data: { businessId, openedById: operator.id, openingAmount },
+        });
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+    );
+
+  // Mismo patrón que el chequeo de solapamiento en createBooking
+  // (bookings.ts): el chequeo de "no hay caja abierta" y la creación
+  // están en una sola transacción serializable, así que dos aperturas
+  // simultáneas (doble clic, dos pestañas) no pueden pasar ambas el
+  // chequeo antes de que ninguna hubiera insertado todavía — antes,
+  // abrir dos veces dejaba una caja huérfana sin forma de cerrarla desde
+  // la UI, que solo muestra la más reciente.
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await runAttempt();
+    } catch (e) {
+      const isSerializationFailure =
+        e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2034";
+      if (!isSerializationFailure || attempt === MAX_ATTEMPTS) {
+        if (isSerializationFailure) {
+          throw new Error("Ya hay una caja abierta para este negocio.");
+        }
+        throw e;
+      }
+    }
+  }
+  throw new Error("No se pudo abrir la caja. Probá de nuevo.");
 }
 
 export async function closeCashSession(
