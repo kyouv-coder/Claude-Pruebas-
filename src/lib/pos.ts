@@ -267,6 +267,13 @@ export async function redeemGiftCard(
   });
 
   if (!giftCard.active) throw new Error("La giftcard no está activa");
+  // El vencimiento se puede cargar al vender la giftcard, pero nada la
+  // desactiva sola cuando llega esa fecha — sin este chequeo, quedaba
+  // mostrada como "vencida" en la lista pero se seguía pudiendo canjear
+  // igual, vaciando el mensaje de la fecha de vencimiento.
+  if (giftCard.expiresAt && giftCard.expiresAt < new Date()) {
+    throw new Error("La giftcard está vencida");
+  }
 
   return prisma.$transaction(async (tx) => {
     // Update condicionado (mismo patrón que el descuento de stock en
