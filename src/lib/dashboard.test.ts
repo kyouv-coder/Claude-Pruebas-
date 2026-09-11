@@ -41,6 +41,7 @@ describeIfDb("getDashboardStats", () => {
   });
 
   afterAll(async () => {
+    await prisma.giftCard.deleteMany({ where: { businessId } });
     await prisma.booking.deleteMany({ where: { businessId } });
     await prisma.service.deleteMany({ where: { businessId } });
     await prisma.client.deleteMany({ where: { businessId } });
@@ -113,5 +114,31 @@ describeIfDb("getDashboardStats", () => {
     // así que el conteo total en la ventana de 30 días es 6.
     expect(stats.cancellationRate).toBeCloseTo(2 / 6, 5);
     expect(stats.noShowRate).toBeCloseTo(1 / 6, 5);
+  });
+
+  it("excludes expired giftcards from the outstanding balance, matching /admin/giftcards", async () => {
+    await prisma.giftCard.create({
+      data: {
+        businessId,
+        code: `GC-VIGENTE-${Date.now()}`,
+        initialValue: 10000,
+        balance: 10000,
+        active: true,
+        expiresAt: null,
+      },
+    });
+    await prisma.giftCard.create({
+      data: {
+        businessId,
+        code: `GC-VENCIDA-${Date.now()}`,
+        initialValue: 5000,
+        balance: 5000,
+        active: true,
+        expiresAt: new Date("2020-01-01"),
+      },
+    });
+
+    const stats = await getDashboardStats(businessId);
+    expect(stats.outstandingGiftCardBalance).toBe(10000);
   });
 });

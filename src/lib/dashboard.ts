@@ -35,7 +35,16 @@ export async function getDashboardStats(businessId: string) {
       select: { total: true, createdAt: true },
     }),
     prisma.giftCard.aggregate({
-      where: { businessId, active: true },
+      // Igual que getGiftCardStats (giftcards.ts): una giftcard vencida
+      // sigue "active" en la base (nada la desactiva sola al pasar la
+      // fecha) pero ya no se puede canjear — sin este mismo filtro acá,
+      // el saldo pendiente del dashboard quedaba sobreestimado respecto
+      // al que muestra la propia página de Giftcards.
+      where: {
+        businessId,
+        active: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
       _sum: { balance: true },
     }),
     prisma.booking.findMany({
