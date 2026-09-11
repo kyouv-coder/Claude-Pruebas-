@@ -65,8 +65,12 @@ export async function closeCashSession(
   sessionId: string,
   closingAmount: number
 ) {
+  // closedAt: null en el chequeo inicial: sin esto, cerrar una caja que ya
+  // estaba cerrada (sessionId viejo reenviado, doble clic) no fallaba —
+  // simplemente recalculaba y pisaba en silencio el cierre histórico con
+  // otro monto contado.
   const session = await prisma.cashRegisterSession.findFirstOrThrow({
-    where: { id: sessionId, businessId },
+    where: { id: sessionId, businessId, closedAt: null },
   });
 
   const cashSales = await prisma.sale.findMany({
@@ -77,11 +81,19 @@ export async function closeCashSession(
   const expectedCash = Number(session.openingAmount) + cashSalesTotal;
   const difference = closingAmount - expectedCash;
 
-  const updated = await prisma.cashRegisterSession.update({
-    where: { id: sessionId, businessId },
+  // Update condicionado (mismo patrón que sellProduct/redeemGiftCard): si
+  // dos pestañas cierran la misma caja casi al mismo tiempo, solo una debe
+  // ganar — este filtro evita que la segunda pise el cierre que la primera
+  // ya escribió.
+  const closed = await prisma.cashRegisterSession.updateMany({
+    where: { id: sessionId, businessId, closedAt: null },
     data: { closedAt: new Date(), closingAmount, expectedCashAmount: expectedCash },
   });
+  if (closed.count === 0) {
+    throw new Error("Esta caja ya fue cerrada.");
+  }
 
+  const updated = await prisma.cashRegisterSession.findUniqueOrThrow({ where: { id: sessionId } });
   return { session: updated, expectedCash, countedCash: closingAmount, difference };
 }
 
