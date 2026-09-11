@@ -24,7 +24,14 @@ export async function openCashSessionAction(
     return { error: "Ingresá un monto inicial válido." };
   }
   const businessId = await requireBusinessId();
-  await openCashSession(businessId, openingAmount);
+  try {
+    await openCashSession(businessId, openingAmount);
+  } catch (e) {
+    revalidatePath("/admin/caja");
+    return {
+      error: e instanceof Error ? e.message : "No se pudo abrir la caja.",
+    };
+  }
   revalidatePath("/admin/caja");
   return { success: "Caja abierta." };
 }
