@@ -125,4 +125,21 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
     });
     expect(withoutExpiry.expiresAt).toBeNull();
   });
+
+  it("rejects redeeming an expired giftcard even if it's still marked active", async () => {
+    const giftCard = await sellGiftCard(businessId, {
+      clientName: "Cliente Giftcard Vencida",
+      amount: 2000,
+      paymentMethod: "CASH",
+      cashSessionId,
+      expiresAt: new Date("2020-01-01"),
+    });
+
+    await expect(
+      redeemGiftCard(businessId, { code: giftCard.code, amount: 500, cashSessionId })
+    ).rejects.toThrow(/vencida/);
+
+    const unchanged = await prisma.giftCard.findUniqueOrThrow({ where: { id: giftCard.id } });
+    expect(Number(unchanged.balance)).toBe(2000);
+  });
 });
