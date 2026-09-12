@@ -4,8 +4,13 @@ import { sendDailyBookingsEmail, type DailyBooking } from "@/lib/email";
 import { cleanupOldRateLimitAttempts } from "@/lib/maintenance";
 
 export async function GET(request: NextRequest) {
+  // Chequeo explícito de que CRON_SECRET esté configurado: sin esto, si la
+  // variable de entorno no está seteada, `Bearer ${undefined}` da
+  // "Bearer undefined" — un valor adivinable que dejaría el endpoint
+  // autenticable por cualquiera en vez de fallar cerrado.
+  const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
