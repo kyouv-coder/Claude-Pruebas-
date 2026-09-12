@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/auth";
-import { getSaleInvoiceFile } from "@/lib/finance";
+import { getSaleInvoiceFile, sanitizeFileNameForHeader } from "@/lib/finance";
 
 export async function GET(
   _request: NextRequest,
@@ -17,7 +17,7 @@ export async function GET(
   return new NextResponse(new Uint8Array(file.data), {
     headers: {
       "Content-Type": file.mimeType,
-      "Content-Disposition": `inline; filename="${file.fileName}"`,
+      "Content-Disposition": `inline; filename="${sanitizeFileNameForHeader(file.fileName)}"`,
     },
   });
 }
