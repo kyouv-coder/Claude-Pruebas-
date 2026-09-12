@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { createBooking } from "./bookings";
+import { createBooking, updateBookingStatus } from "./bookings";
 
 // Test de integración contra Postgres real: la prevención de doble reserva
 // es lógica de negocio crítica (evita que dos clientes queden citados con
@@ -176,5 +176,71 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
       where: { businessId, staffId, startTime: start },
     });
     expect(bookingsAtSlot).toBe(1);
+  });
+});
+
+describeIfDb("updateBookingStatus — no permite cambiar el estado de un turno ya cobrado", () => {
+  let businessId: string;
+  let bookingId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Completed Booking Business",
+        businessType: "SPA",
+        slug: `test-completed-booking-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+
+    const staff = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Staff Test",
+        email: `staff-completed-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "STAFF",
+      },
+    });
+    const service = await prisma.service.create({
+      data: { businessId, name: "Servicio Test", durationMinutes: 30, price: 5000 },
+    });
+    const client = await prisma.client.create({ data: { businessId, name: "Cliente Test" } });
+    const booking = await prisma.booking.create({
+      data: {
+        businessId,
+        clientId: client.id,
+        serviceId: service.id,
+        staffId: staff.id,
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 30 * 60_000),
+        status: "COMPLETED",
+      },
+    });
+    bookingId = booking.id;
+  });
+
+  afterAll(async () => {
+    await prisma.booking.deleteMany({ where: { businessId } });
+    await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.service.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("rejects cancelling a booking that was already charged", async () => {
+    await expect(updateBookingStatus(businessId, bookingId, "CANCELLED")).rejects.toThrow(
+      /ya fue cobrado/
+    );
+
+    const unchanged = await prisma.booking.findUniqueOrThrow({ where: { id: bookingId } });
+    expect(unchanged.status).toBe("COMPLETED");
+  });
+
+  it("rejects marking a charged booking as no-show", async () => {
+    await expect(updateBookingStatus(businessId, bookingId, "NO_SHOW")).rejects.toThrow(
+      /ya fue cobrado/
+    );
   });
 });
