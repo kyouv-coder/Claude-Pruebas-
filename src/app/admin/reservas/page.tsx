@@ -107,7 +107,7 @@ export default async function ReservasPage() {
                   {b.startTime < now && (b.status === "PENDING" || b.status === "CONFIRMED") && (
                     <MarkNoShowButton bookingId={b.id} />
                   )}
-                  {b.status !== "CANCELLED" && (
+                  {b.status !== "CANCELLED" && b.status !== "COMPLETED" && (
                     <CancelBookingButton bookingId={b.id} clientName={b.client.name} />
                   )}
                 </div>

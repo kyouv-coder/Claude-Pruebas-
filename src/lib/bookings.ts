@@ -201,6 +201,15 @@ export async function updateBookingStatus(
   id: string,
   status: BookingStatus
 ) {
+  const booking = await prisma.booking.findFirstOrThrow({ where: { id, businessId } });
+  // Un turno COMPLETED ya tiene una venta cobrada asociada (ver
+  // chargeBooking en pos.ts) — cancelarlo o marcarlo no-show después no
+  // deshace ese cobro, solo deja el turno mostrando un estado que
+  // contradice la plata que sí se cobró, y descuadra las tasas de
+  // cancelación/no-show del dashboard contra los ingresos reales.
+  if (booking.status === "COMPLETED") {
+    throw new Error("Este turno ya fue cobrado, no se puede cambiar su estado.");
+  }
   return prisma.booking.update({
     where: { id, businessId },
     data: { status },

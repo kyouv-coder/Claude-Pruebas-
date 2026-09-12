@@ -61,13 +61,24 @@ export async function createBookingAction(
 
 export async function cancelBookingAction(bookingId: string) {
   const businessId = await requireBusinessId();
-  await updateBookingStatus(businessId, bookingId, "CANCELLED");
+  try {
+    await updateBookingStatus(businessId, bookingId, "CANCELLED");
+  } catch {
+    // Turno ya cobrado: no hay nada para deshacer acá, el botón no debería
+    // ni mostrarse en ese caso (ver page.tsx), así que solo evitamos que
+    // reviente la acción ante un reintento con datos viejos en pantalla.
+    return;
+  }
   revalidatePath("/admin/reservas");
 }
 
 export async function markNoShowAction(bookingId: string) {
   const businessId = await requireBusinessId();
-  await updateBookingStatus(businessId, bookingId, "NO_SHOW");
+  try {
+    await updateBookingStatus(businessId, bookingId, "NO_SHOW");
+  } catch {
+    return;
+  }
   revalidatePath("/admin/reservas");
   revalidatePath("/admin/dashboard");
   revalidatePath("/admin/clientes");
