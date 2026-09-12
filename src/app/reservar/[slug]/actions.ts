@@ -1,6 +1,5 @@
 "use server";
 
-import { headers } from "next/headers";
 import { createBooking } from "@/lib/bookings";
 import { checkWithinBusinessHours } from "@/lib/business-hours";
 import { prisma } from "@/lib/prisma";
@@ -11,16 +10,9 @@ import {
   recordPublicBookingAttempt,
 } from "@/lib/public-booking";
 import { sendSlackNotification } from "@/lib/slack";
+import { getClientIp } from "@/lib/request";
 
 export type ActionState = { error?: string; success?: string };
-
-async function getClientIp() {
-  const headerList = await headers();
-  const realIp = headerList.get("x-real-ip");
-  if (realIp) return realIp.trim();
-  const forwardedFor = headerList.get("x-forwarded-for");
-  return forwardedFor?.split(",")[0]?.trim() || "unknown";
-}
 
 export async function createPublicBookingAction(
   _prevState: ActionState,

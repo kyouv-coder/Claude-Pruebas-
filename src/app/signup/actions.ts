@@ -1,25 +1,12 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { Prisma, type BusinessType } from "@/generated/prisma";
 import { signUp, createSession, checkSignupRateLimit, recordSignupAttempt } from "@/lib/auth";
 import { BUSINESS_TYPE_OPTIONS } from "@/lib/verticals";
+import { getClientIp } from "@/lib/request";
 
 export type ActionState = { error?: string };
-
-async function getClientIp() {
-  const headerList = await headers();
-  // x-real-ip lo pone la plataforma de deploy (Vercel) directamente, sin
-  // que el cliente pueda sobreescribirlo — se prioriza sobre
-  // x-forwarded-for, que un cliente puede mandar con un valor propio si
-  // el proxy no lo sanitiza antes de reenviarlo a la app.
-  const realIp = headerList.get("x-real-ip");
-  if (realIp) return realIp.trim();
-
-  const forwardedFor = headerList.get("x-forwarded-for");
-  return forwardedFor?.split(",")[0]?.trim() || "unknown";
-}
 
 export async function signupAction(
   _prevState: ActionState,
