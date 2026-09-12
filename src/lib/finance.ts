@@ -163,6 +163,15 @@ export async function attachSaleInvoice(
   });
 }
 
+// El nombre de archivo es texto que alguien eligió al subirlo
+// (uploadSaleInvoiceAction) y termina interpolado en el header
+// Content-Disposition al descargarlo — sin sanitizar, una comilla rompe la
+// sintaxis del header (todo lo que sigue queda fuera de las comillas), y un
+// salto de línea sería un intento de header injection.
+export function sanitizeFileNameForHeader(fileName: string) {
+  return fileName.replace(/[\r\n"]/g, "");
+}
+
 export async function getSaleInvoiceFile(businessId: string, saleId: string) {
   const sale = await prisma.sale.findFirst({
     where: { id: saleId, businessId },
