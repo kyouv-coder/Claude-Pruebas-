@@ -1,23 +1,15 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import {
   verifyCredentials,
   createSession,
   checkLoginRateLimit,
   recordLoginAttempt,
 } from "@/lib/auth";
+import { getClientIp } from "@/lib/request";
 
 export type ActionState = { error?: string };
-
-async function getClientIp() {
-  const headerList = await headers();
-  const realIp = headerList.get("x-real-ip");
-  if (realIp) return realIp.trim();
-  const forwardedFor = headerList.get("x-forwarded-for");
-  return forwardedFor?.split(",")[0]?.trim() || "unknown";
-}
 
 export async function loginAction(
   _prevState: ActionState,
