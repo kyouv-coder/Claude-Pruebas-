@@ -134,15 +134,25 @@ export async function sellGiftCardAction(
 
   const businessId = await requireBusinessId();
 
-  await sellGiftCard(businessId, {
-    clientName,
-    clientPhone: clientPhone || undefined,
-    clientEmail: clientEmail || undefined,
-    amount,
-    paymentMethod,
-    cashSessionId,
-    expiresAt,
-  });
+  // Sin este try/catch, cualquier error (ej. la caja se cerró en otra
+  // pestaña justo antes de este submit) tumbaba toda la página con el
+  // error genérico de Next — el mismo problema que ya se había corregido
+  // en chargeBookingAction.
+  try {
+    await sellGiftCard(businessId, {
+      clientName,
+      clientPhone: clientPhone || undefined,
+      clientEmail: clientEmail || undefined,
+      amount,
+      paymentMethod,
+      cashSessionId,
+      expiresAt,
+    });
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "No se pudo vender la giftcard.",
+    };
+  }
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
   return { success: "Giftcard vendida." };
