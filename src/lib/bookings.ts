@@ -82,6 +82,17 @@ export async function createBooking(
   const service = await prisma.service.findFirstOrThrow({
     where: { id: input.serviceId, businessId },
   });
+  // staffId llega directo del formulario (público en /reservar, o del panel
+  // de admin) sin pasar antes por listStaff — sin este chequeo, se podía
+  // mandar el id de un staff de OTRO negocio y quedaba guardado tal cual en
+  // el turno, mezclando datos entre negocios (el nombre de ese staff ajeno
+  // terminaba mostrado en /admin/reservas de este negocio).
+  const staff = await prisma.user.findFirst({
+    where: { id: input.staffId, businessId, role: "STAFF", active: true },
+  });
+  if (!staff) {
+    throw new Error("El profesional elegido ya no está disponible.");
+  }
   const endTime = new Date(
     input.startTime.getTime() + service.durationMinutes * 60_000
   );
