@@ -244,3 +244,70 @@ describeIfDb("updateBookingStatus — no permite cambiar el estado de un turno y
     );
   });
 });
+
+describeIfDb("createBooking — aislamiento multi-tenant del staffId", () => {
+  let businessId: string;
+  let otherBusinessId: string;
+  let otherStaffId: string;
+  let serviceId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Tenant A",
+        businessType: "SPA",
+        slug: `test-tenant-a-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+
+    const otherBusiness = await prisma.business.create({
+      data: {
+        name: "Test Tenant B",
+        businessType: "SPA",
+        slug: `test-tenant-b-${Date.now()}`,
+      },
+    });
+    otherBusinessId = otherBusiness.id;
+
+    const otherStaff = await prisma.user.create({
+      data: {
+        businessId: otherBusinessId,
+        name: "Staff De Otro Negocio",
+        email: `staff-other-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "STAFF",
+      },
+    });
+    otherStaffId = otherStaff.id;
+
+    const service = await prisma.service.create({
+      data: { businessId, name: "Servicio Test", durationMinutes: 30, price: 5000 },
+    });
+    serviceId = service.id;
+  });
+
+  afterAll(async () => {
+    await prisma.booking.deleteMany({ where: { businessId } });
+    await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.service.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId: otherBusinessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.business.delete({ where: { id: otherBusinessId } });
+    await prisma.$disconnect();
+  });
+
+  it("rejects a staffId that belongs to a different business", async () => {
+    await expect(
+      createBooking(businessId, {
+        clientName: "Cliente Test",
+        serviceId,
+        staffId: otherStaffId,
+        startTime: new Date("2027-02-01T10:00:00Z"),
+      })
+    ).rejects.toThrow(/no está disponible/);
+
+    const leaked = await prisma.booking.findFirst({ where: { businessId, staffId: otherStaffId } });
+    expect(leaked).toBeNull();
+  });
+});
