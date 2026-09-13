@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@/generated/prisma";
 import { createExpense, deleteExpense, attachSaleInvoice } from "@/lib/finance";
 import { requireAdmin } from "@/lib/auth";
 import type { ExpenseCategory } from "@/generated/prisma";
@@ -52,7 +53,20 @@ export async function createExpenseAction(
 
 export async function deleteExpenseAction(id: string) {
   const businessId = await requireAdmin();
-  await deleteExpense(businessId, id);
+  try {
+    await deleteExpense(businessId, id);
+  } catch (e) {
+    // Un doble clic en "Eliminar" (o dos pestañas) puede mandar el borrado
+    // dos veces: la segunda ya no encuentra el gasto (P2025). El resultado
+    // que el usuario quería (que el gasto no exista) ya está logrado, así
+    // que no hace falta romper la página con el error genérico de Next.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      revalidatePath("/admin/finanzas");
+      revalidatePath("/admin/dashboard");
+      return;
+    }
+    throw e;
+  }
   revalidatePath("/admin/finanzas");
   revalidatePath("/admin/dashboard");
 }
