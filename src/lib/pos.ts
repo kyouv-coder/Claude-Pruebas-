@@ -247,6 +247,13 @@ export async function sellGiftCard(
     expiresAt?: Date;
   }
 ) {
+  // Sin este chequeo se podía vender una giftcard con vencimiento en el
+  // pasado: el cliente paga en el momento y la tarjeta ya nace inválida
+  // para canjear (redeemGiftCard la rechaza igual que una vencida normal).
+  if (input.expiresAt && input.expiresAt < new Date()) {
+    throw new Error("La fecha de vencimiento no puede ser en el pasado.");
+  }
+
   return prisma.$transaction(async (tx) => {
     // El cliente se crea en la misma transacción que la venta y la
     // giftcard: si algo después falla (ej. cashSessionId inválido), todo

@@ -127,12 +127,22 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
   });
 
   it("rejects redeeming an expired giftcard even if it's still marked active", async () => {
-    const giftCard = await sellGiftCard(businessId, {
-      clientName: "Cliente Giftcard Vencida",
-      amount: 2000,
-      paymentMethod: "CASH",
-      cashSessionId,
-      expiresAt: new Date("2020-01-01"),
+    // Una giftcard vencida en la realidad nace con fecha futura y el tiempo
+    // pasa — sellGiftCard ya no deja vender una con vencimiento pasado (ver
+    // test de abajo), así que acá se simula directamente en la base el
+    // estado "ya vencida" al que una tarjeta real llega con el tiempo.
+    const client = await prisma.client.create({
+      data: { businessId, name: "Cliente Giftcard Vencida" },
+    });
+    const giftCard = await prisma.giftCard.create({
+      data: {
+        businessId,
+        code: `GC-VENCIDA-${Date.now()}`,
+        initialValue: 2000,
+        balance: 2000,
+        clientId: client.id,
+        expiresAt: new Date("2020-01-01"),
+      },
     });
 
     await expect(
@@ -141,5 +151,17 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
 
     const unchanged = await prisma.giftCard.findUniqueOrThrow({ where: { id: giftCard.id } });
     expect(Number(unchanged.balance)).toBe(2000);
+  });
+
+  it("rejects selling a giftcard with an expiration date already in the past", async () => {
+    await expect(
+      sellGiftCard(businessId, {
+        clientName: "Cliente Vencimiento Pasado",
+        amount: 1000,
+        paymentMethod: "CASH",
+        cashSessionId,
+        expiresAt: new Date("2020-01-01"),
+      })
+    ).rejects.toThrow(/no puede ser en el pasado/);
   });
 });
