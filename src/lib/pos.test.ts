@@ -99,6 +99,68 @@ describeIfDb("sellProduct — evita dejar el stock negativo", () => {
     expect(final.stock).toBe(2);
     expect(final.stock).toBeGreaterThanOrEqual(0);
   });
+
+  it("rejects a cashSessionId from a different business", async () => {
+    const otherBusiness = await prisma.business.create({
+      data: { name: "Test Other Business", businessType: "SPA", slug: `test-other-${Date.now()}` },
+    });
+    const otherOperator = await prisma.user.create({
+      data: {
+        businessId: otherBusiness.id,
+        name: "Admin Otro",
+        email: `admin-other-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const otherSession = await prisma.cashRegisterSession.create({
+      data: { businessId: otherBusiness.id, openedById: otherOperator.id, openingAmount: 0 },
+    });
+    const product = await prisma.product.create({
+      data: { businessId, name: "Producto Tres", price: 1000, stock: 5 },
+    });
+
+    await expect(
+      sellProduct(businessId, {
+        productId: product.id,
+        quantity: 1,
+        paymentMethod: "CASH",
+        cashSessionId: otherSession.id,
+      })
+    ).rejects.toThrow(/no está abierta para este negocio/);
+
+    const leaked = await prisma.sale.findFirst({ where: { businessId, cashSessionId: otherSession.id } });
+    expect(leaked).toBeNull();
+
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId: otherBusiness.id } });
+    await prisma.user.deleteMany({ where: { businessId: otherBusiness.id } });
+    await prisma.business.delete({ where: { id: otherBusiness.id } });
+  });
+
+  it("rejects a cashSessionId that's already closed", async () => {
+    const closedSession = await prisma.cashRegisterSession.create({
+      data: {
+        businessId,
+        openedById: (await prisma.user.findFirstOrThrow({ where: { businessId, role: "ADMIN" } })).id,
+        openingAmount: 0,
+        closedAt: new Date(),
+        closingAmount: 0,
+        expectedCashAmount: 0,
+      },
+    });
+    const product = await prisma.product.create({
+      data: { businessId, name: "Producto Cuatro", price: 1000, stock: 5 },
+    });
+
+    await expect(
+      sellProduct(businessId, {
+        productId: product.id,
+        quantity: 1,
+        paymentMethod: "CASH",
+        cashSessionId: closedSession.id,
+      })
+    ).rejects.toThrow(/no está abierta/);
+  });
 });
 
 describeIfDb("closeCashSession — no deja cerrar dos veces la misma caja", () => {

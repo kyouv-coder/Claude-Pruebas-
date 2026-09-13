@@ -16,6 +16,19 @@ export async function getOpenCashSession(businessId: string) {
   });
 }
 
+// cashSessionId llega como campo oculto de formulario en cada cobro/venta —
+// sin este chequeo, nada impedía mandar el id de una caja de OTRO negocio
+// (mezclando ventas entre negocios) o de una caja ya cerrada (una venta
+// colándose en un cierre que ya se contó y concilió).
+async function assertOpenCashSession(businessId: string, cashSessionId: string) {
+  const session = await prisma.cashRegisterSession.findFirst({
+    where: { id: cashSessionId, businessId, closedAt: null },
+  });
+  if (!session) {
+    throw new Error("Esa caja no está abierta para este negocio.");
+  }
+}
+
 export async function openCashSession(businessId: string, openingAmount: number) {
   const operator = await getOperator();
 
@@ -140,6 +153,8 @@ export async function chargeBooking(
   cashSessionId: string,
   paymentMethod: PaymentMethod
 ) {
+  await assertOpenCashSession(businessId, cashSessionId);
+
   const booking = await prisma.booking.findFirstOrThrow({
     where: { id: bookingId, businessId },
     include: { service: true },
@@ -190,6 +205,8 @@ export async function sellProduct(
     clientId?: string;
   }
 ) {
+  await assertOpenCashSession(businessId, input.cashSessionId);
+
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.findFirstOrThrow({
       where: { id: input.productId, businessId },
@@ -253,6 +270,7 @@ export async function sellGiftCard(
   if (input.expiresAt && input.expiresAt < new Date()) {
     throw new Error("La fecha de vencimiento no puede ser en el pasado.");
   }
+  await assertOpenCashSession(businessId, input.cashSessionId);
 
   return prisma.$transaction(async (tx) => {
     // El cliente se crea en la misma transacción que la venta y la
@@ -331,6 +349,7 @@ export async function redeemGiftCard(
   if (giftCard.expiresAt && giftCard.expiresAt < new Date()) {
     throw new Error("La giftcard está vencida");
   }
+  await assertOpenCashSession(businessId, input.cashSessionId);
 
   return prisma.$transaction(async (tx) => {
     // Update condicionado (mismo patrón que el descuento de stock en
