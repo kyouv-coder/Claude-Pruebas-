@@ -106,4 +106,89 @@ describeIfDb("getRecommendations", () => {
     const sorted = [...ranks].sort((a, b) => a - b);
     expect(ranks).toEqual(sorted);
   });
+
+  it("flags a client whose last completed visit was 60+ days ago as inactive", async () => {
+    const staff = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Staff Inactivo Test",
+        email: `staff-inactive-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "STAFF",
+      },
+    });
+    const service = await prisma.service.create({
+      data: { businessId, name: "Servicio Inactivo Test", durationMinutes: 30, price: 5000 },
+    });
+    const client = await prisma.client.create({ data: { businessId, name: "Cliente Ausente" } });
+    const start = new Date(Date.now() - 90 * 24 * 60 * 60_000);
+    await prisma.booking.create({
+      data: {
+        businessId,
+        clientId: client.id,
+        serviceId: service.id,
+        staffId: staff.id,
+        startTime: start,
+        endTime: new Date(start.getTime() + 30 * 60_000),
+        status: "COMPLETED",
+      },
+    });
+
+    const recommendations = await getRecommendations(businessId);
+    const inactiveRec = recommendations.find((r) => r.title.includes("sin volver"));
+    expect(inactiveRec).toBeDefined();
+    expect(inactiveRec?.description).toContain("Cliente Ausente");
+  });
+
+  it("flags a client with 2+ no-shows in the last 90 days", async () => {
+    const staff = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Staff No-Show Test",
+        email: `staff-noshow-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "STAFF",
+      },
+    });
+    const service = await prisma.service.create({
+      data: { businessId, name: "Servicio No-Show Test", durationMinutes: 30, price: 5000 },
+    });
+    const client = await prisma.client.create({ data: { businessId, name: "Cliente Fantasma" } });
+    for (let i = 0; i < 2; i++) {
+      const start = new Date(Date.now() - (i + 1) * 24 * 60 * 60_000);
+      await prisma.booking.create({
+        data: {
+          businessId,
+          clientId: client.id,
+          serviceId: service.id,
+          staffId: staff.id,
+          startTime: start,
+          endTime: new Date(start.getTime() + 30 * 60_000),
+          status: "NO_SHOW",
+        },
+      });
+    }
+
+    const recommendations = await getRecommendations(businessId);
+    const noShowRec = recommendations.find((r) => r.title.includes("no-shows repetidos"));
+    expect(noShowRec).toBeDefined();
+    expect(noShowRec?.description).toContain("Cliente Fantasma");
+  });
+
+  it("flags a giftcard with balance expiring within 30 days", async () => {
+    await prisma.giftCard.create({
+      data: {
+        businessId,
+        code: `GC-INSIGHTS-${Date.now()}`,
+        initialValue: 8000,
+        balance: 8000,
+        expiresAt: new Date(Date.now() + 10 * 24 * 60 * 60_000),
+      },
+    });
+
+    const recommendations = await getRecommendations(businessId);
+    const expiryRec = recommendations.find((r) => r.title.includes("por vencer"));
+    expect(expiryRec).toBeDefined();
+    expect(expiryRec?.severity).toBe("media");
+  });
 });
