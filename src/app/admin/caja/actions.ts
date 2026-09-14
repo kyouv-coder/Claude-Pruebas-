@@ -102,6 +102,10 @@ export async function chargeBookingAction(
   }
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
+  // El cobro marca el turno COMPLETED y crea una venta — la ficha del
+  // cliente en /admin/clientes (visitas, gastado total, última visita) se
+  // calcula a partir de eso, así que también queda desactualizada sin esto.
+  revalidatePath("/admin/clientes");
   return { success: "Cobro registrado." };
 }
 
@@ -155,6 +159,9 @@ export async function sellGiftCardAction(
   }
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
+  // sellGiftCard siempre crea un cliente nuevo — sin esto, no aparecía en
+  // /admin/clientes hasta que algo más revalidara esa página.
+  revalidatePath("/admin/clientes");
   return { success: "Giftcard vendida." };
 }
 
@@ -221,5 +228,7 @@ export async function redeemGiftCardAction(
   }
   revalidatePath("/admin/caja");
   revalidatePath("/admin/dashboard");
+  // El canje crea una venta a nombre del cliente dueño de la giftcard.
+  revalidatePath("/admin/clientes");
   return { success: "Giftcard canjeada." };
 }
