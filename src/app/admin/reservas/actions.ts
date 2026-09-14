@@ -56,6 +56,10 @@ export async function createBookingAction(
   );
 
   revalidatePath("/admin/reservas");
+  // Mismo motivo que en cancelBookingAction: una reserva nueva cambia las
+  // reservas de hoy, la ocupación y los servicios más solicitados que
+  // muestra el dashboard.
+  revalidatePath("/admin/dashboard");
   return { success: "Reserva creada." };
 }
 

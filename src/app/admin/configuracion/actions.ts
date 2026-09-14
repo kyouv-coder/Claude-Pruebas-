@@ -64,6 +64,10 @@ export async function createServiceAction(
     return { error: "No se pudo crear el servicio." };
   }
   revalidatePath("/admin/configuracion");
+  // Igual que updateServiceAction/toggleServiceActiveAction: el servicio
+  // nuevo tiene que poder elegirse de inmediato en el desplegable de
+  // "Nueva reserva" sin necesitar otra navegación que revalide esa página.
+  revalidatePath("/admin/reservas");
   return { success: "Servicio creado." };
 }
 
@@ -269,6 +273,9 @@ export async function createStaffAction(
     return { error: "No se pudo agregar a la persona." };
   }
   revalidatePath("/admin/configuracion");
+  // Igual que toggleStaffActiveAction: la persona nueva tiene que poder
+  // elegirse de inmediato como profesional en "Nueva reserva".
+  revalidatePath("/admin/reservas");
   return {
     success: `Persona agregada. Compartile en privado el email y la contraseña — no queda guardada en ningún lado para volver a verla.`,
   };
@@ -297,6 +304,7 @@ export async function updateStaffAction(
     return { error: "No se pudo actualizar la persona." };
   }
   revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/reservas");
   return { success: "Datos actualizados." };
 }
 
