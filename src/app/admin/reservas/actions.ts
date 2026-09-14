@@ -70,6 +70,11 @@ export async function cancelBookingAction(bookingId: string) {
     return;
   }
   revalidatePath("/admin/reservas");
+  // La tasa de cancelación y los "servicios más solicitados" del dashboard
+  // se calculan sobre todos los turnos de los últimos 30 días, cancelados
+  // incluidos — sin esto, cancelar un turno no se reflejaba ahí hasta la
+  // próxima navegación que revalidara la página por otro lado.
+  revalidatePath("/admin/dashboard");
 }
 
 export async function markNoShowAction(bookingId: string) {
