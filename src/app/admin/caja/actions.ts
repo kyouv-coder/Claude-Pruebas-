@@ -162,6 +162,9 @@ export async function sellGiftCardAction(
   // sellGiftCard siempre crea un cliente nuevo — sin esto, no aparecía en
   // /admin/clientes hasta que algo más revalidara esa página.
   revalidatePath("/admin/clientes");
+  // La giftcard recién vendida (y su saldo pendiente de entregar) tampoco
+  // aparecía en /admin/giftcards sin esto.
+  revalidatePath("/admin/giftcards");
   return { success: "Giftcard vendida." };
 }
 
@@ -230,5 +233,8 @@ export async function redeemGiftCardAction(
   revalidatePath("/admin/dashboard");
   // El canje crea una venta a nombre del cliente dueño de la giftcard.
   revalidatePath("/admin/clientes");
+  // El saldo restante (o el pasaje a "Agotada") no se reflejaba en
+  // /admin/giftcards sin esto.
+  revalidatePath("/admin/giftcards");
   return { success: "Giftcard canjeada." };
 }
