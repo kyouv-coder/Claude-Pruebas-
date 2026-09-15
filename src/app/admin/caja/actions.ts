@@ -36,7 +36,7 @@ export async function openCashSessionAction(
   formData: FormData
 ): Promise<ActionState> {
   const openingAmount = Number(formData.get("openingAmount") || 0);
-  if (!(openingAmount >= 0)) {
+  if (!Number.isFinite(openingAmount) || openingAmount < 0) {
     return { error: "Ingresá un monto inicial válido." };
   }
   const businessId = await requireBusinessId();
@@ -58,7 +58,7 @@ export async function closeCashSessionAction(
 ): Promise<ActionState> {
   const sessionId = String(formData.get("sessionId") || "");
   const closingAmount = Number(formData.get("closingAmount") || 0);
-  if (!(closingAmount >= 0)) {
+  if (!Number.isFinite(closingAmount) || closingAmount < 0) {
     return { error: "Ingresá un monto de cierre válido." };
   }
   const businessId = await requireBusinessId();
@@ -143,8 +143,10 @@ export async function sellGiftCardAction(
   if (!clientName) {
     return { error: "Ingresá el nombre del cliente." };
   }
-  if (!(amount > 0)) {
-    return { error: "El monto debe ser mayor a 0." };
+  // Number.isFinite, no solo > 0: "Infinity" pasa el chequeo de > 0 y
+  // después rompe al guardar el Decimal en la base.
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: "El monto debe ser un número mayor a 0." };
   }
   if (!paymentMethod) {
     return { error: "Elegí un método de pago válido." };
@@ -238,8 +240,8 @@ export async function redeemGiftCardAction(
   if (!code) {
     return { error: "Ingresá el código de la giftcard." };
   }
-  if (!(amount > 0)) {
-    return { error: "El monto debe ser mayor a 0." };
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: "El monto debe ser un número mayor a 0." };
   }
 
   const businessId = await requireBusinessId();

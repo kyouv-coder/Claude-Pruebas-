@@ -33,8 +33,11 @@ export async function createExpenseAction(
   if (!VALID_CATEGORIES.includes(category)) {
     return { error: "Elegí una categoría." };
   }
-  if (!(amount > 0)) {
-    return { error: "El monto debe ser mayor a 0." };
+  // Number.isFinite, no solo > 0: "Infinity" pasa Number("Infinity") > 0,
+  // y guardar eso en un campo Decimal tira un PrismaClientValidationError
+  // sin capturar más abajo — rompía la página entera.
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return { error: "El monto debe ser un número mayor a 0." };
   }
 
   const businessId = await requireAdmin();
