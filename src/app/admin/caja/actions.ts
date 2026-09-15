@@ -15,6 +15,22 @@ import type { PaymentMethod } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
 
+// GIFTCARD queda afuera a propósito: es un método interno que solo debe
+// quedar marcado por redeemGiftCard (el único flujo que de verdad valida y
+// descuenta el saldo de una giftcard real). Sin este chequeo, el campo
+// llega crudo del formulario y castear un string cualquiera a
+// PaymentMethod no lo valida — se podía marcar un cobro o una venta como
+// "pagada con giftcard" sin canjear ninguna, inflando ventas sin plata real
+// detrás.
+const CHARGEABLE_PAYMENT_METHODS: PaymentMethod[] = ["CASH", "CARD", "TRANSFER"];
+
+function parsePaymentMethod(raw: FormDataEntryValue | null): PaymentMethod | null {
+  const value = String(raw || "CASH");
+  return (CHARGEABLE_PAYMENT_METHODS as string[]).includes(value)
+    ? (value as PaymentMethod)
+    : null;
+}
+
 export async function openCashSessionAction(
   _prevState: ActionState,
   formData: FormData
@@ -80,7 +96,10 @@ export async function chargeBookingAction(
 ): Promise<ActionState> {
   const bookingId = String(formData.get("bookingId") || "");
   const cashSessionId = String(formData.get("cashSessionId") || "");
-  const paymentMethod = String(formData.get("paymentMethod") || "CASH") as PaymentMethod;
+  const paymentMethod = parsePaymentMethod(formData.get("paymentMethod"));
+  if (!paymentMethod) {
+    return { error: "Elegí un método de pago válido." };
+  }
   const businessId = await requireBusinessId();
 
   try {
@@ -118,7 +137,7 @@ export async function sellGiftCardAction(
   const clientPhone = String(formData.get("clientPhone") || "").trim();
   const clientEmail = String(formData.get("clientEmail") || "").trim();
   const amount = Number(formData.get("amount") || 0);
-  const paymentMethod = String(formData.get("paymentMethod") || "CASH") as PaymentMethod;
+  const paymentMethod = parsePaymentMethod(formData.get("paymentMethod"));
   const expiresAtRaw = String(formData.get("expiresAt") || "").trim();
 
   if (!clientName) {
@@ -126,6 +145,9 @@ export async function sellGiftCardAction(
   }
   if (!(amount > 0)) {
     return { error: "El monto debe ser mayor a 0." };
+  }
+  if (!paymentMethod) {
+    return { error: "Elegí un método de pago válido." };
   }
   let expiresAt: Date | undefined;
   if (expiresAtRaw) {
@@ -175,13 +197,16 @@ export async function sellProductAction(
   const cashSessionId = String(formData.get("cashSessionId") || "");
   const productId = String(formData.get("productId") || "");
   const quantity = Number(formData.get("quantity") || 0);
-  const paymentMethod = String(formData.get("paymentMethod") || "CASH") as PaymentMethod;
+  const paymentMethod = parsePaymentMethod(formData.get("paymentMethod"));
 
   if (!productId) {
     return { error: "Elegí un producto." };
   }
   if (!Number.isInteger(quantity) || quantity < 1) {
     return { error: "La cantidad debe ser un número entero mayor a 0." };
+  }
+  if (!paymentMethod) {
+    return { error: "Elegí un método de pago válido." };
   }
 
   const businessId = await requireBusinessId();
