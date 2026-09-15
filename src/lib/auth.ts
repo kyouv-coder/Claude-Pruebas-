@@ -237,8 +237,12 @@ export async function getCurrentUser() {
   const session = await verifySessionToken(token, secret);
   if (!session) return null;
 
-  return prisma.user.findUnique({
-    where: { id: session.sub },
+  // active: true acá, no solo en verifyCredentials — sin esto, desactivar
+  // a alguien del staff (toggleStaffActiveAction) no cortaba nada: su
+  // sesión ya emitida (JWT, válido hasta 7 días) seguía funcionando en
+  // toda la app, solo bloqueaba intentos de login nuevos.
+  return prisma.user.findFirst({
+    where: { id: session.sub, active: true },
     include: { business: { omit: { coverImageData: true } } },
   });
 }
