@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { createPublicBookingAction, type ActionState } from "./actions";
 import { getBusyTimesAction, getDayAvailabilityAction, type DayAvailability } from "./availability";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
@@ -42,6 +42,12 @@ export function PublicBookingForm({
   const [loadingBusy, setLoadingBusy] = useState(false);
   const [dayAvailability, setDayAvailability] = useState<DayAvailability | null>(null);
   const [productQuantities, setProductQuantities] = useState<Record<string, number>>({});
+  // Cambiar de profesional o de fecha rápido (o una respuesta lenta) puede
+  // hacer que dos pedidos de horarios ocupados/disponibilidad estén en
+  // vuelo a la vez — sin esta guarda, el más lento podía resolver después
+  // y pisar el resultado del más nuevo con datos de la selección anterior.
+  const busyRequestId = useRef(0);
+  const availabilityRequestId = useRef(0);
 
   const productRequestsJson = JSON.stringify(
     Object.entries(productQuantities)
@@ -50,22 +56,37 @@ export function PublicBookingForm({
   );
 
   function refreshBusyTimes(staffId: string, date: string) {
+    const requestId = ++busyRequestId.current;
     if (!staffId || !date) {
       setBusyRanges([]);
       return;
     }
     setLoadingBusy(true);
     getBusyTimesAction(slug, staffId, date)
-      .then((ranges) => setBusyRanges(ranges))
-      .finally(() => setLoadingBusy(false));
+      .then((ranges) => {
+        if (requestId === busyRequestId.current) setBusyRanges(ranges);
+      })
+      .catch(() => {
+        if (requestId === busyRequestId.current) setBusyRanges([]);
+      })
+      .finally(() => {
+        if (requestId === busyRequestId.current) setLoadingBusy(false);
+      });
   }
 
   function refreshDayAvailability(date: string) {
+    const requestId = ++availabilityRequestId.current;
     if (!date) {
       setDayAvailability(null);
       return;
     }
-    getDayAvailabilityAction(slug, date).then((info) => setDayAvailability(info));
+    getDayAvailabilityAction(slug, date)
+      .then((info) => {
+        if (requestId === availabilityRequestId.current) setDayAvailability(info);
+      })
+      .catch(() => {
+        if (requestId === availabilityRequestId.current) setDayAvailability(null);
+      });
   }
 
   if (state.success) {
