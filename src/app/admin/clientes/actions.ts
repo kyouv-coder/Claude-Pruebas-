@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@/generated/prisma";
 import { updateClientNotes } from "@/lib/clients";
 import { requireBusinessId } from "@/lib/auth";
 
@@ -14,7 +15,14 @@ export async function updateClientNotesAction(
   const notes = String(formData.get("notes") || "").trim();
 
   const businessId = await requireBusinessId();
-  await updateClientNotes(businessId, id, notes);
+  try {
+    await updateClientNotes(businessId, id, notes);
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return { error: "No se encontró el cliente." };
+    }
+    throw e;
+  }
   revalidatePath(`/admin/clientes/${id}`);
   return { success: "Notas guardadas." };
 }
