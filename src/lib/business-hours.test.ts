@@ -77,4 +77,19 @@ describeIfDb("checkWithinBusinessHours", () => {
     );
     expect(result.ok).toBe(true);
   });
+
+  it("rejects a booking that crosses midnight into the next day", async () => {
+    // 2027-01-18 es lunes con horario configurado, pero da igual el
+    // horario puntual acá: cruzar la medianoche se rechaza antes de
+    // siquiera mirar la franja de atención de ningún día.
+    const result = await checkWithinBusinessHours(
+      businessId,
+      new Date("2027-01-18T23:30:00"),
+      new Date("2027-01-19T00:30:00")
+    );
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.reason).toContain("medianoche");
+    }
+  });
 });
