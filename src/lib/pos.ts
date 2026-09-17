@@ -205,6 +205,16 @@ export async function sellProduct(
     clientId?: string;
   }
 ) {
+  // Defensa en profundidad: la acción del formulario ya valida esto, pero
+  // esta función no debería confiar ciegamente en el caller. Sin este
+  // chequeo, una cantidad negativa pasa el `gte` del update de abajo (un
+  // número negativo siempre es "mayor o igual" a un stock positivo) y el
+  // "decrement" termina sumando stock en vez de restarlo, además de crear
+  // una venta con total negativo.
+  if (!Number.isInteger(input.quantity) || input.quantity <= 0) {
+    throw new Error("La cantidad debe ser un número entero mayor a 0.");
+  }
+
   await assertOpenCashSession(businessId, input.cashSessionId);
 
   return prisma.$transaction(async (tx) => {
