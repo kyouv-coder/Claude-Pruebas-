@@ -30,6 +30,14 @@ async function assertOpenCashSession(businessId: string, cashSessionId: string) 
 }
 
 export async function openCashSession(businessId: string, openingAmount: number) {
+  // Mismo motivo que en sellProduct/redeemGiftCard: la acción del
+  // formulario ya valida esto, pero esta función no debería confiar en el
+  // caller — un monto inicial negativo o no finito quedaría guardado tal
+  // cual y descuadraría el arqueo de caja desde el arranque.
+  if (!Number.isFinite(openingAmount) || openingAmount < 0) {
+    throw new Error("El monto inicial debe ser un número mayor o igual a 0.");
+  }
+
   const operator = await getOperator();
 
   const runAttempt = () =>
@@ -78,6 +86,13 @@ export async function closeCashSession(
   sessionId: string,
   closingAmount: number
 ) {
+  // Mismo motivo que openCashSession: sin esto, un monto contado negativo o
+  // no finito se guardaría tal cual y el cierre quedaría con una
+  // diferencia sin sentido.
+  if (!Number.isFinite(closingAmount) || closingAmount < 0) {
+    throw new Error("El monto de cierre debe ser un número mayor o igual a 0.");
+  }
+
   // closedAt: null en el chequeo inicial: sin esto, cerrar una caja que ya
   // estaba cerrada (sessionId viejo reenviado, doble clic) no fallaba —
   // simplemente recalculaba y pisaba en silencio el cierre histórico con
