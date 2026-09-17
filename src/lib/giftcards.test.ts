@@ -126,6 +126,25 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
     expect(withoutExpiry.expiresAt).toBeNull();
   });
 
+  it("rejects a non-positive redemption amount instead of letting a negative decrement top up the balance", async () => {
+    const giftCard = await sellGiftCard(businessId, {
+      clientName: "Cliente Giftcard Monto Inválido",
+      amount: 1000,
+      paymentMethod: "CASH",
+      cashSessionId,
+    });
+
+    await expect(
+      redeemGiftCard(businessId, { code: giftCard.code, amount: -500, cashSessionId })
+    ).rejects.toThrow(/monto/i);
+    await expect(
+      redeemGiftCard(businessId, { code: giftCard.code, amount: 0, cashSessionId })
+    ).rejects.toThrow(/monto/i);
+
+    const unchanged = await prisma.giftCard.findUniqueOrThrow({ where: { id: giftCard.id } });
+    expect(Number(unchanged.balance)).toBe(1000);
+  });
+
   it("rejects redeeming an expired giftcard even if it's still marked active", async () => {
     // Una giftcard vencida en la realidad nace con fecha futura y el tiempo
     // pasa — sellGiftCard ya no deja vender una con vencimiento pasado (ver

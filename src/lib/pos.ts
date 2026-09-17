@@ -347,6 +347,14 @@ export async function redeemGiftCard(
     cashSessionId: string;
   }
 ) {
+  // Mismo motivo que la cantidad en sellProduct: sin esto, un monto
+  // negativo pasa el `gte` del update condicionado de abajo (siempre es
+  // "mayor o igual" a un saldo positivo) y el `decrement` termina sumando
+  // saldo a la giftcard en vez de restarlo.
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error("El monto debe ser un número mayor a 0.");
+  }
+
   const giftCard = await prisma.giftCard.findFirstOrThrow({
     where: { code: input.code, businessId },
   });
