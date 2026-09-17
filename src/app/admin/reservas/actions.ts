@@ -79,6 +79,10 @@ export async function cancelBookingAction(bookingId: string) {
   // incluidos — sin esto, cancelar un turno no se reflejaba ahí hasta la
   // próxima navegación que revalidara la página por otro lado.
   revalidatePath("/admin/dashboard");
+  // La ficha del cliente (/admin/clientes/[id]) lista cada turno con su
+  // estado — igual que markNoShowAction, sin esto el cambio a "Cancelado"
+  // no se veía ahí hasta otra navegación.
+  revalidatePath("/admin/clientes");
 }
 
 export async function markNoShowAction(bookingId: string) {
