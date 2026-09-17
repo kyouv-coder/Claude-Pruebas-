@@ -100,6 +100,22 @@ describeIfDb("sellProduct — evita dejar el stock negativo", () => {
     expect(final.stock).toBeGreaterThanOrEqual(0);
   });
 
+  it("rejects a non-positive quantity instead of letting a negative decrement increase stock", async () => {
+    const product = await prisma.product.create({
+      data: { businessId, name: "Producto Cantidad Inválida", price: 1000, stock: 5 },
+    });
+
+    await expect(
+      sellProduct(businessId, { productId: product.id, quantity: -3, paymentMethod: "CASH", cashSessionId })
+    ).rejects.toThrow(/cantidad/i);
+    await expect(
+      sellProduct(businessId, { productId: product.id, quantity: 0, paymentMethod: "CASH", cashSessionId })
+    ).rejects.toThrow(/cantidad/i);
+
+    const final = await prisma.product.findUniqueOrThrow({ where: { id: product.id } });
+    expect(final.stock).toBe(5);
+  });
+
   it("rejects a cashSessionId from a different business", async () => {
     const otherBusiness = await prisma.business.create({
       data: { name: "Test Other Business", businessType: "SPA", slug: `test-other-${Date.now()}` },
