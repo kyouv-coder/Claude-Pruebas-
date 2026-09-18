@@ -216,7 +216,12 @@ export async function createStaff(
     data: {
       businessId,
       name: input.name,
-      email: input.email,
+      // El email es @unique en el modelo y el login busca por coincidencia
+      // exacta (case-sensitive en Postgres) — sin normalizar acá, cargar
+      // "Maria@Spa.com" no choca con un duplicado real "maria@spa.com" (la
+      // restricción única no lo detecta) y esa persona no puede loguearse
+      // tipeando su email en minúscula, que es lo más natural.
+      email: input.email.toLowerCase(),
       role: "STAFF",
       passwordHash,
     },
@@ -230,7 +235,7 @@ export async function updateStaff(
 ) {
   return prisma.user.update({
     where: { id, businessId },
-    data: { name: input.name, email: input.email },
+    data: { name: input.name, email: input.email.toLowerCase() },
   });
 }
 

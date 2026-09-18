@@ -2,7 +2,7 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { signUp, checkLoginRateLimit, recordLoginAttempt, changePassword, hashPassword } from "./auth";
+import { signUp, checkLoginRateLimit, recordLoginAttempt, changePassword, hashPassword, verifyCredentials } from "./auth";
 
 // Test de integración contra Postgres real: generateUniqueSlug chequea
 // existencia y crea el negocio en pasos separados (no atómico), así que la
@@ -51,6 +51,39 @@ describeIfDb("signUp — slugs únicos ante negocios con nombre parecido", () =>
 
     const slugs = fulfilled.map((r) => (r as PromiseFulfilledResult<Awaited<ReturnType<typeof signUp>>>).value.business.slug);
     expect(new Set(slugs).size).toBe(2);
+  });
+});
+
+describeIfDb("signUp / verifyCredentials — el email se normaliza a minúscula", () => {
+  let businessId: string;
+  const email = `Mixed.Case.${Date.now()}@Example.com`;
+  const password = "changeme123";
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("stores the email in lowercase even if it was typed with mixed case", async () => {
+    const { business, user } = await signUp({
+      businessName: `Spa Email Mixto ${Date.now()}`,
+      businessType: "SPA",
+      name: "Admin Mixto",
+      email,
+      password,
+    });
+    businessId = business.id;
+    expect(user.email).toBe(email.toLowerCase());
+  });
+
+  it("logs in regardless of the case used, since Postgres compares email case-sensitively", async () => {
+    // Sin normalizar, esto fallaría: la restricción @unique y la búsqueda
+    // en verifyCredentials son case-sensitive, así que alguien registrado
+    // con mayúsculas no podría loguearse tipeando su email en minúscula.
+    const result = await verifyCredentials(email.toUpperCase(), password);
+    expect(result?.id).toBeDefined();
+    expect(result?.email).toBe(email.toLowerCase());
   });
 });
 
