@@ -8,6 +8,8 @@ import {
   getProductImage,
   setBusinessCoverImage,
   getBusinessCoverImage,
+  createStaff,
+  updateStaff,
 } from "./settings";
 
 // Test de integración contra Postgres real: valida el mismo tipo de cosas
@@ -105,5 +107,44 @@ describeIfDb("setServiceImage / setProductImage / setBusinessCoverImage", () => 
     const image = await getBusinessCoverImage(businessId);
     expect(image?.mimeType).toBe("image/png");
     expect(Buffer.compare(image!.data, validImage.data)).toBe(0);
+  });
+});
+
+describeIfDb("createStaff / updateStaff — el email se normaliza a minúscula", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Staff Email Business", businessType: "SPA", slug: `test-staff-email-${Date.now()}` },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("stores the email in lowercase even if createStaff got it with mixed case", async () => {
+    const staff = await createStaff(businessId, {
+      name: "Empleada Test",
+      email: `Empleada.Mixta.${Date.now()}@Example.com`,
+      password: "changeme123",
+    });
+    expect(staff.email).toBe(staff.email.toLowerCase());
+  });
+
+  it("stores the email in lowercase even if updateStaff got it with mixed case", async () => {
+    const staff = await createStaff(businessId, {
+      name: "Otra Empleada",
+      email: `otra-empleada-${Date.now()}@example.com`,
+      password: "changeme123",
+    });
+    const updated = await updateStaff(businessId, staff.id, {
+      name: "Otra Empleada",
+      email: `Otra.Empleada.Nueva.${Date.now()}@Example.com`,
+    });
+    expect(updated.email).toBe(updated.email.toLowerCase());
   });
 });

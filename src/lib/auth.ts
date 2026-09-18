@@ -87,7 +87,11 @@ export async function signUp(input: {
           data: {
             businessId: business.id,
             name: input.name,
-            email: input.email,
+            // Mismo motivo que createStaff (settings.ts): email es @unique
+            // y el login compara case-sensitive, así que sin normalizar acá
+            // alguien podría registrarse con "Maria@Spa.com" y no poder
+            // volver a entrar tipeando su email en minúscula.
+            email: input.email.toLowerCase(),
             passwordHash,
             role: "ADMIN",
           },
@@ -108,8 +112,12 @@ export async function signUp(input: {
 }
 
 export async function verifyCredentials(email: string, password: string) {
+  // Todo email se guarda en minúscula (signUp, createStaff/updateStaff) —
+  // normalizar acá también es lo que hace que ese cambio realmente sirva
+  // para loguearse, sea cual sea la mayúscula/minúscula con la que alguien
+  // tipee su email.
   const user = await prisma.user.findFirst({
-    where: { email, active: true },
+    where: { email: email.toLowerCase(), active: true },
   });
 
   if (user?.lockedUntil && user.lockedUntil > new Date()) {
