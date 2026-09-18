@@ -2,6 +2,7 @@ import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
 import { redeemGiftCard, sellGiftCard } from "./pos";
+import { getGiftCardStats } from "./giftcards";
 
 // Test de integración contra Postgres real: la resta de saldo de una
 // giftcard es dinero real, y depende de una escritura atómica en la DB —
@@ -182,5 +183,68 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
         expiresAt: new Date("2020-01-01"),
       })
     ).rejects.toThrow(/no puede ser en el pasado/);
+  });
+});
+
+describeIfDb("getGiftCardStats", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Giftcard Stats Business",
+        businessType: "SPA",
+        slug: `test-giftcard-stats-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.giftCard.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("counts a giftcard as outstanding only if active, with balance, and not expired", async () => {
+    // Activa con saldo, sin vencimiento: cuenta.
+    await prisma.giftCard.create({
+      data: { businessId, code: `GC-A-${Date.now()}`, initialValue: 1000, balance: 1000, active: true },
+    });
+    // Activa con saldo, vencimiento futuro: cuenta.
+    await prisma.giftCard.create({
+      data: {
+        businessId,
+        code: `GC-B-${Date.now()}`,
+        initialValue: 2000,
+        balance: 2000,
+        active: true,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60_000),
+      },
+    });
+    // Activa pero vencida: no cuenta, aunque nada la haya desactivado sola.
+    await prisma.giftCard.create({
+      data: {
+        businessId,
+        code: `GC-C-${Date.now()}`,
+        initialValue: 3000,
+        balance: 3000,
+        active: true,
+        expiresAt: new Date("2020-01-01"),
+      },
+    });
+    // Saldo en cero: no cuenta aunque siga marcada active.
+    await prisma.giftCard.create({
+      data: { businessId, code: `GC-D-${Date.now()}`, initialValue: 500, balance: 0, active: true },
+    });
+    // Desactivada manualmente: no cuenta.
+    await prisma.giftCard.create({
+      data: { businessId, code: `GC-E-${Date.now()}`, initialValue: 800, balance: 800, active: false },
+    });
+
+    const stats = await getGiftCardStats(businessId);
+    expect(stats.total).toBe(5);
+    expect(stats.activeCount).toBe(2);
+    expect(stats.outstandingBalance).toBe(3000); // 1000 + 2000
   });
 });
