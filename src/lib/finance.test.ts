@@ -7,6 +7,7 @@ import {
   resolveYearMonth,
   currentYearMonth,
   sanitizeFileNameForHeader,
+  createExpense,
 } from "./finance";
 
 // Test de integración contra Postgres real: attachSaleInvoice valida tipo y
@@ -58,6 +59,54 @@ describe("sanitizeFileNameForHeader", () => {
 
   it("leaves a normal file name untouched", () => {
     expect(sanitizeFileNameForHeader("comprobante-enero.pdf")).toBe("comprobante-enero.pdf");
+  });
+});
+
+describeIfDb("createExpense", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Create Expense Business",
+        businessType: "SPA",
+        slug: `test-create-expense-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.expense.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("rejects a non-finite or non-positive amount instead of storing it as-is", async () => {
+    // Number("Infinity") > 0 da true, así que un chequeo con solo `> 0` no
+    // alcanza — y guardar Infinity en un campo Decimal tira un error de
+    // Prisma sin capturar, no el mensaje amigable que se espera acá.
+    await expect(
+      createExpense(businessId, { date: new Date(), category: "OTRO", amount: Infinity })
+    ).rejects.toThrow(/monto/i);
+    await expect(
+      createExpense(businessId, { date: new Date(), category: "OTRO", amount: -100 })
+    ).rejects.toThrow(/monto/i);
+    await expect(
+      createExpense(businessId, { date: new Date(), category: "OTRO", amount: 0 })
+    ).rejects.toThrow(/monto/i);
+
+    const count = await prisma.expense.count({ where: { businessId } });
+    expect(count).toBe(0);
+  });
+
+  it("stores a valid expense", async () => {
+    const expense = await createExpense(businessId, {
+      date: new Date(),
+      category: "INSUMOS",
+      amount: 5000,
+    });
+    expect(Number(expense.amount)).toBe(5000);
   });
 });
 
