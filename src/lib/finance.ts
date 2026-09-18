@@ -78,6 +78,15 @@ export async function createExpense(
     amount: number;
   }
 ) {
+  // Mismo motivo que en pos.ts (sellProduct, redeemGiftCard,
+  // openCashSession, closeCashSession): la acción del formulario ya valida
+  // esto, pero esta función no debería confiar en el caller — "Infinity" o
+  // un monto negativo/cero se guardarían tal cual en un campo Decimal y
+  // descuadrarían Finanzas.
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error("El monto debe ser un número mayor a 0.");
+  }
+
   return prisma.expense.create({
     data: {
       businessId,
