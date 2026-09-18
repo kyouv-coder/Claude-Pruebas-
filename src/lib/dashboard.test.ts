@@ -42,6 +42,9 @@ describeIfDb("getDashboardStats", () => {
 
   afterAll(async () => {
     await prisma.giftCard.deleteMany({ where: { businessId } });
+    await prisma.saleItem.deleteMany({ where: { sale: { businessId } } });
+    await prisma.sale.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
     await prisma.booking.deleteMany({ where: { businessId } });
     await prisma.service.deleteMany({ where: { businessId } });
     await prisma.client.deleteMany({ where: { businessId } });
@@ -114,6 +117,75 @@ describeIfDb("getDashboardStats", () => {
     // así que el conteo total en la ventana de 30 días es 6.
     expect(stats.cancellationRate).toBeCloseTo(2 / 6, 5);
     expect(stats.noShowRate).toBeCloseTo(1 / 6, 5);
+  });
+
+  it("computes revenueLast7/revenueLast30 and ticketPromedio, and ranks topServices by booking count", async () => {
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test Dashboard",
+        email: `admin-dashboard-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 0 },
+    });
+
+    // Una venta reciente (dentro de los últimos 7 días) y otra vieja (fuera
+    // de esa ventana pero dentro de los últimos 30) — revenueLast7 debe
+    // contar solo la primera, revenueLast30 las dos.
+    await prisma.sale.create({
+      data: {
+        businessId,
+        cashSessionId: session.id,
+        total: 3000,
+        paymentMethod: "CASH",
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60_000),
+        items: { create: [{ description: "Venta reciente", quantity: 1, unitPrice: 3000 }] },
+      },
+    });
+    await prisma.sale.create({
+      data: {
+        businessId,
+        cashSessionId: session.id,
+        total: 1000,
+        paymentMethod: "CASH",
+        createdAt: new Date(Date.now() - 20 * 24 * 60 * 60_000),
+        items: { create: [{ description: "Venta vieja", quantity: 1, unitPrice: 1000 }] },
+      },
+    });
+
+    // Un segundo servicio, reservado más veces que "Servicio Largo" en la
+    // ventana de 30 días, debería quedar primero en topServices.
+    const popularService = await prisma.service.create({
+      data: { businessId, name: "Servicio Popular", durationMinutes: 30, price: 2000 },
+    });
+    // Los tests anteriores en este mismo describe ya dejaron 6 turnos de
+    // "Servicio Largo" en la ventana de 30 días (comparten el mismo
+    // businessId) — con 7 turnos, "Servicio Popular" queda primero.
+    const base = new Date(Date.now() - 1 * 24 * 60 * 60_000);
+    for (let i = 0; i < 7; i++) {
+      const start = new Date(base.getTime() + i * 60 * 60_000);
+      await prisma.booking.create({
+        data: {
+          businessId,
+          clientId,
+          serviceId: popularService.id,
+          staffId,
+          startTime: start,
+          endTime: new Date(start.getTime() + 30 * 60_000),
+          status: "COMPLETED",
+        },
+      });
+    }
+
+    const stats = await getDashboardStats(businessId);
+    expect(stats.revenueLast7).toBe(3000);
+    expect(stats.revenueLast30).toBe(4000);
+    expect(stats.ticketPromedio).toBe(2000); // 4000 / 2 ventas
+    expect(stats.topServices[0]).toMatchObject({ name: "Servicio Popular", count: 7 });
   });
 
   it("excludes expired giftcards from the outstanding balance, matching /admin/giftcards", async () => {
