@@ -144,6 +144,29 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
     ).resolves.toMatchObject({ staffId });
   });
 
+  it("matches an existing client by email regardless of case instead of creating a duplicate", async () => {
+    const firstStart = new Date("2027-01-20T10:00:00Z");
+    const first = await createBooking(businessId, {
+      clientName: "Cliente Mayuscula",
+      clientEmail: "Cliente.Mayuscula@Example.com",
+      serviceId,
+      staffId,
+      startTime: firstStart,
+    });
+
+    const secondStart = new Date("2027-01-21T10:00:00Z");
+    const second = await createBooking(businessId, {
+      clientName: "Cliente Mayuscula",
+      clientEmail: "cliente.mayuscula@example.com",
+      serviceId,
+      staffId,
+      startTime: secondStart,
+    });
+
+    expect(second.clientId).toBe(first.clientId);
+    expect(second.client.email).toBe("cliente.mayuscula@example.com");
+  });
+
   it("never lets two simultaneous bookings double-book the same staff/slot", async () => {
     const start = new Date("2027-01-18T10:00:00Z");
 

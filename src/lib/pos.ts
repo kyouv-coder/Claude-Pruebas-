@@ -307,7 +307,11 @@ export async function sellGiftCard(
         businessId,
         name: input.clientName,
         phone: input.clientPhone || null,
-        email: input.clientEmail || null,
+        // Mismo motivo que findOrCreateClient (bookings.ts): sin normalizar,
+        // esta giftcard podía quedar en un cliente "Juan@Gmail.com" que
+        // findOrCreateClient nunca reconoce como el mismo "juan@gmail.com"
+        // de una reserva futura, duplicando a la persona.
+        email: input.clientEmail ? input.clientEmail.toLowerCase() : null,
       },
     });
 

@@ -44,11 +44,17 @@ export async function findOrCreateClient(
     email?: string;
   }
 ) {
+  // email es @@unique([businessId, email]) y Postgres compara case-sensitive
+  // por default — sin normalizar, reservar una vez como "juan@gmail.com" y
+  // otra como "Juan@Gmail.com" (ej. autocompletado del navegador) creaba dos
+  // clientes distintos para la misma persona en vez de encontrar al mismo.
+  const email = input.email ? input.email.toLowerCase() : undefined;
+
   const existing = await prisma.client.findFirst({
     where: {
       businessId,
       OR: [
-        input.email ? { email: input.email } : undefined,
+        email ? { email } : undefined,
         input.phone ? { phone: input.phone } : undefined,
       ].filter(Boolean) as object[],
     },
@@ -60,7 +66,7 @@ export async function findOrCreateClient(
       businessId,
       name: input.name,
       phone: input.phone || null,
-      email: input.email || null,
+      email: email || null,
     },
   });
 }
