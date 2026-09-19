@@ -216,9 +216,14 @@ export async function changePassword(
   return { error: null };
 }
 
+// Sin sesión, cada página de /admin llama a esto directo (no hay
+// middleware central) — tirar un throw acá tumbaba la página con el error
+// genérico de Next en vez de mandar a loguearse, tanto para una visita
+// directa sin sesión como para una sesión ya vencida (cookie de hasta 7
+// días) al navegar o al enviar un formulario.
 export async function requireBusinessId() {
   const user = await getCurrentUser();
-  if (!user) throw new Error("No hay una sesión activa.");
+  if (!user) redirect("/login");
   return user.businessId;
 }
 
@@ -227,7 +232,7 @@ export async function requireBusinessId() {
 // (reservas, caja) pero no ver ganancia neta ni editar precios.
 export async function requireAdmin() {
   const user = await getCurrentUser();
-  if (!user) throw new Error("No hay una sesión activa.");
+  if (!user) redirect("/login");
   if (user.role !== "ADMIN") {
     redirect("/admin/reservas");
   }
