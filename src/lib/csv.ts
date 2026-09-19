@@ -28,11 +28,21 @@ export function toCsv<T extends Record<string, unknown>>(
   return "﻿" + [header, ...lines].join("\n");
 }
 
+// Mismo motivo que sanitizeFileNameForHeader (finance.ts) para los
+// comprobantes adjuntos: el nombre termina interpolado en el header
+// Content-Disposition, y una comilla o un salto de línea rompen la sintaxis
+// o abren la puerta a un header injection. Hoy los dos únicos callers arman
+// el nombre ellos mismos a partir de año/mes ya validados, pero esta
+// función no debería depender de que siga siendo así.
+function sanitizeFileNameForHeader(fileName: string) {
+  return fileName.replace(/[\r\n"]/g, "");
+}
+
 export function csvResponse(csv: string, filename: string) {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": `attachment; filename="${sanitizeFileNameForHeader(filename)}"`,
     },
   });
 }
