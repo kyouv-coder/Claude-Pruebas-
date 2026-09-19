@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toCsv } from "./csv";
+import { toCsv, csvResponse } from "./csv";
 
 describe("toCsv", () => {
   it("prefixes formula-injection payloads with an apostrophe", () => {
@@ -32,5 +32,26 @@ describe("toCsv", () => {
   it("prepends a UTF-8 BOM so Excel renders accents correctly", () => {
     const csv = toCsv([{ name: "Ñandú" }], [{ key: "name", header: "Nombre" }]);
     expect(csv.charCodeAt(0)).toBe(0xfeff);
+  });
+});
+
+describe("csvResponse", () => {
+  it("strips double quotes and CR/LF from the filename before building the header", () => {
+    const response = csvResponse("a,b\n1,2", 'ventas".csv');
+    expect(response.headers.get("Content-Disposition")).toBe('attachment; filename="ventas.csv"');
+  });
+
+  it("strips CR/LF that could be used for header injection", () => {
+    const response = csvResponse("a,b\n1,2", "ventas\r\nX-Injected: 1.csv");
+    expect(response.headers.get("Content-Disposition")).toBe(
+      'attachment; filename="ventasX-Injected: 1.csv"'
+    );
+  });
+
+  it("leaves a normal filename untouched", () => {
+    const response = csvResponse("a,b\n1,2", "ventas-2026-01.csv");
+    expect(response.headers.get("Content-Disposition")).toBe(
+      'attachment; filename="ventas-2026-01.csv"'
+    );
   });
 });
