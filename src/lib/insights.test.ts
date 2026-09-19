@@ -192,3 +192,64 @@ describeIfDb("getRecommendations", () => {
     expect(expiryRec?.severity).toBe("media");
   });
 });
+
+describeIfDb("getRecommendations — severidad de stock bajo y facturación electrónica", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Insights Media Business", businessType: "SPA", slug: `test-insights-media-${Date.now()}` },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.saleItem.deleteMany({ where: { sale: { businessId } } });
+    await prisma.sale.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
+    await prisma.product.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("flags low (but not zero) stock as 'media' severity, not 'alta'", async () => {
+    await prisma.product.create({
+      data: { businessId, name: "Producto Bajo Stock", price: 1000, stock: 2 },
+    });
+
+    const recommendations = await getRecommendations(businessId);
+    const stockRec = recommendations.find((r) => r.title.includes("stock bajo"));
+    expect(stockRec).toBeDefined();
+    expect(stockRec?.severity).toBe("media");
+  });
+
+  it("flags a business with sales this month as still needing e-invoicing", async () => {
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Facturacion",
+        email: `admin-facturacion-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 0 },
+    });
+    await prisma.sale.create({
+      data: {
+        businessId,
+        cashSessionId: session.id,
+        total: 5000,
+        paymentMethod: "CASH",
+        items: { create: [{ description: "Venta del mes", quantity: 1, unitPrice: 5000 }] },
+      },
+    });
+
+    const recommendations = await getRecommendations(businessId);
+    const invoicingRec = recommendations.find((r) => r.title.includes("Facturación electrónica"));
+    expect(invoicingRec).toBeDefined();
+    expect(invoicingRec?.severity).toBe("info");
+  });
+});
