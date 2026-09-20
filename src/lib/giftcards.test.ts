@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "./prisma";
 import { redeemGiftCard, sellGiftCard } from "./pos";
 import { getGiftCardStats } from "./giftcards";
@@ -183,6 +183,33 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
         expiresAt: new Date("2020-01-01"),
       })
     ).rejects.toThrow(/no puede ser en el pasado/);
+  });
+
+  it("retries with a new code if the randomly generated one collides with an existing giftcard", async () => {
+    // El código sale de Math.random().toString(36) — con un valor fijo,
+    // ese primer código siempre colisiona contra uno ya emitido. El
+    // segundo mockReturnValue simula un reintento con otro código.
+    const collidingCode = `GC-${(0.123456789).toString(36).slice(2, 8).toUpperCase()}`;
+    await prisma.giftCard.create({
+      data: { businessId, code: collidingCode, initialValue: 500, balance: 500 },
+    });
+
+    const randomSpy = vi
+      .spyOn(Math, "random")
+      .mockReturnValueOnce(0.123456789)
+      .mockReturnValue(0.987654321);
+
+    try {
+      const giftCard = await sellGiftCard(businessId, {
+        clientName: "Cliente Código Colisión",
+        amount: 1000,
+        paymentMethod: "CASH",
+        cashSessionId,
+      });
+      expect(giftCard.code).not.toBe(collidingCode);
+    } finally {
+      randomSpy.mockRestore();
+    }
   });
 });
 

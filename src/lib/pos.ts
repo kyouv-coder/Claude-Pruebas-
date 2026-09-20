@@ -297,65 +297,86 @@ export async function sellGiftCard(
   }
   await assertOpenCashSession(businessId, input.cashSessionId);
 
-  return prisma.$transaction(async (tx) => {
-    // El cliente se crea en la misma transacción que la venta y la
-    // giftcard: si algo después falla (ej. cashSessionId inválido), todo
-    // se revierte junto — antes quedaba un cliente fantasma sin giftcard
-    // ni venta, creado aparte y nunca limpiado.
-    const client = await tx.client.create({
-      data: {
-        businessId,
-        name: input.clientName,
-        phone: input.clientPhone || null,
-        // Mismo motivo que findOrCreateClient (bookings.ts): sin normalizar,
-        // esta giftcard podía quedar en un cliente "Juan@Gmail.com" que
-        // findOrCreateClient nunca reconoce como el mismo "juan@gmail.com"
-        // de una reserva futura, duplicando a la persona.
-        email: input.clientEmail ? input.clientEmail.toLowerCase() : null,
-      },
-    });
-
-    const sale = await tx.sale.create({
-      data: {
-        businessId,
-        clientId: client.id,
-        cashSessionId: input.cashSessionId,
-        total: input.amount,
-        paymentMethod: input.paymentMethod,
-        items: {
-          create: [
-            {
-              description: "Giftcard",
-              quantity: 1,
-              unitPrice: input.amount,
-            },
-          ],
+  const runAttempt = () =>
+    prisma.$transaction(async (tx) => {
+      // El cliente se crea en la misma transacción que la venta y la
+      // giftcard: si algo después falla (ej. cashSessionId inválido), todo
+      // se revierte junto — antes quedaba un cliente fantasma sin giftcard
+      // ni venta, creado aparte y nunca limpiado.
+      const client = await tx.client.create({
+        data: {
+          businessId,
+          name: input.clientName,
+          phone: input.clientPhone || null,
+          // Mismo motivo que findOrCreateClient (bookings.ts): sin normalizar,
+          // esta giftcard podía quedar en un cliente "Juan@Gmail.com" que
+          // findOrCreateClient nunca reconoce como el mismo "juan@gmail.com"
+          // de una reserva futura, duplicando a la persona.
+          email: input.clientEmail ? input.clientEmail.toLowerCase() : null,
         },
-      },
+      });
+
+      const sale = await tx.sale.create({
+        data: {
+          businessId,
+          clientId: client.id,
+          cashSessionId: input.cashSessionId,
+          total: input.amount,
+          paymentMethod: input.paymentMethod,
+          items: {
+            create: [
+              {
+                description: "Giftcard",
+                quantity: 1,
+                unitPrice: input.amount,
+              },
+            ],
+          },
+        },
+      });
+
+      const giftCard = await tx.giftCard.create({
+        data: {
+          businessId,
+          code: generateGiftCardCode(),
+          initialValue: input.amount,
+          balance: input.amount,
+          clientId: client.id,
+          expiresAt: input.expiresAt ?? null,
+        },
+      });
+
+      await tx.giftCardTransaction.create({
+        data: {
+          giftCardId: giftCard.id,
+          type: "ISSUE",
+          amount: input.amount,
+          saleId: sale.id,
+        },
+      });
+
+      return giftCard;
     });
 
-    const giftCard = await tx.giftCard.create({
-      data: {
-        businessId,
-        code: generateGiftCardCode(),
-        initialValue: input.amount,
-        balance: input.amount,
-        clientId: client.id,
-        expiresAt: input.expiresAt ?? null,
-      },
-    });
-
-    await tx.giftCardTransaction.create({
-      data: {
-        giftCardId: giftCard.id,
-        type: "ISSUE",
-        amount: input.amount,
-        saleId: sale.id,
-      },
-    });
-
-    return giftCard;
-  });
+  // El código se genera al azar (36^6 combinaciones por negocio) — una
+  // colisión con un código ya emitido es rara pero no imposible, y sin
+  // reintentar acá esa venta ya cobrada en Caja fallaba con un error
+  // genérico. Mismo patrón de reintento que ya usa openCashSession.
+  const MAX_ATTEMPTS = 3;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await runAttempt();
+    } catch (e) {
+      const target = (e as { meta?: { target?: unknown } })?.meta?.target;
+      const isCodeConflict =
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        Array.isArray(target) &&
+        target.includes("code");
+      if (!isCodeConflict || attempt === MAX_ATTEMPTS) throw e;
+    }
+  }
+  throw new Error("No se pudo generar un código de giftcard único. Probá de nuevo.");
 }
 
 export async function redeemGiftCard(
