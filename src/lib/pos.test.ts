@@ -312,7 +312,13 @@ describeIfDb("sellGiftCard — no deja un cliente huérfano si falla la venta", 
   });
 
   afterAll(async () => {
+    await prisma.giftCardTransaction.deleteMany({ where: { giftCard: { businessId } } });
+    await prisma.giftCard.deleteMany({ where: { businessId } });
+    await prisma.saleItem.deleteMany({ where: { sale: { businessId } } });
+    await prisma.sale.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
     await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
     await prisma.business.delete({ where: { id: businessId } });
     await prisma.$disconnect();
   });
@@ -331,6 +337,32 @@ describeIfDb("sellGiftCard — no deja un cliente huérfano si falla la venta", 
 
     const orphan = await prisma.client.findFirst({ where: { businessId, name: clientName } });
     expect(orphan).toBeNull();
+  });
+
+  it("stores the new client's email in lowercase even if it was typed with mixed case", async () => {
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test Giftcard Email",
+        email: `admin-giftcard-email-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 0 },
+    });
+
+    const giftCard = await sellGiftCard(businessId, {
+      clientName: "Cliente Email Mixto",
+      clientEmail: "Cliente.Mixto@Example.com",
+      amount: 3000,
+      paymentMethod: "CASH",
+      cashSessionId: session.id,
+    });
+
+    const client = await prisma.client.findUniqueOrThrow({ where: { id: giftCard.clientId! } });
+    expect(client.email).toBe("cliente.mixto@example.com");
   });
 });
 
