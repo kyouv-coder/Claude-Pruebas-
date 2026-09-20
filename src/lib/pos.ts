@@ -395,8 +395,14 @@ export async function redeemGiftCard(
     throw new Error("El monto debe ser un número mayor a 0.");
   }
 
+  // El código siempre se genera en mayúsculas (generateGiftCardCode) y la
+  // pantalla de Caja ya lo pasa a mayúsculas antes de mandarlo, pero esta
+  // función no debería depender de que el único caller lo haga bien —
+  // sin normalizar acá, un código tipeado en minúscula no encontraría una
+  // giftcard que sí existe.
+  const code = input.code.trim().toUpperCase();
   const giftCard = await prisma.giftCard.findFirstOrThrow({
-    where: { code: input.code, businessId },
+    where: { code, businessId },
   });
 
   if (!giftCard.active) throw new Error("La giftcard no está activa");
