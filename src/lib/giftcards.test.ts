@@ -80,6 +80,24 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
     expect(Number(final.balance)).toBe(300);
   });
 
+  it("finds the giftcard by code regardless of case or surrounding whitespace", async () => {
+    const giftCard = await sellGiftCard(businessId, {
+      clientName: "Cliente Código Minúscula",
+      amount: 1000,
+      paymentMethod: "CASH",
+      cashSessionId,
+    });
+
+    await redeemGiftCard(businessId, {
+      code: `  ${giftCard.code.toLowerCase()}  `,
+      amount: 400,
+      cashSessionId,
+    });
+
+    const final = await prisma.giftCard.findUniqueOrThrow({ where: { id: giftCard.id } });
+    expect(Number(final.balance)).toBe(600);
+  });
+
   it("never lets two simultaneous redemptions overdraw the balance", async () => {
     const giftCard = await sellGiftCard(businessId, {
       clientName: "Cliente Giftcard Dos",
