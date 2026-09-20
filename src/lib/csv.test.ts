@@ -14,6 +14,15 @@ describe("toCsv", () => {
     expect(lines[4]).toBe("'@SUM(A1)");
   });
 
+  it("prefixes a value starting with a tab character, the fourth formula trigger", () => {
+    // El regex de neutralizeFormula cubre =, +, - y @ pero también \t
+    // (Excel/Sheets también dispara una fórmula tras un tab inicial) —
+    // ese cuarto caso nunca tuvo un test propio.
+    const csv = toCsv([{ name: "\t=cmd|'/c calc'!A1" }], [{ key: "name", header: "Nombre" }]);
+    const lines = csv.replace(/^﻿/, "").split("\n");
+    expect(lines[1]).toBe("'\t=cmd|'/c calc'!A1");
+  });
+
   it("does not touch values that don't start with a formula trigger character", () => {
     const csv = toCsv([{ name: "Juan Pérez" }], [{ key: "name", header: "Nombre" }]);
     const lines = csv.replace(/^﻿/, "").split("\n");
