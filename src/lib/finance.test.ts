@@ -8,6 +8,8 @@ import {
   currentYearMonth,
   sanitizeFileNameForHeader,
   createExpense,
+  getMonthlyFinancials,
+  getExpensesByCategory,
 } from "./finance";
 
 // Test de integración contra Postgres real: attachSaleInvoice valida tipo y
@@ -107,6 +109,102 @@ describeIfDb("createExpense", () => {
       amount: 5000,
     });
     expect(Number(expense.amount)).toBe(5000);
+  });
+});
+
+describeIfDb("getMonthlyFinancials / getExpensesByCategory", () => {
+  let businessId: string;
+  const year = 2027;
+  const month = 3;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Monthly Financials Business",
+        businessType: "SPA",
+        slug: `test-monthly-financials-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test",
+        email: `admin-monthly-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 0 },
+    });
+
+    // Dos ventas dentro del mes (marzo 2027) y una fuera (febrero), para
+    // confirmar que el filtro de fecha excluye la que no corresponde.
+    await prisma.sale.create({
+      data: {
+        businessId,
+        cashSessionId: session.id,
+        total: 8000,
+        paymentMethod: "CASH",
+        createdAt: new Date(year, month - 1, 5),
+        items: { create: [{ description: "Venta dentro de mes", quantity: 1, unitPrice: 8000 }] },
+      },
+    });
+    await prisma.sale.create({
+      data: {
+        businessId,
+        cashSessionId: session.id,
+        total: 2000,
+        paymentMethod: "CASH",
+        createdAt: new Date(year, month - 1, 20),
+        items: { create: [{ description: "Otra venta dentro de mes", quantity: 1, unitPrice: 2000 }] },
+      },
+    });
+    await prisma.sale.create({
+      data: {
+        businessId,
+        cashSessionId: session.id,
+        total: 9999,
+        paymentMethod: "CASH",
+        createdAt: new Date(year, month - 2, 28),
+        items: { create: [{ description: "Venta de otro mes", quantity: 1, unitPrice: 9999 }] },
+      },
+    });
+
+    // Gastos: dos categorías dentro del mes, uno fuera.
+    await createExpense(businessId, { date: new Date(year, month - 1, 10), category: "ALQUILER", amount: 3000 });
+    await createExpense(businessId, { date: new Date(year, month - 1, 15), category: "INSUMOS", amount: 1000 });
+    await createExpense(businessId, { date: new Date(year, month - 1, 15), category: "INSUMOS", amount: 500 });
+    await createExpense(businessId, { date: new Date(year, month - 2, 1), category: "ALQUILER", amount: 4000 });
+  });
+
+  afterAll(async () => {
+    await prisma.expense.deleteMany({ where: { businessId } });
+    await prisma.saleItem.deleteMany({ where: { sale: { businessId } } });
+    await prisma.sale.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("sums only the revenue, expenses and net of the requested month", async () => {
+    const financials = await getMonthlyFinancials(businessId, year, month);
+    expect(financials.revenue).toBe(10000); // 8000 + 2000, sin la venta de febrero
+    expect(financials.expenses).toBe(4500); // 3000 + 1000 + 500, sin el gasto de febrero
+    expect(financials.net).toBe(5500);
+    expect(financials.salesCount).toBe(2);
+    expect(financials.expensesCount).toBe(3);
+  });
+
+  it("groups expenses by category, summed and sorted from highest to lowest", async () => {
+    const byCategory = await getExpensesByCategory(businessId, year, month);
+    expect(byCategory).toEqual([
+      { category: "ALQUILER", label: "Alquiler", amount: 3000 },
+      { category: "INSUMOS", label: "Insumos", amount: 1500 },
+    ]);
   });
 });
 
