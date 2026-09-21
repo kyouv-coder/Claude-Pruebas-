@@ -12,6 +12,7 @@ import {
   getExpensesByCategory,
   getYearlyFinancials,
   getMonthlyTrend,
+  getYearlyTrend,
 } from "./finance";
 
 // Test de integración contra Postgres real: attachSaleInvoice valida tipo y
@@ -307,6 +308,16 @@ describeIfDb("getYearlyFinancials / getMonthlyTrend", () => {
     const current = currentYearMonth();
     const currentEntry = trend[trend.length - 1];
     expect(currentEntry).toMatchObject({ year: current.year, month: current.month });
+    expect(currentEntry.revenue).toBeGreaterThanOrEqual(4444);
+  });
+
+  it("returns one entry per requested year, including the current year's actual revenue", async () => {
+    // Reusa la venta de $4444 creada en el test anterior (misma fecha "hoy").
+    const trend = await getYearlyTrend(businessId, 3);
+    expect(trend).toHaveLength(3);
+    const currentYear = new Date().getFullYear();
+    const currentEntry = trend[trend.length - 1];
+    expect(currentEntry).toMatchObject({ year: currentYear, label: String(currentYear) });
     expect(currentEntry.revenue).toBeGreaterThanOrEqual(4444);
   });
 });
