@@ -214,3 +214,66 @@ describeIfDb("getDashboardStats", () => {
     expect(stats.outstandingGiftCardBalance).toBe(10000);
   });
 });
+
+describeIfDb("getDashboardStats — revenueTrend y projectedRevenueNext30", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Dashboard Trend Business", businessType: "SPA", slug: `test-dashboard-trend-${Date.now()}` },
+    });
+    businessId = business.id;
+
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Trend",
+        email: `admin-dashboard-trend-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 0 },
+    });
+
+    // Una sola venta de $1400 hoy: en un día de la ventana de 14 debería
+    // quedar $1400 y en el resto $0, y la proyección de 30 días es el
+    // promedio diario de esos 14 días ($100) multiplicado por 30.
+    await prisma.sale.create({
+      data: {
+        businessId,
+        cashSessionId: session.id,
+        total: 1400,
+        paymentMethod: "CASH",
+        createdAt: new Date(),
+        items: { create: [{ description: "Venta de hoy", quantity: 1, unitPrice: 1400 }] },
+      },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.saleItem.deleteMany({ where: { sale: { businessId } } });
+    await prisma.sale.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("buckets revenue by day for both the 14 and 30-day windows, and projects the next 30 days from the 14-day average", async () => {
+    const stats = await getDashboardStats(businessId);
+
+    expect(stats.revenueTrend).toHaveLength(14);
+    expect(stats.revenueTrend30).toHaveLength(30);
+
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const todayIn14 = stats.revenueTrend.find((d) => d.date === todayKey);
+    const todayIn30 = stats.revenueTrend30.find((d) => d.date === todayKey);
+    expect(todayIn14?.revenue).toBe(1400);
+    expect(todayIn30?.revenue).toBe(1400);
+
+    // Único día con ventas en la ventana de 14: promedio = 1400/14, * 30.
+    expect(stats.projectedRevenueNext30).toBe(Math.round((1400 / 14) * 30));
+  });
+});
