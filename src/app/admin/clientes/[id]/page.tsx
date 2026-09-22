@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getClientDetail } from "@/lib/clients";
 import { requireBusinessId } from "@/lib/auth";
 import { NotesForm } from "./NotesForm";
@@ -25,6 +26,7 @@ export default async function ClienteDetailPage({
   const { id } = await params;
   const businessId = await requireBusinessId();
   const client = await getClientDetail(businessId, id);
+  if (!client) notFound();
 
   const totalSpent = client.sales.reduce((sum, s) => sum + Number(s.total), 0);
 
