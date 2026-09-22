@@ -131,6 +131,13 @@ export async function uploadServiceImageAction(
   try {
     await setServiceImage(businessId, id, { type: file.type, data: buffer });
   } catch (e) {
+    // findFirstOrThrow (setServiceImage) tira un P2025 con un mensaje
+    // verboso de Prisma que no tiene sentido mostrarle a la usuaria — un id
+    // manipulado (de otro negocio, o ya borrado) cae acá en vez de
+    // relayar ese texto tal cual.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return { error: "No se encontró el servicio." };
+    }
     return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
   }
   revalidatePath("/admin/configuracion");
@@ -224,6 +231,12 @@ export async function uploadProductImageAction(
   try {
     await setProductImage(businessId, id, { type: file.type, data: buffer });
   } catch (e) {
+    // Mismo motivo que uploadServiceImageAction: no relayar el mensaje
+    // verboso de Prisma cuando el id no corresponde a ningún producto de
+    // este negocio.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return { error: "No se encontró el producto." };
+    }
     return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
   }
   revalidatePath("/admin/configuracion");
