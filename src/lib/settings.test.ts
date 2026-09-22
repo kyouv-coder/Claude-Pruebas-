@@ -10,6 +10,8 @@ import {
   getBusinessCoverImage,
   createStaff,
   updateStaff,
+  createService,
+  createProduct,
 } from "./settings";
 
 // Test de integración contra Postgres real: valida el mismo tipo de cosas
@@ -146,5 +148,60 @@ describeIfDb("createStaff / updateStaff — el email se normaliza a minúscula",
       email: `Otra.Empleada.Nueva.${Date.now()}@Example.com`,
     });
     expect(updated.email).toBe(updated.email.toLowerCase());
+  });
+});
+
+describeIfDb("createService / createProduct — validan precio/duración/stock por su cuenta", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Settings Validation Business", businessType: "SPA", slug: `test-settings-validation-${Date.now()}` },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.product.deleteMany({ where: { businessId } });
+    await prisma.service.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("rejects a non-finite or negative service price", async () => {
+    await expect(
+      createService(businessId, { name: "Servicio Infinito", durationMinutes: 30, price: Infinity })
+    ).rejects.toThrow(/precio/i);
+    await expect(
+      createService(businessId, { name: "Servicio Negativo", durationMinutes: 30, price: -100 })
+    ).rejects.toThrow(/precio/i);
+  });
+
+  it("rejects a non-positive or non-integer service duration", async () => {
+    await expect(
+      createService(businessId, { name: "Servicio Sin Duración", durationMinutes: 0, price: 1000 })
+    ).rejects.toThrow(/duración/i);
+    await expect(
+      createService(businessId, { name: "Servicio Duración Decimal", durationMinutes: 30.5, price: 1000 })
+    ).rejects.toThrow(/duración/i);
+  });
+
+  it("rejects a non-finite or negative product price, and a negative or non-integer stock", async () => {
+    await expect(
+      createProduct(businessId, { name: "Producto Infinito", price: Infinity, stock: 5 })
+    ).rejects.toThrow(/precio/i);
+    await expect(
+      createProduct(businessId, { name: "Producto Stock Negativo", price: 1000, stock: -1 })
+    ).rejects.toThrow(/stock/i);
+    await expect(
+      createProduct(businessId, { name: "Producto Stock Decimal", price: 1000, stock: 2.5 })
+    ).rejects.toThrow(/stock/i);
+  });
+
+  it("accepts a service/product with valid values", async () => {
+    const service = await createService(businessId, { name: "Servicio Válido", durationMinutes: 45, price: 5000 });
+    expect(Number(service.price)).toBe(5000);
+    const product = await createProduct(businessId, { name: "Producto Válido", price: 2000, stock: 10 });
+    expect(product.stock).toBe(10);
   });
 });
