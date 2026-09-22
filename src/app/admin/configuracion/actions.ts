@@ -376,6 +376,11 @@ export async function updateBusinessProfileAction(
   if (description.length > 800) {
     return { error: "La descripción es demasiado larga (máximo 800 caracteres)." };
   }
+  // La dirección se muestra prominente en la página pública de reserva
+  // (📍 dirección) — a diferencia de la descripción, no tenía ningún límite.
+  if (address.length > 300) {
+    return { error: "La dirección es demasiado larga (máximo 300 caracteres)." };
+  }
 
   const businessId = await requireAdmin();
   await updateBusinessProfile(businessId, {
