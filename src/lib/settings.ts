@@ -1,6 +1,28 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 
+// Mismo motivo que en pos.ts/finance.ts (sellProduct, redeemGiftCard,
+// createExpense): la acción del formulario ya valida esto, pero estas
+// funciones no deberían confiar en que el único caller lo haga bien —
+// "Infinity" o un precio/duración/stock negativo se guardarían tal cual.
+function assertValidPrice(price: number) {
+  if (!Number.isFinite(price) || price < 0) {
+    throw new Error("El precio debe ser un número mayor o igual a 0.");
+  }
+}
+
+function assertValidDuration(durationMinutes: number) {
+  if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+    throw new Error("La duración debe ser un número entero mayor a 0.");
+  }
+}
+
+function assertValidStock(stock: number) {
+  if (!Number.isInteger(stock) || stock < 0) {
+    throw new Error("El stock debe ser un número entero mayor o igual a 0.");
+  }
+}
+
 export async function listAllServices(businessId: string) {
   return prisma.service.findMany({
     where: { businessId },
@@ -18,6 +40,8 @@ export async function createService(
     price: number;
   }
 ) {
+  assertValidDuration(input.durationMinutes);
+  assertValidPrice(input.price);
   return prisma.service.create({
     data: {
       businessId,
@@ -39,6 +63,8 @@ export async function updateService(
     price: number;
   }
 ) {
+  assertValidDuration(input.durationMinutes);
+  assertValidPrice(input.price);
   return prisma.service.update({
     where: { id, businessId },
     data: {
@@ -133,6 +159,8 @@ export async function createProduct(
   businessId: string,
   input: { name: string; description?: string; price: number; stock: number }
 ) {
+  assertValidPrice(input.price);
+  assertValidStock(input.stock);
   return prisma.product.create({
     data: {
       businessId,
@@ -149,6 +177,8 @@ export async function updateProduct(
   id: string,
   input: { name: string; description?: string; price: number; stock: number }
 ) {
+  assertValidPrice(input.price);
+  assertValidStock(input.stock);
   return prisma.product.update({
     where: { id, businessId },
     data: {
