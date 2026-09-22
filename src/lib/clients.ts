@@ -38,8 +38,11 @@ export async function listClients(businessId: string) {
   });
 }
 
+// findFirst (no findFirstOrThrow): un id que no existe o de otro negocio
+// debe poder mostrarse como "no encontrado" (ver notFound() en la página),
+// no tumbar la pantalla con el error genérico de Next.
 export async function getClientDetail(businessId: string, id: string) {
-  return prisma.client.findFirstOrThrow({
+  return prisma.client.findFirst({
     where: { id, businessId },
     include: {
       bookings: {

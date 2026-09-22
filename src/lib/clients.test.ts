@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { listClients, listFrequentNoShowClients, updateClientNotes } from "./clients";
+import { listClients, listFrequentNoShowClients, updateClientNotes, getClientDetail } from "./clients";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 const describeIfDb = hasDb ? describe : describe.skip;
@@ -257,5 +257,53 @@ describeIfDb("updateClientNotes — aislamiento multi-tenant", () => {
   it("updates notes for a client in the correct business", async () => {
     const updated = await updateClientNotes(businessId, clientId, "Prefiere la tarde");
     expect(updated.notes).toBe("Prefiere la tarde");
+  });
+});
+
+describeIfDb("getClientDetail", () => {
+  let businessId: string;
+  let otherBusinessId: string;
+  let clientId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Client Detail Business", businessType: "SPA", slug: `test-client-detail-${Date.now()}` },
+    });
+    businessId = business.id;
+    const otherBusiness = await prisma.business.create({
+      data: { name: "Test Client Detail Other Business", businessType: "SPA", slug: `test-client-detail-other-${Date.now()}` },
+    });
+    otherBusinessId = otherBusiness.id;
+
+    const client = await prisma.client.create({
+      data: { businessId, name: "Cliente Detalle" },
+    });
+    clientId = client.id;
+  });
+
+  afterAll(async () => {
+    await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.business.delete({ where: { id: otherBusinessId } });
+    await prisma.$disconnect();
+  });
+
+  it("returns null instead of throwing for a client from another business", async () => {
+    // Sin esto, la página del cliente (/admin/clientes/[id]) tumbaba con el
+    // error genérico de Next en vez de un 404 normal — mismo motivo que
+    // getBusinessBySlug ya devuelve null para un slug inexistente.
+    await expect(getClientDetail(otherBusinessId, clientId)).resolves.toBeNull();
+  });
+
+  it("returns null instead of throwing for a nonexistent id", async () => {
+    await expect(getClientDetail(businessId, "no-existe")).resolves.toBeNull();
+  });
+
+  it("returns the client with its bookings, sales and giftcards for the correct business", async () => {
+    const client = await getClientDetail(businessId, clientId);
+    expect(client?.name).toBe("Cliente Detalle");
+    expect(client?.bookings).toEqual([]);
+    expect(client?.sales).toEqual([]);
+    expect(client?.giftCards).toEqual([]);
   });
 });
