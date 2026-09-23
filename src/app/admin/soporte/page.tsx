@@ -1,4 +1,4 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireBusinessId } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
 import { SUPPORT_EMAIL, SUPPORT_WHATSAPP } from "@/lib/support";
 
@@ -28,6 +28,10 @@ const FAQ = [
 ];
 
 export default async function SoportePage() {
+  // Mismo motivo que /admin/cuenta: sin este chequeo, visitar la página sin
+  // sesión igual renderizaba (con el rubro genérico) en vez de mandar a
+  // /login como hace el resto de /admin.
+  await requireBusinessId();
   const user = await getCurrentUser();
   const copy = getVerticalCopy(user?.business.businessType);
 

@@ -1,9 +1,13 @@
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, requireBusinessId } from "@/lib/auth";
 import { PasswordForm } from "./PasswordForm";
 
 export const dynamic = "force-dynamic";
 
 export default async function CuentaPage() {
+  // A diferencia del resto de las páginas de /admin, esta llamaba solo a
+  // getCurrentUser() (que no redirige) — sin sesión, la página igual
+  // renderizaba con los campos vacíos en vez de mandar a /login.
+  await requireBusinessId();
   const user = await getCurrentUser();
 
   return (
