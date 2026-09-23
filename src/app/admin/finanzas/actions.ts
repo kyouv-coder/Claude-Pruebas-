@@ -98,6 +98,12 @@ export async function uploadSaleInvoiceAction(
       data: buffer,
     });
   } catch (e) {
+    // attachSaleInvoice hace un findFirstOrThrow de la venta — un P2025 acá
+    // (saleId inválido) relayaba el texto verboso de Prisma en vez de un
+    // mensaje entendible, mismo caso ya corregido en otras acciones.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return { error: "No se encontró la venta." };
+    }
     return { error: e instanceof Error ? e.message : "No se pudo subir el comprobante." };
   }
 
