@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@/generated/prisma";
 import { createBooking, updateBookingStatus } from "@/lib/bookings";
 import { requireBusinessId, getCurrentUser } from "@/lib/auth";
 import { sendSlackNotification } from "@/lib/slack";
@@ -43,6 +44,12 @@ export async function createBookingAction(
       notes: notes || undefined,
     });
   } catch (e) {
+    // createBooking hace un findFirstOrThrow del servicio — un P2025 acá
+    // (serviceId ya no existe, o desplegable con datos viejos) relayaba el
+    // texto verboso de Prisma tal cual en vez de un mensaje entendible.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+      return { error: "El servicio elegido ya no está disponible." };
+    }
     return { error: e instanceof Error ? e.message : "No se pudo crear la reserva." };
   }
 
