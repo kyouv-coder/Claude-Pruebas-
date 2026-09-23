@@ -1,7 +1,12 @@
 import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { checkWithinBusinessHours, saveBusinessHours, getBusinessHours } from "./business-hours";
+import {
+  checkWithinBusinessHours,
+  saveBusinessHours,
+  getBusinessHours,
+  hasConfiguredHours,
+} from "./business-hours";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 const describeIfDb = hasDb ? describe : describe.skip;
@@ -135,5 +140,46 @@ describeIfDb("getBusinessHours", () => {
     // El resto de los días sigue con el default, no se ve afectado.
     const tuesday = hours.find((h) => h.dayOfWeek === 2);
     expect(tuesday).toMatchObject({ openTime: "09:00", closeTime: "19:00", closed: false });
+  });
+});
+
+describeIfDb("hasConfiguredHours", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Has Configured Hours Business",
+        businessType: "SPA",
+        slug: `test-has-configured-hours-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.businessHours.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("is false until the business saves at least one day, then true", async () => {
+    // Usado por la página pública de reserva (para mostrar/ocultar el
+    // horario de atención) y por Configuración/Onboarding — sin este
+    // chequeo, ambos asumirían "sin restricción" incluso después de
+    // guardar un horario real.
+    expect(await hasConfiguredHours(businessId)).toBe(false);
+
+    await saveBusinessHours(businessId, [
+      { dayOfWeek: 0, openTime: "09:00", closeTime: "19:00", closed: true },
+      { dayOfWeek: 1, openTime: "09:00", closeTime: "19:00", closed: false },
+      { dayOfWeek: 2, openTime: "09:00", closeTime: "19:00", closed: false },
+      { dayOfWeek: 3, openTime: "09:00", closeTime: "19:00", closed: false },
+      { dayOfWeek: 4, openTime: "09:00", closeTime: "19:00", closed: false },
+      { dayOfWeek: 5, openTime: "09:00", closeTime: "19:00", closed: false },
+      { dayOfWeek: 6, openTime: "09:00", closeTime: "13:00", closed: false },
+    ]);
+
+    expect(await hasConfiguredHours(businessId)).toBe(true);
   });
 });
