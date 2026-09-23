@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { checkWithinBusinessHours, saveBusinessHours } from "./business-hours";
+import { checkWithinBusinessHours, saveBusinessHours, getBusinessHours } from "./business-hours";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 const describeIfDb = hasDb ? describe : describe.skip;
@@ -91,5 +91,49 @@ describeIfDb("checkWithinBusinessHours", () => {
     if (!result.ok) {
       expect(result.reason).toContain("medianoche");
     }
+  });
+});
+
+describeIfDb("getBusinessHours", () => {
+  let businessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Get Hours Business",
+        businessType: "SPA",
+        slug: `test-get-hours-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+  });
+
+  afterAll(async () => {
+    await prisma.businessHours.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("returns 7 days defaulting to 09:00–19:00 open, Sunday closed, when nothing was ever saved", async () => {
+    const hours = await getBusinessHours(businessId);
+    expect(hours).toHaveLength(7);
+    expect(hours.map((h) => h.dayOfWeek)).toEqual([0, 1, 2, 3, 4, 5, 6]);
+    expect(hours[0]).toMatchObject({ dayOfWeek: 0, closed: true });
+    for (const day of hours.slice(1)) {
+      expect(day).toMatchObject({ openTime: "09:00", closeTime: "19:00", closed: false });
+    }
+  });
+
+  it("returns the saved value for a configured day and keeps defaults for the rest", async () => {
+    await prisma.businessHours.create({
+      data: { businessId, dayOfWeek: 3, openTime: "10:30", closeTime: "14:00", closed: false },
+    });
+
+    const hours = await getBusinessHours(businessId);
+    const wednesday = hours.find((h) => h.dayOfWeek === 3);
+    expect(wednesday).toMatchObject({ openTime: "10:30", closeTime: "14:00", closed: false });
+    // El resto de los días sigue con el default, no se ve afectado.
+    const tuesday = hours.find((h) => h.dayOfWeek === 2);
+    expect(tuesday).toMatchObject({ openTime: "09:00", closeTime: "19:00", closed: false });
   });
 });
