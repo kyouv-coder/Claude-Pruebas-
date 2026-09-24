@@ -45,7 +45,13 @@ export function BusinessProfileForm({
           />
         </FormField>
         <FormField label="Dirección" htmlFor="bizAddress">
-          <input id="bizAddress" name="address" defaultValue={address} className={inputClass} />
+          <input
+            id="bizAddress"
+            name="address"
+            defaultValue={address}
+            maxLength={300}
+            className={inputClass}
+          />
         </FormField>
         <button
           type="submit"
