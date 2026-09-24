@@ -23,6 +23,7 @@ export function NotesForm({ clientId, notes }: { clientId: string; notes: string
         rows={4}
         defaultValue={notes ?? ""}
         placeholder="Alergias, preferencias, cosas a tener en cuenta…"
+        maxLength={1000}
         className={inputClass}
       />
       <button
