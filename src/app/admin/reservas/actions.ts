@@ -24,6 +24,11 @@ export async function createBookingAction(
   if (!clientName || !serviceId || !staffId || !date || !time) {
     return { error: "Completá cliente, servicio, profesional, fecha y hora." };
   }
+  // Mismo motivo que las notas del cliente: sin tope, este campo de texto
+  // libre podía crecer sin límite.
+  if (notes.length > 1000) {
+    return { error: "Las notas son demasiado largas (máximo 1000 caracteres)." };
+  }
 
   const startTime = new Date(`${date}T${time}:00`);
   if (Number.isNaN(startTime.getTime())) {

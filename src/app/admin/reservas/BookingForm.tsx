@@ -89,7 +89,7 @@ export function BookingForm({
       </div>
 
       <FormField label="Notas" htmlFor="notes">
-        <textarea id="notes" name="notes" rows={2} className={inputClass} />
+        <textarea id="notes" name="notes" rows={2} maxLength={1000} className={inputClass} />
       </FormField>
 
       <button
