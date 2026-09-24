@@ -78,6 +78,7 @@ function ServiceForm({
           name="description"
           defaultValue={service?.description ?? ""}
           rows={2}
+          maxLength={800}
           className={inputClass}
         />
       </FormField>

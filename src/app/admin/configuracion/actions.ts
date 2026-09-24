@@ -34,6 +34,16 @@ function parseDuration(raw: FormDataEntryValue | null) {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+// Mismo tope que la descripción del negocio — servicios y productos no
+// tenían ningún límite acá, a pesar de mostrarse en la página pública.
+const MAX_DESCRIPTION_LENGTH = 800;
+function assertValidDescriptionLength(description: string): string | null {
+  if (description.length > MAX_DESCRIPTION_LENGTH) {
+    return `La descripción es demasiado larga (máximo ${MAX_DESCRIPTION_LENGTH} caracteres).`;
+  }
+  return null;
+}
+
 export async function createServiceAction(
   _prevState: ActionState,
   formData: FormData
@@ -47,6 +57,8 @@ export async function createServiceAction(
   if (!durationMinutes)
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
+  const descriptionError = assertValidDescriptionLength(description);
+  if (descriptionError) return { error: descriptionError };
 
   const businessId = await requireAdmin();
 
@@ -85,6 +97,8 @@ export async function updateServiceAction(
   if (!durationMinutes)
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
+  const descriptionError = assertValidDescriptionLength(description);
+  if (descriptionError) return { error: descriptionError };
 
   const businessId = await requireAdmin();
 
@@ -161,6 +175,8 @@ export async function createProductAction(
   if (!name) return { error: "Ingresá un nombre para el producto." };
   if (price === null) return { error: "Ingresá un precio válido." };
   if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
+  const descriptionError = assertValidDescriptionLength(description);
+  if (descriptionError) return { error: descriptionError };
 
   const businessId = await requireAdmin();
 
@@ -190,6 +206,8 @@ export async function updateProductAction(
   if (!name) return { error: "Ingresá un nombre para el producto." };
   if (price === null) return { error: "Ingresá un precio válido." };
   if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
+  const descriptionError = assertValidDescriptionLength(description);
+  if (descriptionError) return { error: descriptionError };
 
   const businessId = await requireAdmin();
 

@@ -78,6 +78,7 @@ function ProductForm({
           name="description"
           defaultValue={product?.description ?? ""}
           rows={2}
+          maxLength={800}
           placeholder="Qué es, para qué sirve, de qué está hecho…"
           className={inputClass}
         />
