@@ -243,7 +243,7 @@ export function PublicBookingForm({
       <input type="hidden" name="productRequests" value={productRequestsJson} />
 
       <FormField label="Notas (opcional)" htmlFor="pbNotes">
-        <textarea id="pbNotes" name="notes" rows={2} className={inputClass} />
+        <textarea id="pbNotes" name="notes" rows={2} maxLength={1000} className={inputClass} />
       </FormField>
 
       <button

@@ -42,6 +42,11 @@ export async function createPublicBookingAction(
   }
   if (!serviceId) return { error: "Elegí un servicio." };
   if (!date || !time) return { error: "Elegí fecha y hora." };
+  // Este campo es texto libre sin autenticar — sin tope, alguien podía
+  // mandar un texto enorme desde la página pública sin ningún límite.
+  if (notes.length > 1000) {
+    return { error: "Las notas son demasiado largas (máximo 1000 caracteres)." };
+  }
 
   const startTime = new Date(`${date}T${time}:00`);
   if (Number.isNaN(startTime.getTime())) {
