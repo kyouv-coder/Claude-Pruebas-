@@ -2,7 +2,15 @@ import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
 import { Prisma } from "@/generated/prisma";
-import { sellProduct, chargeBooking, sellGiftCard, openCashSession, closeCashSession } from "./pos";
+import {
+  sellProduct,
+  chargeBooking,
+  sellGiftCard,
+  openCashSession,
+  closeCashSession,
+  getTodaysUnpaidBookings,
+  getCashSessionSummary,
+} from "./pos";
 
 // Test de integración contra Postgres real: mismo patrón que
 // giftcards.test.ts — sellProduct usa un update condicionado (no
@@ -447,5 +455,150 @@ describeIfDb("chargeBooking — no permite cobrar dos veces el mismo turno", () 
     } catch (e) {
       expect(e).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
     }
+  });
+});
+
+describeIfDb("getTodaysUnpaidBookings / getCashSessionSummary", () => {
+  let businessId: string;
+  let staffId: string;
+  let clientId: string;
+  let serviceId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Unpaid Bookings Business",
+        businessType: "SPA",
+        slug: `test-unpaid-bookings-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+
+    const staff = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Staff Test",
+        email: `staff-unpaid-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "STAFF",
+      },
+    });
+    staffId = staff.id;
+
+    const client = await prisma.client.create({ data: { businessId, name: "Cliente Test" } });
+    clientId = client.id;
+
+    const service = await prisma.service.create({
+      data: { businessId, name: "Servicio Test", durationMinutes: 30, price: 5000 },
+    });
+    serviceId = service.id;
+  });
+
+  afterAll(async () => {
+    await prisma.saleItem.deleteMany({ where: { sale: { businessId } } });
+    await prisma.sale.deleteMany({ where: { businessId } });
+    await prisma.booking.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
+    await prisma.service.deleteMany({ where: { businessId } });
+    await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("lists today's bookings without a sale yet, excluding cancelled/no-show and bookings from other days", async () => {
+    const today = new Date();
+    const makeBooking = (hoursFromNow: number, status: "PENDING" | "CONFIRMED" | "CANCELLED" | "NO_SHOW") =>
+      prisma.booking.create({
+        data: {
+          businessId,
+          clientId,
+          serviceId,
+          staffId,
+          startTime: new Date(today.getTime() + hoursFromNow * 60 * 60_000),
+          endTime: new Date(today.getTime() + hoursFromNow * 60 * 60_000 + 30 * 60_000),
+          status,
+        },
+      });
+
+    const pending = await makeBooking(1, "PENDING");
+    await makeBooking(2, "CANCELLED");
+    await makeBooking(3, "NO_SHOW");
+    // Fuera de la ventana de "hoy" (mañana).
+    await prisma.booking.create({
+      data: {
+        businessId,
+        clientId,
+        serviceId,
+        staffId,
+        startTime: new Date(today.getTime() + 25 * 60 * 60_000),
+        endTime: new Date(today.getTime() + 25 * 60 * 60_000 + 30 * 60_000),
+        status: "PENDING",
+      },
+    });
+
+    const unpaid = await getTodaysUnpaidBookings(businessId);
+    const ids = unpaid.map((b) => b.id);
+    expect(ids).toContain(pending.id);
+    expect(ids).toHaveLength(1);
+  });
+
+  it("excludes a booking that was already charged (has a sale)", async () => {
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: staffId, openingAmount: 0 },
+    });
+
+    const startTime = new Date();
+    const charged = await chargeBooking(
+      businessId,
+      (
+        await prisma.booking.create({
+          data: {
+            businessId,
+            clientId,
+            serviceId,
+            staffId,
+            startTime,
+            endTime: new Date(startTime.getTime() + 30 * 60_000),
+          },
+        })
+      ).id,
+      session.id,
+      "CASH"
+    );
+
+    const unpaid = await getTodaysUnpaidBookings(businessId);
+    expect(unpaid.map((b) => b.id)).not.toContain(charged.bookingId);
+  });
+
+  it("summarizes sales for a cash session by payment method", async () => {
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: staffId, openingAmount: 0 },
+    });
+    const product = await prisma.product.create({
+      data: { businessId, name: "Producto Resumen", price: 1000, stock: 100 },
+    });
+
+    await sellProduct(businessId, {
+      productId: product.id,
+      quantity: 2,
+      paymentMethod: "CASH",
+      cashSessionId: session.id,
+    });
+    await sellProduct(businessId, {
+      productId: product.id,
+      quantity: 1,
+      paymentMethod: "CARD",
+      cashSessionId: session.id,
+    });
+
+    const summary = await getCashSessionSummary(businessId, session.id);
+    expect(summary.salesCount).toBe(2);
+    expect(summary.total).toBe(3000);
+    expect(summary.byMethod).toEqual({ CASH: 2000, CARD: 1000 });
+
+    await prisma.saleItem.deleteMany({ where: { sale: { cashSessionId: session.id } } });
+    await prisma.sale.deleteMany({ where: { cashSessionId: session.id } });
+    await prisma.product.delete({ where: { id: product.id } });
   });
 });
