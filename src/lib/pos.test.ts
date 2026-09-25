@@ -10,6 +10,8 @@ import {
   closeCashSession,
   getTodaysUnpaidBookings,
   getCashSessionSummary,
+  getLastClosedCashSession,
+  listSellableProducts,
 } from "./pos";
 
 // Test de integración contra Postgres real: mismo patrón que
@@ -600,5 +602,86 @@ describeIfDb("getTodaysUnpaidBookings / getCashSessionSummary", () => {
     await prisma.saleItem.deleteMany({ where: { sale: { cashSessionId: session.id } } });
     await prisma.sale.deleteMany({ where: { cashSessionId: session.id } });
     await prisma.product.delete({ where: { id: product.id } });
+  });
+});
+
+describeIfDb("getLastClosedCashSession / listSellableProducts", () => {
+  let businessId: string;
+  let staffId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Last Closed Session Business",
+        businessType: "SPA",
+        slug: `test-last-closed-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+
+    const staff = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Staff Test",
+        email: `staff-last-closed-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "STAFF",
+      },
+    });
+    staffId = staff.id;
+  });
+
+  afterAll(async () => {
+    await prisma.product.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("returns the most recently closed session, ignoring the currently open one", async () => {
+    expect(await getLastClosedCashSession(businessId)).toBeNull();
+
+    const older = await prisma.cashRegisterSession.create({
+      data: {
+        businessId,
+        openedById: staffId,
+        openingAmount: 0,
+        closedAt: new Date(Date.now() - 2 * 24 * 60 * 60_000),
+        closingAmount: 1000,
+      },
+    });
+    const newer = await prisma.cashRegisterSession.create({
+      data: {
+        businessId,
+        openedById: staffId,
+        openingAmount: 0,
+        closedAt: new Date(Date.now() - 1 * 24 * 60 * 60_000),
+        closingAmount: 2000,
+      },
+    });
+    // Caja actual, todavía abierta: no debe ganarle a las cerradas de arriba.
+    await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: staffId, openingAmount: 0 },
+    });
+
+    const last = await getLastClosedCashSession(businessId);
+    expect(last?.id).toBe(newer.id);
+    expect(last?.id).not.toBe(older.id);
+  });
+
+  it("lists only active products with stock left, for the Caja sell-product dropdown", async () => {
+    await prisma.product.create({
+      data: { businessId, name: "Producto Activo Con Stock", price: 1000, stock: 5, active: true },
+    });
+    await prisma.product.create({
+      data: { businessId, name: "Producto Sin Stock", price: 1000, stock: 0, active: true },
+    });
+    await prisma.product.create({
+      data: { businessId, name: "Producto Inactivo", price: 1000, stock: 5, active: false },
+    });
+
+    const sellable = await listSellableProducts(businessId);
+    expect(sellable.map((p) => p.name)).toEqual(["Producto Activo Con Stock"]);
   });
 });
