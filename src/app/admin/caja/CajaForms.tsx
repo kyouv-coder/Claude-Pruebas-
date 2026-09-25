@@ -96,7 +96,7 @@ export function SellGiftCardForm({ cashSessionId }: { cashSessionId: string }) {
       <FormSuccess message={state.success} />
 
       <FormField label="Nombre del cliente" htmlFor="gcClientName" required>
-        <input id="gcClientName" name="clientName" required className={inputClass} />
+        <input id="gcClientName" name="clientName" required maxLength={150} className={inputClass} />
       </FormField>
       <FormField label="Teléfono" htmlFor="gcClientPhone">
         <input id="gcClientPhone" name="clientPhone" className={inputClass} />

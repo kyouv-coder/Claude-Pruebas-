@@ -29,7 +29,7 @@ export function BookingForm({
       <FormSuccess message={state.success} />
 
       <FormField label="Nombre del cliente" htmlFor="clientName" required>
-        <input id="clientName" name="clientName" required className={inputClass} />
+        <input id="clientName" name="clientName" required maxLength={150} className={inputClass} />
       </FormField>
 
       <FormField label="Teléfono" htmlFor="clientPhone">

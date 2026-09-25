@@ -44,6 +44,16 @@ function assertValidDescriptionLength(description: string): string | null {
   return null;
 }
 
+// El nombre de un servicio, producto o persona tampoco tenía tope, a pesar
+// de mostrarse en la página pública y en varios desplegables del panel.
+const MAX_NAME_LENGTH = 150;
+function assertValidNameLength(name: string): string | null {
+  if (name.length > MAX_NAME_LENGTH) {
+    return `El nombre es demasiado largo (máximo ${MAX_NAME_LENGTH} caracteres).`;
+  }
+  return null;
+}
+
 export async function createServiceAction(
   _prevState: ActionState,
   formData: FormData
@@ -54,6 +64,8 @@ export async function createServiceAction(
   const price = parsePrice(formData.get("price"));
 
   if (!name) return { error: "Ingresá un nombre para el servicio." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (!durationMinutes)
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
@@ -94,6 +106,8 @@ export async function updateServiceAction(
   const price = parsePrice(formData.get("price"));
 
   if (!name) return { error: "Ingresá un nombre para el servicio." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (!durationMinutes)
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
@@ -173,6 +187,8 @@ export async function createProductAction(
   const stock = parseStock(formData.get("stock"));
 
   if (!name) return { error: "Ingresá un nombre para el producto." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (price === null) return { error: "Ingresá un precio válido." };
   if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
   const descriptionError = assertValidDescriptionLength(description);
@@ -204,6 +220,8 @@ export async function updateProductAction(
   const stock = parseStock(formData.get("stock"));
 
   if (!name) return { error: "Ingresá un nombre para el producto." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (price === null) return { error: "Ingresá un precio válido." };
   if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
   const descriptionError = assertValidDescriptionLength(description);
@@ -288,6 +306,8 @@ export async function createStaffAction(
   const password = String(formData.get("password") || "");
 
   if (!name) return { error: "Ingresá un nombre." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
   if (password.length < 8)
@@ -326,6 +346,8 @@ export async function updateStaffAction(
   const email = String(formData.get("email") || "").trim();
 
   if (!name) return { error: "Ingresá un nombre." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
 

@@ -23,6 +23,7 @@ export function SignupForm() {
           autoFocus
           autoComplete="organization"
           placeholder="Ej: Spa Luna"
+          maxLength={150}
           className={inputClass}
         />
       </FormField>
@@ -52,6 +53,7 @@ export function SignupForm() {
           name="name"
           required
           autoComplete="name"
+          maxLength={150}
           className={inputClass}
         />
       </FormField>

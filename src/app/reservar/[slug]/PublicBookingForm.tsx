@@ -107,7 +107,7 @@ export function PublicBookingForm({
       <FormSuccess message={state.success} />
 
       <FormField label="Tu nombre" htmlFor="pbClientName" required>
-        <input id="pbClientName" name="clientName" required autoComplete="name" className={inputClass} />
+        <input id="pbClientName" name="clientName" required autoComplete="name" maxLength={150} className={inputClass} />
       </FormField>
 
       <div className="flex gap-2">

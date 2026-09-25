@@ -28,11 +28,20 @@ export async function signupAction(
   if (!businessName) {
     return { error: "Ingresá el nombre de tu negocio." };
   }
+  // Ningún campo de nombre tenía tope — a diferencia de la descripción, la
+  // dirección o las notas, que ya lo tienen — a pesar de mostrarse en la
+  // página pública de reserva y en el resto del panel.
+  if (businessName.length > 150) {
+    return { error: "El nombre del negocio es demasiado largo (máximo 150 caracteres)." };
+  }
   if (!BUSINESS_TYPE_OPTIONS.some((o) => o.value === businessType)) {
     return { error: "Elegí el rubro de tu negocio." };
   }
   if (!name) {
     return { error: "Ingresá tu nombre." };
+  }
+  if (name.length > 150) {
+    return { error: "Tu nombre es demasiado largo (máximo 150 caracteres)." };
   }
   if (!email || !email.includes("@")) {
     return { error: "Ingresá un email válido." };

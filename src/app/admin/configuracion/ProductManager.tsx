@@ -69,6 +69,7 @@ function ProductForm({
           name="name"
           defaultValue={product?.name}
           required
+          maxLength={150}
           className={inputClass}
         />
       </FormField>

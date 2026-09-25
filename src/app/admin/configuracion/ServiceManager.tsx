@@ -69,6 +69,7 @@ function ServiceForm({
           name="name"
           defaultValue={service?.name}
           required
+          maxLength={150}
           className={inputClass}
         />
       </FormField>

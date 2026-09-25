@@ -37,6 +37,11 @@ export async function createPublicBookingAction(
   const productRequestsRaw = String(formData.get("productRequests") || "[]");
 
   if (!clientName) return { error: "Ingresá tu nombre." };
+  // Este campo es texto libre sin autenticar — sin tope, alguien podía
+  // mandar un texto enorme desde la página pública sin ningún límite.
+  if (clientName.length > 150) {
+    return { error: "El nombre es demasiado largo (máximo 150 caracteres)." };
+  }
   if (!clientPhone && !clientEmail) {
     return { error: "Dejanos un teléfono o un email para poder contactarte." };
   }

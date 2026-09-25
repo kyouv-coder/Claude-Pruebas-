@@ -24,6 +24,11 @@ export async function createBookingAction(
   if (!clientName || !serviceId || !staffId || !date || !time) {
     return { error: "Completá cliente, servicio, profesional, fecha y hora." };
   }
+  // Mismo motivo que el nombre de servicios/productos/personas: sin tope,
+  // este campo de texto libre podía crecer sin límite.
+  if (clientName.length > 150) {
+    return { error: "El nombre del cliente es demasiado largo (máximo 150 caracteres)." };
+  }
   // Mismo motivo que las notas del cliente: sin tope, este campo de texto
   // libre podía crecer sin límite.
   if (notes.length > 1000) {
