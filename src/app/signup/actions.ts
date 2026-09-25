@@ -40,6 +40,12 @@ export async function signupAction(
   if (password.length < 8) {
     return { error: "La contraseña debe tener al menos 8 caracteres." };
   }
+  // bcrypt trunca en silencio todo lo que pase de 72 bytes: una contraseña
+  // más larga que eso da una falsa sensación de seguridad, porque el resto
+  // nunca se compara ni afecta el hash.
+  if (password.length > 72) {
+    return { error: "La contraseña no puede tener más de 72 caracteres." };
+  }
 
   let userId: string;
   try {

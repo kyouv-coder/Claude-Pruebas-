@@ -292,6 +292,11 @@ export async function createStaffAction(
     return { error: "Ingresá un email válido." };
   if (password.length < 8)
     return { error: "La contraseña inicial debe tener al menos 8 caracteres." };
+  // bcrypt trunca en silencio todo lo que pase de 72 bytes: una contraseña
+  // más larga que eso da una falsa sensación de seguridad, porque el resto
+  // nunca se compara ni afecta el hash.
+  if (password.length > 72)
+    return { error: "La contraseña inicial no puede tener más de 72 caracteres." };
 
   const businessId = await requireAdmin();
 
