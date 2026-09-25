@@ -33,6 +33,11 @@ export async function createExpenseAction(
   if (!VALID_CATEGORIES.includes(category)) {
     return { error: "Elegí una categoría." };
   }
+  // Mismo motivo que las notas de cliente/reserva y la dirección del negocio:
+  // este campo de texto libre no tenía ningún tope.
+  if (description.length > 500) {
+    return { error: "La descripción es demasiado larga (máximo 500 caracteres)." };
+  }
   // Number.isFinite, no solo > 0: "Infinity" pasa Number("Infinity") > 0,
   // y guardar eso en un campo Decimal tira un PrismaClientValidationError
   // sin capturar más abajo — rompía la página entera.
