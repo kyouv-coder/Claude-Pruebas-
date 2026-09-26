@@ -77,6 +77,11 @@ export async function createBookingAction(
   // reservas de hoy, la ocupación y los servicios más solicitados que
   // muestra el dashboard.
   revalidatePath("/admin/dashboard");
+  // createBooking crea el cliente si no existía (findOrCreateClient) — mismo
+  // motivo que sellGiftCardAction ya revalida /admin/clientes: un cliente
+  // nuevo cargado desde una reserva podía no aparecer ahí hasta otra
+  // navegación que refrescara esa página por otro lado.
+  revalidatePath("/admin/clientes");
   return { success: "Reserva creada." };
 }
 
