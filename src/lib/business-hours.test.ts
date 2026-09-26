@@ -143,6 +143,74 @@ describeIfDb("getBusinessHours", () => {
   });
 });
 
+describeIfDb("saveBusinessHours", () => {
+  let businessId: string;
+  let otherBusinessId: string;
+
+  beforeAll(async () => {
+    const [business, otherBusiness] = await Promise.all([
+      prisma.business.create({
+        data: {
+          name: "Test Save Hours Business",
+          businessType: "SPA",
+          slug: `test-save-hours-${Date.now()}`,
+        },
+      }),
+      prisma.business.create({
+        data: {
+          name: "Test Save Hours Other Business",
+          businessType: "SPA",
+          slug: `test-save-hours-other-${Date.now()}`,
+        },
+      }),
+    ]);
+    businessId = business.id;
+    otherBusinessId = otherBusiness.id;
+  });
+
+  afterAll(async () => {
+    await prisma.businessHours.deleteMany({ where: { businessId: { in: [businessId, otherBusinessId] } } });
+    await prisma.business.deleteMany({ where: { id: { in: [businessId, otherBusinessId] } } });
+    await prisma.$disconnect();
+  });
+
+  it("creates rows for a business that never saved hours before", async () => {
+    await saveBusinessHours(businessId, [
+      { dayOfWeek: 0, openTime: "09:00", closeTime: "19:00", closed: true },
+      { dayOfWeek: 1, openTime: "08:00", closeTime: "18:00", closed: false },
+    ]);
+
+    const rows = await prisma.businessHours.findMany({ where: { businessId } });
+    expect(rows).toHaveLength(2);
+    const monday = rows.find((r) => r.dayOfWeek === 1);
+    expect(monday).toMatchObject({ openTime: "08:00", closeTime: "18:00", closed: false });
+  });
+
+  it("updates an existing day in place instead of creating a duplicate row", async () => {
+    await saveBusinessHours(businessId, [
+      { dayOfWeek: 1, openTime: "10:00", closeTime: "15:00", closed: false },
+    ]);
+
+    const rows = await prisma.businessHours.findMany({ where: { businessId, dayOfWeek: 1 } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ openTime: "10:00", closeTime: "15:00", closed: false });
+  });
+
+  it("never touches another business's saved hours", async () => {
+    await saveBusinessHours(otherBusinessId, [
+      { dayOfWeek: 1, openTime: "07:00", closeTime: "12:00", closed: false },
+    ]);
+
+    await saveBusinessHours(businessId, [
+      { dayOfWeek: 1, openTime: "11:00", closeTime: "16:00", closed: false },
+    ]);
+
+    const otherRows = await prisma.businessHours.findMany({ where: { businessId: otherBusinessId, dayOfWeek: 1 } });
+    expect(otherRows).toHaveLength(1);
+    expect(otherRows[0]).toMatchObject({ openTime: "07:00", closeTime: "12:00" });
+  });
+});
+
 describeIfDb("hasConfiguredHours", () => {
   let businessId: string;
 
