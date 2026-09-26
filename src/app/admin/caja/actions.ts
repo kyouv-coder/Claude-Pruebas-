@@ -148,6 +148,14 @@ export async function sellGiftCardAction(
   if (clientName.length > 150) {
     return { error: "El nombre del cliente es demasiado largo (máximo 150 caracteres)." };
   }
+  // Mismo motivo que el nombre: sin tope, este campo de texto libre podía
+  // crecer sin límite.
+  if (clientPhone.length > 30) {
+    return { error: "El teléfono es demasiado largo (máximo 30 caracteres)." };
+  }
+  if (clientEmail.length > 255) {
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
+  }
   // Number.isFinite, no solo > 0: "Infinity" pasa el chequeo de > 0 y
   // después rompe al guardar el Decimal en la base.
   if (!Number.isFinite(amount) || amount <= 0) {

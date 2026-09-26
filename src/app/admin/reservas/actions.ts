@@ -29,6 +29,14 @@ export async function createBookingAction(
   if (clientName.length > 150) {
     return { error: "El nombre del cliente es demasiado largo (máximo 150 caracteres)." };
   }
+  // Mismo motivo que el nombre: sin tope, este campo de texto libre podía
+  // crecer sin límite.
+  if (clientPhone.length > 30) {
+    return { error: "El teléfono es demasiado largo (máximo 30 caracteres)." };
+  }
+  if (clientEmail.length > 255) {
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
+  }
   // Mismo motivo que las notas del cliente: sin tope, este campo de texto
   // libre podía crecer sin límite.
   if (notes.length > 1000) {

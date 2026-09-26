@@ -42,6 +42,14 @@ export async function createPublicBookingAction(
   if (clientName.length > 150) {
     return { error: "El nombre es demasiado largo (máximo 150 caracteres)." };
   }
+  // Mismo motivo que el nombre: texto libre sin autenticar, sin tope
+  // alguien podía mandar un valor enorme desde la página pública.
+  if (clientPhone.length > 30) {
+    return { error: "El teléfono es demasiado largo (máximo 30 caracteres)." };
+  }
+  if (clientEmail.length > 255) {
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
+  }
   if (!clientPhone && !clientEmail) {
     return { error: "Dejanos un teléfono o un email para poder contactarte." };
   }

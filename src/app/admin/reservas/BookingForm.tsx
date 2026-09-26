@@ -33,7 +33,7 @@ export function BookingForm({
       </FormField>
 
       <FormField label="Teléfono" htmlFor="clientPhone">
-        <input id="clientPhone" name="clientPhone" className={inputClass} />
+        <input id="clientPhone" name="clientPhone" maxLength={30} className={inputClass} />
       </FormField>
 
       <FormField label="Email" htmlFor="clientEmail">
@@ -41,6 +41,7 @@ export function BookingForm({
           id="clientEmail"
           name="clientEmail"
           type="email"
+          maxLength={255}
           className={inputClass}
         />
       </FormField>

@@ -99,13 +99,14 @@ export function SellGiftCardForm({ cashSessionId }: { cashSessionId: string }) {
         <input id="gcClientName" name="clientName" required maxLength={150} className={inputClass} />
       </FormField>
       <FormField label="Teléfono" htmlFor="gcClientPhone">
-        <input id="gcClientPhone" name="clientPhone" className={inputClass} />
+        <input id="gcClientPhone" name="clientPhone" maxLength={30} className={inputClass} />
       </FormField>
       <FormField label="Email" htmlFor="gcClientEmail">
         <input
           id="gcClientEmail"
           name="clientEmail"
           type="email"
+          maxLength={255}
           className={inputClass}
         />
       </FormField>

@@ -112,7 +112,7 @@ export function PublicBookingForm({
 
       <div className="flex gap-2">
         <FormField label="Teléfono" htmlFor="pbClientPhone">
-          <input id="pbClientPhone" name="clientPhone" autoComplete="tel" className={inputClass} />
+          <input id="pbClientPhone" name="clientPhone" autoComplete="tel" maxLength={30} className={inputClass} />
         </FormField>
         <FormField label="Email" htmlFor="pbClientEmail">
           <input
@@ -120,6 +120,7 @@ export function PublicBookingForm({
             name="clientEmail"
             type="email"
             autoComplete="email"
+            maxLength={255}
             className={inputClass}
           />
         </FormField>
