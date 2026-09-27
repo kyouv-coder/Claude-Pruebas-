@@ -289,6 +289,14 @@ export async function sellGiftCard(
     expiresAt?: Date;
   }
 ) {
+  // Mismo motivo que openCashSession/closeCashSession/redeemGiftCard: la
+  // acción del formulario ya valida esto, pero esta función no debería
+  // confiar en que el único caller lo haga bien — sin este chequeo, un
+  // monto negativo, cero o "Infinity" se guardaba tal cual en la venta,
+  // en la giftcard emitida y en su transacción de ISSUE.
+  if (!Number.isFinite(input.amount) || input.amount <= 0) {
+    throw new Error("El monto debe ser un número mayor a 0.");
+  }
   // Sin este chequeo se podía vender una giftcard con vencimiento en el
   // pasado: el cliente paga en el momento y la tarjeta ya nace inválida
   // para canjear (redeemGiftCard la rechaza igual que una vencida normal).

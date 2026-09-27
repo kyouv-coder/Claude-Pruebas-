@@ -349,6 +349,25 @@ describeIfDb("sellGiftCard — no deja un cliente huérfano si falla la venta", 
     expect(orphan).toBeNull();
   });
 
+  it.each([0, -100, NaN, Infinity])(
+    "rejects an invalid amount (%s) before touching the database",
+    async (amount) => {
+      await expect(
+        sellGiftCard(businessId, {
+          clientName: "Cliente Monto Invalido",
+          amount,
+          paymentMethod: "CASH",
+          cashSessionId: "esta-caja-no-existe",
+        })
+      ).rejects.toThrow("El monto debe ser un número mayor a 0.");
+
+      const orphan = await prisma.client.findFirst({
+        where: { businessId, name: "Cliente Monto Invalido" },
+      });
+      expect(orphan).toBeNull();
+    }
+  );
+
   it("stores the new client's email in lowercase even if it was typed with mixed case", async () => {
     const operator = await prisma.user.create({
       data: {
