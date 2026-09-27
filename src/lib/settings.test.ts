@@ -12,6 +12,8 @@ import {
   updateStaff,
   createService,
   createProduct,
+  updateService,
+  updateProduct,
 } from "./settings";
 
 // Test de integración contra Postgres real: valida el mismo tipo de cosas
@@ -203,5 +205,73 @@ describeIfDb("createService / createProduct — validan precio/duración/stock p
     expect(Number(service.price)).toBe(5000);
     const product = await createProduct(businessId, { name: "Producto Válido", price: 2000, stock: 10 });
     expect(product.stock).toBe(10);
+  });
+});
+
+// updateService/updateProduct llaman a las mismas assertValidPrice/
+// assertValidDuration/assertValidStock que createService/createProduct
+// (ya cubiertas arriba), pero nunca tuvieron un test propio que probara
+// que la validación también se aplica al editar, no solo al crear.
+describeIfDb("updateService / updateProduct — validan precio/duración/stock por su cuenta", () => {
+  let businessId: string;
+  let serviceId: string;
+  let productId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Settings Update Validation Business", businessType: "SPA", slug: `test-settings-update-validation-${Date.now()}` },
+    });
+    businessId = business.id;
+
+    const service = await createService(businessId, { name: "Servicio Original", durationMinutes: 30, price: 1000 });
+    serviceId = service.id;
+    const product = await createProduct(businessId, { name: "Producto Original", price: 1000, stock: 5 });
+    productId = product.id;
+  });
+
+  afterAll(async () => {
+    await prisma.product.deleteMany({ where: { businessId } });
+    await prisma.service.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("rejects a non-finite or negative service price on update", async () => {
+    await expect(
+      updateService(businessId, serviceId, { name: "Servicio Original", durationMinutes: 30, price: Infinity })
+    ).rejects.toThrow(/precio/i);
+    await expect(
+      updateService(businessId, serviceId, { name: "Servicio Original", durationMinutes: 30, price: -100 })
+    ).rejects.toThrow(/precio/i);
+  });
+
+  it("rejects a non-positive or non-integer service duration on update", async () => {
+    await expect(
+      updateService(businessId, serviceId, { name: "Servicio Original", durationMinutes: 0, price: 1000 })
+    ).rejects.toThrow(/duración/i);
+    await expect(
+      updateService(businessId, serviceId, { name: "Servicio Original", durationMinutes: 30.5, price: 1000 })
+    ).rejects.toThrow(/duración/i);
+  });
+
+  it("rejects a non-finite or negative product price, and a negative or non-integer stock on update", async () => {
+    await expect(
+      updateProduct(businessId, productId, { name: "Producto Original", price: Infinity, stock: 5 })
+    ).rejects.toThrow(/precio/i);
+    await expect(
+      updateProduct(businessId, productId, { name: "Producto Original", price: 1000, stock: -1 })
+    ).rejects.toThrow(/stock/i);
+    await expect(
+      updateProduct(businessId, productId, { name: "Producto Original", price: 1000, stock: 2.5 })
+    ).rejects.toThrow(/stock/i);
+  });
+
+  it("accepts a valid update and persists the new values", async () => {
+    const service = await updateService(businessId, serviceId, { name: "Servicio Editado", durationMinutes: 60, price: 3000 });
+    expect(Number(service.price)).toBe(3000);
+    expect(service.durationMinutes).toBe(60);
+    const product = await updateProduct(businessId, productId, { name: "Producto Editado", price: 4000, stock: 20 });
+    expect(product.stock).toBe(20);
+    expect(Number(product.price)).toBe(4000);
   });
 });
