@@ -46,6 +46,10 @@ export async function signupAction(
   if (!email || !email.includes("@")) {
     return { error: "Ingresá un email válido." };
   }
+  // Mismo tope que el email del cliente (255) — este no lo tenía.
+  if (email.length > 255) {
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
+  }
   if (password.length < 8) {
     return { error: "La contraseña debe tener al menos 8 caracteres." };
   }

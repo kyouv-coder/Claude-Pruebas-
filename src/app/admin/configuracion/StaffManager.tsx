@@ -64,6 +64,7 @@ function StaffForm({ staff, onDone }: { staff?: Staff; onDone?: () => void }) {
           type="email"
           defaultValue={staff?.email}
           required
+          maxLength={255}
           className={inputClass}
         />
       </FormField>

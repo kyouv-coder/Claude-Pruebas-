@@ -310,6 +310,9 @@ export async function createStaffAction(
   if (nameError) return { error: nameError };
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
+  // Mismo tope que el email del cliente (255) — el de staff no lo tenía.
+  if (email.length > 255)
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
   if (password.length < 8)
     return { error: "La contraseña inicial debe tener al menos 8 caracteres." };
   // bcrypt trunca en silencio todo lo que pase de 72 bytes: una contraseña
@@ -350,6 +353,8 @@ export async function updateStaffAction(
   if (nameError) return { error: nameError };
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
+  if (email.length > 255)
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
 
   const businessId = await requireAdmin();
 

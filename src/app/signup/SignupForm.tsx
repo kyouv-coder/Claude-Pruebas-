@@ -65,6 +65,7 @@ export function SignupForm() {
           type="email"
           required
           autoComplete="email"
+          maxLength={255}
           className={inputClass}
         />
       </FormField>
