@@ -79,12 +79,41 @@ export async function updateService(
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_SIZE_BYTES = 4 * 1024 * 1024;
 
+// El "type" del archivo lo elige quien sube el archivo (el atributo `.type`
+// de un File en el navegador, parte del propio request) — no confiable por
+// sí solo, mismo motivo que el resto de las validaciones de esta app no
+// confían en que el caller ya validó todo. Alguien podía subir cualquier
+// archivo (ej. un script) con la extensión y el `Content-Type` de una
+// imagen, y quedaba guardado y servido igual porque solo se miraba ese
+// campo declarado. Ahora también se chequean los primeros bytes reales del
+// archivo (la "firma" del formato) contra el tipo declarado.
+function matchesDeclaredImageSignature(type: string, data: Buffer): boolean {
+  if (data.byteLength < 12) return false;
+  if (type === "image/jpeg") {
+    return data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  }
+  if (type === "image/png") {
+    const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    return pngSignature.every((byte, i) => data[i] === byte);
+  }
+  if (type === "image/webp") {
+    return (
+      data.subarray(0, 4).toString("ascii") === "RIFF" &&
+      data.subarray(8, 12).toString("ascii") === "WEBP"
+    );
+  }
+  return false;
+}
+
 function assertValidImage(file: { type: string; data: Buffer }) {
   if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
     throw new Error("Solo se aceptan imágenes JPG, PNG o WebP.");
   }
   if (file.data.byteLength > MAX_IMAGE_SIZE_BYTES) {
     throw new Error("La imagen no puede pesar más de 4 MB.");
+  }
+  if (!matchesDeclaredImageSignature(file.type, file.data)) {
+    throw new Error("El archivo no parece ser una imagen válida del tipo indicado.");
   }
 }
 

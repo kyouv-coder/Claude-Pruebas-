@@ -66,9 +66,11 @@ describeIfDb("setServiceImage / setProductImage / setBusinessCoverImage", () => 
     await prisma.$disconnect();
   });
 
-  const validImage = { type: "image/png", data: Buffer.from("fake-png-bytes") };
+  const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const validImage = { type: "image/png", data: Buffer.concat([pngSignature, Buffer.from("fake-png-body")]) };
   const oversizedImage = { type: "image/png", data: Buffer.alloc(4 * 1024 * 1024 + 1) };
   const wrongTypeImage = { type: "image/gif", data: Buffer.from("fake-gif-bytes") };
+  const spoofedImage = { type: "image/png", data: Buffer.from("<script>alert(1)</script>") };
 
   it("rejects a disallowed image type for a service", async () => {
     await expect(setServiceImage(businessId, serviceId, wrongTypeImage)).rejects.toThrow(/Solo se aceptan/);
@@ -76,6 +78,10 @@ describeIfDb("setServiceImage / setProductImage / setBusinessCoverImage", () => 
 
   it("rejects an oversized image for a service", async () => {
     await expect(setServiceImage(businessId, serviceId, oversizedImage)).rejects.toThrow(/no puede pesar/);
+  });
+
+  it("rejects a file whose real bytes don't match its declared image type", async () => {
+    await expect(setServiceImage(businessId, serviceId, spoofedImage)).rejects.toThrow(/no parece ser una imagen válida/);
   });
 
   it("rejects setting an image on a service from another business", async () => {

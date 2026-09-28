@@ -403,18 +403,35 @@ describeIfDb("attachSaleInvoice", () => {
     ).rejects.toThrow(/no puede pesar/);
   });
 
+  it("rejects a file whose real bytes don't match its declared type", async () => {
+    await expect(
+      attachSaleInvoice(businessId, saleId, {
+        name: "comprobante.png",
+        type: "image/png",
+        data: Buffer.from("fake-png-bytes"),
+      })
+    ).rejects.toThrow(/no parece ser válido/);
+  });
+
   it("rejects attaching to a sale from another business", async () => {
+    const pngData = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from("fake-png-body"),
+    ]);
     await expect(
       attachSaleInvoice(otherBusinessId, saleId, {
         name: "comprobante.png",
         type: "image/png",
-        data: Buffer.from("fake-png-bytes"),
+        data: pngData,
       })
     ).rejects.toThrow();
   });
 
   it("stores a valid invoice and returns it via getSaleInvoiceFile", async () => {
-    const data = Buffer.from("fake-png-bytes");
+    const data = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from("fake-png-body"),
+    ]);
     await attachSaleInvoice(businessId, saleId, {
       name: "comprobante.png",
       type: "image/png",

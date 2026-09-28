@@ -147,6 +147,24 @@ export async function listSalesForMonth(businessId: string, year: number, month:
 const ALLOWED_INVOICE_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 const MAX_INVOICE_SIZE_BYTES = 5 * 1024 * 1024;
 
+// El "type" declarado es el `.type` del File elegido por quien sube el
+// archivo, no algo confiable por sí solo — mismo motivo que
+// setServiceImage/setProductImage (src/lib/settings.ts) ya chequean los
+// primeros bytes reales del archivo, no solo el tipo que dice traer.
+function matchesDeclaredInvoiceSignature(type: string, data: Buffer): boolean {
+  if (type === "image/jpeg") {
+    return data.byteLength >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  }
+  if (type === "image/png") {
+    const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    return data.byteLength >= 8 && pngSignature.every((byte, i) => data[i] === byte);
+  }
+  if (type === "application/pdf") {
+    return data.byteLength >= 4 && data.subarray(0, 4).toString("ascii") === "%PDF";
+  }
+  return false;
+}
+
 export async function attachSaleInvoice(
   businessId: string,
   saleId: string,
@@ -157,6 +175,9 @@ export async function attachSaleInvoice(
   }
   if (file.data.byteLength > MAX_INVOICE_SIZE_BYTES) {
     throw new Error("El archivo no puede pesar más de 5 MB.");
+  }
+  if (!matchesDeclaredInvoiceSignature(file.type, file.data)) {
+    throw new Error("El archivo no parece ser válido para el tipo indicado.");
   }
 
   await prisma.sale.findFirstOrThrow({ where: { id: saleId, businessId } });
