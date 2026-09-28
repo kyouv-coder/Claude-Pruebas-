@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "./prisma";
 import { Prisma } from "@/generated/prisma";
 import {
@@ -208,6 +208,67 @@ describeIfDb("openCashSession — rechaza un monto inicial inválido", () => {
     const sessions = await prisma.cashRegisterSession.findMany({ where: { businessId: business.id } });
     expect(sessions).toHaveLength(0);
 
+    await prisma.business.delete({ where: { id: business.id } });
+    await prisma.$disconnect();
+  });
+});
+
+describeIfDb("openCashSession — no permite dos cajas abiertas a la vez", () => {
+  // A diferencia del test anterior, esta rama sí necesita pasar por
+  // getOperator() (cookies() con una sesión real) — se mockea next/headers
+  // con un token firmado de verdad, mismo patrón que request.test.ts.
+  it("rejects opening a second session while one is already open for the same business", async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Doble Apertura Business",
+        businessType: "SPA",
+        slug: `test-doble-apertura-${Date.now()}`,
+      },
+    });
+    const operator = await prisma.user.create({
+      data: {
+        businessId: business.id,
+        name: "Admin Test Doble Apertura",
+        email: `admin-doble-apertura-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+
+    const secret = process.env.AUTH_SECRET!;
+    const { createSessionToken } = await import("./session");
+    const { SESSION_COOKIE } = await import("./session");
+    const token = await createSessionToken(operator.id, secret, 3600);
+
+    vi.resetModules();
+    vi.doMock("next/headers", () => ({
+      cookies: async () => ({
+        get: (key: string) => (key === SESSION_COOKIE ? { value: token } : undefined),
+      }),
+    }));
+
+    try {
+      const { openCashSession: openCashSessionWithSession } = await import("./pos");
+
+      const first = await openCashSessionWithSession(business.id, 1000);
+      expect(first.closedAt).toBeNull();
+
+      await expect(
+        openCashSessionWithSession(business.id, 500)
+      ).rejects.toThrow(/Ya hay una caja abierta/);
+
+      const sessions = await prisma.cashRegisterSession.findMany({
+        where: { businessId: business.id },
+      });
+      expect(sessions).toHaveLength(1);
+      expect(Number(sessions[0].openingAmount)).toBe(1000);
+    } finally {
+      vi.doUnmock("next/headers");
+      vi.resetModules();
+    }
+
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId: business.id } });
+    await prisma.user.deleteMany({ where: { businessId: business.id } });
     await prisma.business.delete({ where: { id: business.id } });
     await prisma.$disconnect();
   });
