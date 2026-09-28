@@ -279,11 +279,19 @@ export async function uploadProductImageAction(
   return { success: "Foto actualizada." };
 }
 
+const MAX_SLACK_WEBHOOK_URL_LENGTH = 500;
+
 export async function updateSlackWebhookAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const url = String(formData.get("slackWebhookUrl") || "").trim();
+
+  if (url.length > MAX_SLACK_WEBHOOK_URL_LENGTH) {
+    return {
+      error: `La URL es demasiado larga (máximo ${MAX_SLACK_WEBHOOK_URL_LENGTH} caracteres).`,
+    };
+  }
 
   if (url && !url.startsWith("https://hooks.slack.com/")) {
     return {
