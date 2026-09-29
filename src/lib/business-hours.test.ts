@@ -196,6 +196,36 @@ describeIfDb("saveBusinessHours", () => {
     expect(rows[0]).toMatchObject({ openTime: "10:00", closeTime: "15:00", closed: false });
   });
 
+  it("rejects an open day whose closing time is not after opening time", async () => {
+    await expect(
+      saveBusinessHours(businessId, [
+        { dayOfWeek: 2, openTime: "18:00", closeTime: "09:00", closed: false },
+      ])
+    ).rejects.toThrow("anterior al de cierre");
+
+    // No debe haber quedado nada guardado para ese día.
+    const rows = await prisma.businessHours.findMany({ where: { businessId, dayOfWeek: 2 } });
+    expect(rows).toHaveLength(0);
+  });
+
+  it("rejects an open day with a malformed time string", async () => {
+    await expect(
+      saveBusinessHours(businessId, [
+        { dayOfWeek: 2, openTime: "9am", closeTime: "19:00", closed: false },
+      ])
+    ).rejects.toThrow("HH:mm");
+  });
+
+  it("ignores invalid times on a day marked as closed", async () => {
+    // Un día cerrado no necesita horarios válidos — la UI manda valores
+    // por defecto igual, pero no deberían bloquear el guardado.
+    await expect(
+      saveBusinessHours(businessId, [
+        { dayOfWeek: 2, openTime: "", closeTime: "", closed: true },
+      ])
+    ).resolves.not.toThrow();
+  });
+
   it("never touches another business's saved hours", async () => {
     await saveBusinessHours(otherBusinessId, [
       { dayOfWeek: 1, openTime: "07:00", closeTime: "12:00", closed: false },
