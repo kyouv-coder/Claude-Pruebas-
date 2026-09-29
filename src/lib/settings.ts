@@ -1,14 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
+import { assertFiniteAmount } from "@/lib/validation";
 
 // Mismo motivo que en pos.ts/finance.ts (sellProduct, redeemGiftCard,
 // createExpense): la acción del formulario ya valida esto, pero estas
 // funciones no deberían confiar en que el único caller lo haga bien —
 // "Infinity" o un precio/duración/stock negativo se guardarían tal cual.
 function assertValidPrice(price: number) {
-  if (!Number.isFinite(price) || price < 0) {
-    throw new Error("El precio debe ser un número mayor o igual a 0.");
-  }
+  assertFiniteAmount(price, "El precio", { allowZero: true });
 }
 
 function assertValidDuration(durationMinutes: number) {

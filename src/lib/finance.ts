@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ExpenseCategory } from "@/generated/prisma";
+import { assertFiniteAmount } from "@/lib/validation";
 
 function monthRange(year: number, month: number) {
   const start = new Date(year, month - 1, 1);
@@ -83,9 +84,7 @@ export async function createExpense(
   // esto, pero esta función no debería confiar en el caller — "Infinity" o
   // un monto negativo/cero se guardarían tal cual en un campo Decimal y
   // descuadrarían Finanzas.
-  if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    throw new Error("El monto debe ser un número mayor a 0.");
-  }
+  assertFiniteAmount(input.amount, "El monto");
 
   return prisma.expense.create({
     data: {
