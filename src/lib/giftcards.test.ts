@@ -203,6 +203,35 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
     ).rejects.toThrow(/no puede ser en el pasado/);
   });
 
+  it("rejects redeeming a code that belongs to a different business, even if the code string matches", async () => {
+    // El código es único por (businessId, code), no globalmente (ver
+    // @@unique([businessId, code]) en el schema) — dos negocios distintos
+    // pueden terminar con el mismo código al azar. Sin filtrar por
+    // businessId acá, el staff de un negocio podía canjear por error (o a
+    // propósito) la giftcard de otro negocio con el mismo código.
+    const otherBusiness = await prisma.business.create({
+      data: {
+        name: "Test Giftcard Other Business",
+        businessType: "SPA",
+        slug: `test-giftcard-other-${Date.now()}`,
+      },
+    });
+    const sharedCode = `GC-SHARED-${Date.now()}`;
+    const foreignGiftCard = await prisma.giftCard.create({
+      data: { businessId: otherBusiness.id, code: sharedCode, initialValue: 1000, balance: 1000 },
+    });
+
+    await expect(
+      redeemGiftCard(businessId, { code: sharedCode, amount: 100, cashSessionId })
+    ).rejects.toThrow();
+
+    const unchanged = await prisma.giftCard.findUniqueOrThrow({ where: { id: foreignGiftCard.id } });
+    expect(Number(unchanged.balance)).toBe(1000);
+
+    await prisma.giftCard.deleteMany({ where: { businessId: otherBusiness.id } });
+    await prisma.business.delete({ where: { id: otherBusiness.id } });
+  });
+
   it("retries with a new code if the randomly generated one collides with an existing giftcard", async () => {
     // El código sale de Math.random().toString(36) — con un valor fijo,
     // ese primer código siempre colisiona contra uno ya emitido. El
