@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import type { BookingStatus } from "@/generated/prisma";
 import { checkWithinBusinessHours } from "@/lib/business-hours";
+import { assertMaxLength } from "@/lib/validation";
 
 export async function listServices(businessId: string) {
   return prisma.service.findMany({
@@ -85,6 +86,11 @@ export async function createBooking(
   },
   options?: { enforceBusinessHours?: boolean }
 ) {
+  // Tanto /admin/reservas como la reserva pública ya limitan las notas a
+  // 1000 caracteres en su action, pero createBooking no debería depender de
+  // que ese sea el único caller — mismo motivo que llevó a repetir este
+  // chequeo acá adentro para el resto de los campos de texto libre.
+  if (input.notes) assertMaxLength(input.notes, 1000, "Las notas");
   const service = await prisma.service.findFirstOrThrow({
     where: { id: input.serviceId, businessId },
   });

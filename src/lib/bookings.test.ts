@@ -99,6 +99,20 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
     expect(booking.productRequests[0]).toMatchObject({ productId, quantity: 10 });
   });
 
+  it("rejects notes longer than 1000 characters instead of trusting the caller already validated them", async () => {
+    const start = new Date("2027-01-18T10:00:00Z");
+    await expect(
+      createBooking(businessId, {
+        clientName: "Cliente Notas Largas",
+        clientEmail: "cliente-notas-largas@example.com",
+        serviceId,
+        staffId,
+        startTime: start,
+        notes: "a".repeat(1001),
+      })
+    ).rejects.toThrow(/demasiado largo/);
+  });
+
   it("rejects a booking that overlaps an existing one for the same staff", async () => {
     const start = new Date("2027-01-15T10:00:00Z");
     await createBooking(businessId, {
