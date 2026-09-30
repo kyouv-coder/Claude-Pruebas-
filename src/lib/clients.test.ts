@@ -258,6 +258,12 @@ describeIfDb("updateClientNotes — aislamiento multi-tenant", () => {
     const updated = await updateClientNotes(businessId, clientId, "Prefiere la tarde");
     expect(updated.notes).toBe("Prefiere la tarde");
   });
+
+  it("rejects notes longer than 1000 characters even if the caller doesn't validate", async () => {
+    await expect(updateClientNotes(businessId, clientId, "a".repeat(1001))).rejects.toThrow(
+      /demasiado larg/
+    );
+  });
 });
 
 describeIfDb("getClientDetail", () => {

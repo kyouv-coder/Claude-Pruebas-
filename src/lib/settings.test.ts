@@ -21,6 +21,8 @@ import {
   listAllProducts,
   listAllStaff,
   updateBusinessProfile,
+  updateSlackWebhook,
+  updateCancellationPolicy,
 } from "./settings";
 
 // Test de integración contra Postgres real: valida el mismo tipo de cosas
@@ -406,5 +408,29 @@ describeIfDb("setServiceActive / setProductActive / setStaffActive / listAllServ
     await updateBusinessProfile(businessId, { description: "Descripción A", address: "Dirección A" });
     const otherBefore = await prisma.business.findUnique({ where: { id: otherBusinessId } });
     expect(otherBefore?.description).not.toBe("Descripción A");
+  });
+
+  it("updateBusinessProfile rechaza una descripción o dirección demasiado larga aunque el caller no valide", async () => {
+    await expect(
+      updateBusinessProfile(businessId, { description: "a".repeat(801) })
+    ).rejects.toThrow(/demasiado larg/);
+    await expect(
+      updateBusinessProfile(businessId, { address: "a".repeat(301) })
+    ).rejects.toThrow(/demasiado larg/);
+  });
+
+  it("updateSlackWebhook rechaza una URL demasiado larga o que no sea de Slack aunque el caller no valide", async () => {
+    await expect(
+      updateSlackWebhook(businessId, `https://hooks.slack.com/${"a".repeat(500)}`)
+    ).rejects.toThrow(/demasiado larg/);
+    await expect(updateSlackWebhook(businessId, "https://evil.example.com/webhook")).rejects.toThrow(
+      /Incoming Webhook de Slack/
+    );
+  });
+
+  it("updateCancellationPolicy rechaza un texto demasiado largo aunque el caller no valide", async () => {
+    await expect(updateCancellationPolicy(businessId, "a".repeat(1001))).rejects.toThrow(
+      /demasiado larg/
+    );
   });
 });

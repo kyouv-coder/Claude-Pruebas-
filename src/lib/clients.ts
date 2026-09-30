@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { assertMaxLength } from "@/lib/validation";
 
 export async function listClients(businessId: string) {
   const clients = await prisma.client.findMany({
@@ -78,6 +79,7 @@ export async function listFrequentNoShowClients(businessId: string, minCount = 2
 }
 
 export async function updateClientNotes(businessId: string, id: string, notes: string) {
+  assertMaxLength(notes, 1000, "Las notas");
   return prisma.client.update({
     where: { id, businessId },
     data: { notes: notes || null },

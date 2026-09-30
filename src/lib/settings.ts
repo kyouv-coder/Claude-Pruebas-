@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
-import { assertFiniteAmount } from "@/lib/validation";
+import { assertFiniteAmount, assertMaxLength } from "@/lib/validation";
 
 // Mismo motivo que en pos.ts/finance.ts (sellProduct, redeemGiftCard,
 // createExpense): la acción del formulario ya valida esto, pero estas
@@ -142,6 +142,12 @@ export async function updateBusinessProfile(
   businessId: string,
   input: { description?: string; address?: string }
 ) {
+  // Mismo motivo que saveBusinessHours: la acción del formulario ya limita
+  // el largo, pero esta función no debería confiar en eso — la dirección se
+  // muestra prominente en la página pública de reserva y sin este chequeo
+  // acá un valor gigante se guardaría tal cual.
+  if (input.description) assertMaxLength(input.description, 800, "La descripción");
+  if (input.address) assertMaxLength(input.address, 300, "La dirección");
   return prisma.business.update({
     where: { id: businessId },
     data: {
@@ -245,6 +251,16 @@ export async function getProductImage(businessId: string, id: string) {
 }
 
 export async function updateSlackWebhook(businessId: string, url: string | null) {
+  // Mismo motivo que updateBusinessProfile: la acción ya valida el largo y
+  // el prefijo, pero esta función no debería confiar en el único caller.
+  if (url) {
+    assertMaxLength(url, 500, "La URL");
+    if (!url.startsWith("https://hooks.slack.com/")) {
+      throw new Error(
+        "Tiene que ser una URL de Incoming Webhook de Slack (empieza con https://hooks.slack.com/)."
+      );
+    }
+  }
   return prisma.business.update({
     where: { id: businessId },
     data: { slackWebhookUrl: url },
@@ -252,6 +268,7 @@ export async function updateSlackWebhook(businessId: string, url: string | null)
 }
 
 export async function updateCancellationPolicy(businessId: string, policy: string | null) {
+  if (policy) assertMaxLength(policy, 1000, "El texto");
   return prisma.business.update({
     where: { id: businessId },
     data: { cancellationPolicy: policy },

@@ -18,3 +18,16 @@ export function assertFiniteAmount(
     );
   }
 }
+
+// Mismo motivo que saveBusinessHours (business-hours.ts): varios campos de
+// texto libre (notas de cliente, política de cancelación, descripción y
+// dirección del negocio) ya tienen un tope de largo en la acción del
+// formulario, pero las funciones de lib/ que finalmente escriben en la base
+// no deberían confiar en que ese sea el único caller — sin este chequeo acá
+// también, un valor gigante llegado por otro camino (o un cambio futuro en
+// la acción que se olvide del límite) se guardaría tal cual.
+export function assertMaxLength(value: string, max: number, label: string) {
+  if (value.length > max) {
+    throw new Error(`${label} es demasiado largo (máximo ${max} caracteres).`);
+  }
+}
