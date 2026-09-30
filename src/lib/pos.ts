@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import type { PaymentMethod } from "@/generated/prisma";
-import { assertFiniteAmount } from "@/lib/validation";
+import { assertFiniteAmount, assertMaxLength } from "@/lib/validation";
 
 async function getOperator() {
   const user = await getCurrentUser();
@@ -292,6 +292,12 @@ export async function sellGiftCard(
   // monto negativo, cero o "Infinity" se guardaba tal cual en la venta,
   // en la giftcard emitida y en su transacción de ISSUE.
   assertFiniteAmount(input.amount, "El monto");
+  // Mismo motivo que createBooking (bookings.ts): la acción de Caja ya
+  // limita estos campos de texto libre, pero sellGiftCard no debería
+  // depender de que ese sea el único caller.
+  assertMaxLength(input.clientName, 150, "El nombre del cliente");
+  if (input.clientPhone) assertMaxLength(input.clientPhone, 30, "El teléfono");
+  if (input.clientEmail) assertMaxLength(input.clientEmail, 255, "El email");
   // Sin este chequeo se podía vender una giftcard con vencimiento en el
   // pasado: el cliente paga en el momento y la tarjeta ya nace inválida
   // para canjear (redeemGiftCard la rechaza igual que una vencida normal).

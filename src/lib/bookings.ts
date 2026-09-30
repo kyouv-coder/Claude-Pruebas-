@@ -86,11 +86,14 @@ export async function createBooking(
   },
   options?: { enforceBusinessHours?: boolean }
 ) {
-  // Tanto /admin/reservas como la reserva pública ya limitan las notas a
-  // 1000 caracteres en su action, pero createBooking no debería depender de
-  // que ese sea el único caller — mismo motivo que llevó a repetir este
+  // Tanto /admin/reservas como la reserva pública ya limitan las notas y los
+  // datos del cliente en su action, pero createBooking no debería depender
+  // de que ese sea el único caller — mismo motivo que llevó a repetir este
   // chequeo acá adentro para el resto de los campos de texto libre.
   if (input.notes) assertMaxLength(input.notes, 1000, "Las notas");
+  assertMaxLength(input.clientName, 150, "El nombre");
+  if (input.clientPhone) assertMaxLength(input.clientPhone, 30, "El teléfono");
+  if (input.clientEmail) assertMaxLength(input.clientEmail, 255, "El email");
   const service = await prisma.service.findFirstOrThrow({
     where: { id: input.serviceId, businessId },
   });
