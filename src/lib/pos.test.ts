@@ -429,6 +429,54 @@ describeIfDb("sellGiftCard — no deja un cliente huérfano si falla la venta", 
     }
   );
 
+  it("rejects a client name longer than 150 characters before touching the database", async () => {
+    await expect(
+      sellGiftCard(businessId, {
+        clientName: "a".repeat(151),
+        amount: 1000,
+        paymentMethod: "CASH",
+        cashSessionId: "esta-caja-no-existe",
+      })
+    ).rejects.toThrow(/demasiado largo/);
+
+    const orphan = await prisma.client.findFirst({
+      where: { businessId, name: "a".repeat(151) },
+    });
+    expect(orphan).toBeNull();
+  });
+
+  it("rejects a client phone longer than 30 characters before touching the database", async () => {
+    const clientName = "Cliente Telefono Largo Giftcard";
+    await expect(
+      sellGiftCard(businessId, {
+        clientName,
+        clientPhone: "1".repeat(31),
+        amount: 1000,
+        paymentMethod: "CASH",
+        cashSessionId: "esta-caja-no-existe",
+      })
+    ).rejects.toThrow(/demasiado largo/);
+
+    const orphan = await prisma.client.findFirst({ where: { businessId, name: clientName } });
+    expect(orphan).toBeNull();
+  });
+
+  it("rejects a client email longer than 255 characters before touching the database", async () => {
+    const clientName = "Cliente Email Largo Giftcard";
+    await expect(
+      sellGiftCard(businessId, {
+        clientName,
+        clientEmail: `${"a".repeat(250)}@example.com`,
+        amount: 1000,
+        paymentMethod: "CASH",
+        cashSessionId: "esta-caja-no-existe",
+      })
+    ).rejects.toThrow(/demasiado largo/);
+
+    const orphan = await prisma.client.findFirst({ where: { businessId, name: clientName } });
+    expect(orphan).toBeNull();
+  });
+
   it("stores the new client's email in lowercase even if it was typed with mixed case", async () => {
     const operator = await prisma.user.create({
       data: {

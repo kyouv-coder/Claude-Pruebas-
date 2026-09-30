@@ -113,6 +113,46 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
     ).rejects.toThrow(/demasiado largo/);
   });
 
+  it("rejects a client name longer than 150 characters instead of trusting the caller already validated it", async () => {
+    const start = new Date("2027-01-18T11:00:00Z");
+    await expect(
+      createBooking(businessId, {
+        clientName: "a".repeat(151),
+        clientEmail: "cliente-nombre-largo@example.com",
+        serviceId,
+        staffId,
+        startTime: start,
+      })
+    ).rejects.toThrow(/demasiado largo/);
+  });
+
+  it("rejects a client phone longer than 30 characters instead of trusting the caller already validated it", async () => {
+    const start = new Date("2027-01-18T12:00:00Z");
+    await expect(
+      createBooking(businessId, {
+        clientName: "Cliente Telefono Largo",
+        clientEmail: "cliente-telefono-largo@example.com",
+        clientPhone: "1".repeat(31),
+        serviceId,
+        staffId,
+        startTime: start,
+      })
+    ).rejects.toThrow(/demasiado largo/);
+  });
+
+  it("rejects a client email longer than 255 characters instead of trusting the caller already validated it", async () => {
+    const start = new Date("2027-01-18T13:00:00Z");
+    await expect(
+      createBooking(businessId, {
+        clientName: "Cliente Email Largo",
+        clientEmail: `${"a".repeat(250)}@example.com`,
+        serviceId,
+        staffId,
+        startTime: start,
+      })
+    ).rejects.toThrow(/demasiado largo/);
+  });
+
   it("rejects a booking that overlaps an existing one for the same staff", async () => {
     const start = new Date("2027-01-15T10:00:00Z");
     await createBooking(businessId, {
