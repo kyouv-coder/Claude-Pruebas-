@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertFiniteAmount } from "./validation";
+import { assertFiniteAmount, assertMaxLength } from "./validation";
 
 describe("assertFiniteAmount", () => {
   it("acepta un monto positivo finito", () => {
@@ -33,6 +33,32 @@ describe("assertFiniteAmount", () => {
   it("rechaza NaN", () => {
     expect(() => assertFiniteAmount(NaN, "El monto")).toThrow(
       "El monto debe ser un número mayor a 0."
+    );
+  });
+});
+
+describe("assertMaxLength", () => {
+  it("acepta un valor por debajo del máximo", () => {
+    expect(() => assertMaxLength("hola", 10, "El nombre")).not.toThrow();
+  });
+
+  it("acepta un valor exactamente en el máximo (no es 'demasiado largo')", () => {
+    expect(() => assertMaxLength("12345", 5, "El nombre")).not.toThrow();
+  });
+
+  it("rechaza un valor que supera el máximo por un solo carácter", () => {
+    expect(() => assertMaxLength("123456", 5, "El nombre")).toThrow(
+      "El nombre es demasiado largo (máximo 5 caracteres)."
+    );
+  });
+
+  it("acepta un string vacío", () => {
+    expect(() => assertMaxLength("", 5, "El nombre")).not.toThrow();
+  });
+
+  it("usa el label recibido en el mensaje de error", () => {
+    expect(() => assertMaxLength("demasiado largo", 3, "La dirección")).toThrow(
+      "La dirección es demasiado largo (máximo 3 caracteres)."
     );
   });
 });
