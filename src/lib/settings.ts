@@ -22,6 +22,24 @@ function assertValidStock(stock: number) {
   }
 }
 
+// Mismo motivo que assertValidPrice/assertValidDuration/assertValidStock en
+// este archivo: las acciones de Configuración ya limitan el largo de
+// nombre/descripción/email, pero estas funciones no deberían confiar en que
+// el único caller lo haga bien — un valor gigante llegado por otro camino se
+// guardaría tal cual, igual que ya se corrigió antes en createBooking y
+// sellGiftCard para los mismos campos.
+function assertValidName(name: string) {
+  assertMaxLength(name, 150, "El nombre");
+}
+
+function assertValidDescription(description: string) {
+  assertMaxLength(description, 800, "La descripción");
+}
+
+function assertValidEmail(email: string) {
+  assertMaxLength(email, 255, "El email");
+}
+
 export async function listAllServices(businessId: string) {
   return prisma.service.findMany({
     where: { businessId },
@@ -39,6 +57,8 @@ export async function createService(
     price: number;
   }
 ) {
+  assertValidName(input.name);
+  if (input.description) assertValidDescription(input.description);
   assertValidDuration(input.durationMinutes);
   assertValidPrice(input.price);
   return prisma.service.create({
@@ -62,6 +82,8 @@ export async function updateService(
     price: number;
   }
 ) {
+  assertValidName(input.name);
+  if (input.description) assertValidDescription(input.description);
   assertValidDuration(input.durationMinutes);
   assertValidPrice(input.price);
   return prisma.service.update({
@@ -193,6 +215,8 @@ export async function createProduct(
   businessId: string,
   input: { name: string; description?: string; price: number; stock: number }
 ) {
+  assertValidName(input.name);
+  if (input.description) assertValidDescription(input.description);
   assertValidPrice(input.price);
   assertValidStock(input.stock);
   return prisma.product.create({
@@ -211,6 +235,8 @@ export async function updateProduct(
   id: string,
   input: { name: string; description?: string; price: number; stock: number }
 ) {
+  assertValidName(input.name);
+  if (input.description) assertValidDescription(input.description);
   assertValidPrice(input.price);
   assertValidStock(input.stock);
   return prisma.product.update({
@@ -286,6 +312,8 @@ export async function createStaff(
   businessId: string,
   input: { name: string; email: string; password: string }
 ) {
+  assertValidName(input.name);
+  assertValidEmail(input.email);
   const passwordHash = await hashPassword(input.password);
   return prisma.user.create({
     data: {
@@ -308,6 +336,8 @@ export async function updateStaff(
   id: string,
   input: { name: string; email: string }
 ) {
+  assertValidName(input.name);
+  assertValidEmail(input.email);
   return prisma.user.update({
     where: { id, businessId },
     data: { name: input.name, email: input.email.toLowerCase() },

@@ -166,6 +166,31 @@ describeIfDb("createStaff / updateStaff — el email se normaliza a minúscula",
     });
     expect(updated.email).toBe(updated.email.toLowerCase());
   });
+
+  // createStaffAction/updateStaffAction (Configuración → Personas) ya
+  // limitan nombre (150) y email (255), pero createStaff/updateStaff no lo
+  // repetían por su cuenta — mismo hueco ya corregido para servicios y
+  // productos en este mismo archivo.
+  it("rejects a staff name or email that is too long, even if the caller doesn't validate", async () => {
+    await expect(
+      createStaff(businessId, { name: "a".repeat(151), email: `ok-${Date.now()}@example.com`, password: "changeme123" })
+    ).rejects.toThrow(/nombre/i);
+    await expect(
+      createStaff(businessId, { name: "Empleada Ok", email: `${"a".repeat(255)}@example.com`, password: "changeme123" })
+    ).rejects.toThrow(/email/i);
+
+    const staff = await createStaff(businessId, {
+      name: "Empleada Para Editar",
+      email: `para-editar-${Date.now()}@example.com`,
+      password: "changeme123",
+    });
+    await expect(
+      updateStaff(businessId, staff.id, { name: "a".repeat(151), email: staff.email })
+    ).rejects.toThrow(/nombre/i);
+    await expect(
+      updateStaff(businessId, staff.id, { name: "Empleada Para Editar", email: `${"a".repeat(255)}@example.com` })
+    ).rejects.toThrow(/email/i);
+  });
 });
 
 describeIfDb("createService / createProduct — validan precio/duración/stock por su cuenta", () => {
@@ -220,6 +245,26 @@ describeIfDb("createService / createProduct — validan precio/duración/stock p
     expect(Number(service.price)).toBe(5000);
     const product = await createProduct(businessId, { name: "Producto Válido", price: 2000, stock: 10 });
     expect(product.stock).toBe(10);
+  });
+
+  // createServiceAction/createProductAction ya limitan nombre (150) y
+  // descripción (800), pero createService/createProduct no lo repetían por
+  // su cuenta — mismo patrón ya corregido antes para createBooking y
+  // sellGiftCard. Un valor gigante llegado por otro camino se guardaba tal
+  // cual.
+  it("rejects a service/product name or description that is too long, even if the caller doesn't validate", async () => {
+    await expect(
+      createService(businessId, { name: "a".repeat(151), durationMinutes: 30, price: 1000 })
+    ).rejects.toThrow(/nombre/i);
+    await expect(
+      createService(businessId, { name: "Servicio Ok", description: "a".repeat(801), durationMinutes: 30, price: 1000 })
+    ).rejects.toThrow(/descripción/i);
+    await expect(
+      createProduct(businessId, { name: "a".repeat(151), price: 1000, stock: 5 })
+    ).rejects.toThrow(/nombre/i);
+    await expect(
+      createProduct(businessId, { name: "Producto Ok", description: "a".repeat(801), price: 1000, stock: 5 })
+    ).rejects.toThrow(/descripción/i);
   });
 });
 
