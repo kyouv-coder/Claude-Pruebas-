@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ExpenseCategory } from "@/generated/prisma";
-import { assertFiniteAmount } from "@/lib/validation";
+import { assertFiniteAmount, assertMaxLength } from "@/lib/validation";
 
 function monthRange(year: number, month: number) {
   const start = new Date(year, month - 1, 1);
@@ -85,6 +85,9 @@ export async function createExpense(
   // un monto negativo/cero se guardarían tal cual en un campo Decimal y
   // descuadrarían Finanzas.
   assertFiniteAmount(input.amount, "El monto");
+  if (input.description) {
+    assertMaxLength(input.description, 500, "La descripción");
+  }
 
   return prisma.expense.create({
     data: {

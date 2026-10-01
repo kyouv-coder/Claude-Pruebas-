@@ -105,6 +105,23 @@ describeIfDb("createExpense", () => {
     expect(count).toBe(0);
   });
 
+  it("rejects a description over the length cap instead of storing it as-is", async () => {
+    // Mismo motivo que el monto: la acción del formulario ya corta la
+    // descripción a 500 caracteres, pero createExpense no debería confiar
+    // en que el único caller lo haga bien.
+    await expect(
+      createExpense(businessId, {
+        date: new Date(),
+        category: "OTRO",
+        amount: 100,
+        description: "a".repeat(501),
+      })
+    ).rejects.toThrow(/descripci/i);
+
+    const count = await prisma.expense.count({ where: { businessId } });
+    expect(count).toBe(0);
+  });
+
   it("stores a valid expense", async () => {
     const expense = await createExpense(businessId, {
       date: new Date(),
