@@ -31,3 +31,18 @@ export function assertMaxLength(value: string, max: number, label: string) {
     throw new Error(`${label} es demasiado largo (máximo ${max} caracteres).`);
   }
 }
+
+// Tanto /admin/reservas como la reserva pública parsean `startTime` con
+// `new Date(\`${date}T${time}:00\`)` y ya chequean `Number.isNaN(startTime.getTime())`
+// antes de llamar a createBooking — pero createBooking no debería depender de
+// que ese sea el único caller, mismo motivo que el resto de los chequeos de
+// este archivo. Sin esto, un Date inválido llegado por otro camino (o un
+// cambio futuro en alguna de las dos actions que se olvide de validar)
+// hubiera seguido de largo: el `.getTime()` de endTime da NaN, y Prisma
+// recién lo rechaza al final con un error interno poco claro en vez de un
+// mensaje entendible apenas se recibe el dato.
+export function assertValidDate(value: Date, label: string) {
+  if (Number.isNaN(value.getTime())) {
+    throw new Error(`${label} no es una fecha válida.`);
+  }
+}

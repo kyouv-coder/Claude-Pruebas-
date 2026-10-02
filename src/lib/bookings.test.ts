@@ -153,6 +153,18 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
     ).rejects.toThrow(/demasiado largo/);
   });
 
+  it("rejects an invalid startTime instead of trusting the caller already validated it", async () => {
+    await expect(
+      createBooking(businessId, {
+        clientName: "Cliente Fecha Invalida",
+        clientEmail: "cliente-fecha-invalida@example.com",
+        serviceId,
+        staffId,
+        startTime: new Date("not-a-date"),
+      })
+    ).rejects.toThrow(/no es una fecha válida/);
+  });
+
   it("rejects a booking that overlaps an existing one for the same staff", async () => {
     const start = new Date("2027-01-15T10:00:00Z");
     await createBooking(businessId, {
