@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ExpenseCategory } from "@/generated/prisma";
-import { assertFiniteAmount, assertMaxLength } from "@/lib/validation";
+import { assertFiniteAmount, assertMaxLength, assertValidDate } from "@/lib/validation";
 
 function monthRange(year: number, month: number) {
   const start = new Date(year, month - 1, 1);
@@ -88,6 +88,12 @@ export async function createExpense(
   if (input.description) {
     assertMaxLength(input.description, 500, "La descripción");
   }
+  // Mismo motivo que startTime en createBooking: la acción ya valida que
+  // `date` sea una fecha real, pero esta función no debería depender de que
+  // ese sea el único caller. Sin este chequeo, un Date inválido se guardaría
+  // tal cual y listExpensesForMonth (que filtra por rango de fechas) nunca
+  // lo mostraría, perdiendo el gasto sin ningún error visible.
+  assertValidDate(input.date, "La fecha del gasto");
 
   return prisma.expense.create({
     data: {

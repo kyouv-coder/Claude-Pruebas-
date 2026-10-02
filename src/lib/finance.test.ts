@@ -122,6 +122,24 @@ describeIfDb("createExpense", () => {
     expect(count).toBe(0);
   });
 
+  it("rejects an invalid date instead of storing it as-is", async () => {
+    // Mismo motivo que startTime en createBooking: la acción ya valida la
+    // fecha, pero createExpense no debería confiar en que ese sea el único
+    // caller. Un Date inválido guardado tal cual nunca aparecería en
+    // listExpensesForMonth (filtra por rango), perdiendo el gasto en
+    // silencio.
+    await expect(
+      createExpense(businessId, {
+        date: new Date("fecha-invalida"),
+        category: "OTRO",
+        amount: 100,
+      })
+    ).rejects.toThrow(/fecha/i);
+
+    const count = await prisma.expense.count({ where: { businessId } });
+    expect(count).toBe(0);
+  });
+
   it("stores a valid expense", async () => {
     const expense = await createExpense(businessId, {
       date: new Date(),
