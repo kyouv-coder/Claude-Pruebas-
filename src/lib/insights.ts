@@ -3,7 +3,7 @@ import { listAllProducts } from "@/lib/settings";
 import { listGiftCards } from "@/lib/giftcards";
 import { getMonthlyFinancials, currentYearMonth, listSalesForMonth } from "@/lib/finance";
 import { getLastClosedCashSession } from "@/lib/pos";
-import { formatCurrency as money } from "@/lib/format";
+import { formatCurrency as money, formatDate } from "@/lib/format";
 
 export type Recommendation = {
   severity: "alta" | "media" | "info";
@@ -116,7 +116,7 @@ export async function getRecommendations(businessId: string): Promise<Recommenda
       recommendations.push({
         severity: Math.abs(diff) > 5000 ? "alta" : "media",
         title: `${diff > 0 ? "Sobrante" : "Faltante"} de ${money(Math.abs(diff))} en el último cierre de caja`,
-        description: `Cerrada el ${lastClosedSession.closedAt!.toLocaleDateString("es-AR")}. Vale la pena revisar con quien estuvo en el turno qué pudo haber pasado.`,
+        description: `Cerrada el ${formatDate(lastClosedSession.closedAt!)}. Vale la pena revisar con quien estuvo en el turno qué pudo haber pasado.`,
         href: "/admin/caja",
         linkLabel: "Ver caja",
       });

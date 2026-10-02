@@ -1,6 +1,6 @@
 import { listGiftCards, getGiftCardStats } from "@/lib/giftcards";
 import { requireBusinessId } from "@/lib/auth";
-import { formatCurrency as money } from "@/lib/format";
+import { formatCurrency as money, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -85,14 +85,14 @@ export default async function GiftCardsPage() {
                       </td>
                       <td className="px-4 py-3 text-muted">
                         {g.expiresAt
-                          ? g.expiresAt.toLocaleDateString("es-AR")
+                          ? formatDate(g.expiresAt)
                           : "Sin vencimiento"}
                       </td>
                       <td className={`px-4 py-3 font-medium ${status.color}`}>
                         {status.label}
                       </td>
                       <td className="px-4 py-3 text-muted">
-                        {g.createdAt.toLocaleDateString("es-AR")}
+                        {formatDate(g.createdAt)}
                       </td>
                     </tr>
                   );

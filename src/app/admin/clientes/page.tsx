@@ -2,7 +2,7 @@ import Link from "next/link";
 import { listClients } from "@/lib/clients";
 import { requireBusinessId, getCurrentUser } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
-import { formatCurrency as money } from "@/lib/format";
+import { formatCurrency as money, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +57,7 @@ export default async function ClientesPage() {
                     <td className="px-4 py-3 text-ink">{c.bookingsCount}</td>
                     <td className="px-4 py-3 text-ink">{money(c.totalSpent)}</td>
                     <td className="px-4 py-3 text-muted">
-                      {c.lastVisit ? c.lastVisit.toLocaleDateString("es-AR") : "—"}
+                      {c.lastVisit ? formatDate(c.lastVisit) : "—"}
                     </td>
                   </tr>
                 ))}

@@ -7,3 +7,13 @@
 export function formatCurrency(n: number): string {
   return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
 }
+
+/** Fecha corta en formato es-AR (dd/mm/aaaa), sin hora. */
+export function formatDate(d: Date): string {
+  return d.toLocaleDateString("es-AR");
+}
+
+/** Hora corta en formato es-AR (HH:mm). */
+export function formatTime(d: Date): string {
+  return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+}

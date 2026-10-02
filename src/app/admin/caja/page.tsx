@@ -14,7 +14,7 @@ import {
   SellProductForm,
   ChargeBookingForm,
 } from "./CajaForms";
-import { formatCurrency as money } from "@/lib/format";
+import { formatCurrency as money, formatTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -110,10 +110,7 @@ export default async function CajaPage() {
             <div key={b.id} className="py-3 flex items-center justify-between gap-4">
               <div className="text-sm">
                 <div className="font-medium text-ink">
-                  {b.startTime.toLocaleTimeString("es-AR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
+                  {formatTime(b.startTime)}{" "}
                   — {b.client.name}
                 </div>
                 <div className="text-muted">

@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { deleteExpenseAction } from "./actions";
 import { categoryLabel } from "./ExpenseForm";
-import { formatCurrency as money } from "@/lib/format";
+import { formatCurrency as money, formatDate } from "@/lib/format";
 
 type Expense = {
   id: string;
@@ -38,7 +38,7 @@ function ExpenseRow({ expense }: { expense: Expense }) {
     <div className="py-3 flex items-center justify-between gap-4">
       <div className="text-sm">
         <div className="font-medium text-ink">
-          {new Date(expense.date).toLocaleDateString("es-AR")} ·{" "}
+          {formatDate(new Date(expense.date))} ·{" "}
           {categoryLabel[expense.category] ?? expense.category}
         </div>
         {expense.description && (
