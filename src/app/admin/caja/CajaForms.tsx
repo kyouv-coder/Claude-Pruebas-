@@ -11,6 +11,7 @@ import {
   type ActionState,
 } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
+import { formatCurrency as money } from "@/lib/format";
 
 const initialState: ActionState = {};
 
@@ -177,7 +178,7 @@ export function SellProductForm({
         <select id="productId" name="productId" required className={inputClass}>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} — {p.price.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}{" "}
+              {p.name} — {money(p.price)}{" "}
               ({p.stock} en stock)
             </option>
           ))}

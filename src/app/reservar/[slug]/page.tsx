@@ -6,13 +6,10 @@ import {
   listPublicProducts,
 } from "@/lib/public-booking";
 import { getBusinessHours, hasConfiguredHours, DAY_NAMES } from "@/lib/business-hours";
+import { formatCurrency as money } from "@/lib/format";
 import { PublicBookingForm } from "./PublicBookingForm";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

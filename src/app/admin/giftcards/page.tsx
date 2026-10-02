@@ -1,11 +1,8 @@
 import { listGiftCards, getGiftCardStats } from "@/lib/giftcards";
 import { requireBusinessId } from "@/lib/auth";
+import { formatCurrency as money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 function statusOf(giftCard: {
   active: boolean;

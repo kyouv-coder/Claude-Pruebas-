@@ -9,12 +9,9 @@ import { requireAdmin } from "@/lib/auth";
 import { ExpenseForm } from "./ExpenseForm";
 import { ExpenseList } from "./ExpenseList";
 import { InvoiceUploadForm } from "./InvoiceUploadForm";
+import { formatCurrency as money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 function monthLabel(year: number, month: number) {
   return new Date(year, month - 1, 1).toLocaleDateString("es-AR", {

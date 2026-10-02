@@ -3,12 +3,9 @@ import { notFound } from "next/navigation";
 import { getClientDetail } from "@/lib/clients";
 import { requireBusinessId } from "@/lib/auth";
 import { NotesForm } from "./NotesForm";
+import { formatCurrency as money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 const statusLabel: Record<string, string> = {
   PENDING: "Pendiente",

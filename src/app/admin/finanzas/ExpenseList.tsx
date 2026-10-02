@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { deleteExpenseAction } from "./actions";
 import { categoryLabel } from "./ExpenseForm";
+import { formatCurrency as money } from "@/lib/format";
 
 type Expense = {
   id: string;
@@ -11,10 +12,6 @@ type Expense = {
   description: string | null;
   amount: number;
 };
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export function ExpenseList({ expenses }: { expenses: Expense[] }) {
   if (expenses.length === 0) {

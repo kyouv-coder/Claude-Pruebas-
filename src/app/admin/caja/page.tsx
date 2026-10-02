@@ -14,12 +14,9 @@ import {
   SellProductForm,
   ChargeBookingForm,
 } from "./CajaForms";
+import { formatCurrency as money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export default async function CajaPage() {
   const businessId = await requireBusinessId();

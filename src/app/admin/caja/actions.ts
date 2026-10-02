@@ -11,6 +11,7 @@ import {
   sellProduct,
 } from "@/lib/pos";
 import { requireBusinessId } from "@/lib/auth";
+import { formatCurrency as money } from "@/lib/format";
 import type { PaymentMethod } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -75,9 +76,6 @@ export async function closeCashSessionAction(
     };
   }
   revalidatePath("/admin/caja");
-
-  const money = (n: number) =>
-    n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
 
   if (result.difference === 0) {
     return { success: `Caja cerrada. Cuadra exacto: ${money(result.countedCash)}.` };

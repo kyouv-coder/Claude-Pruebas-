@@ -2,12 +2,9 @@ import Link from "next/link";
 import { listClients } from "@/lib/clients";
 import { requireBusinessId, getCurrentUser } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
+import { formatCurrency as money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export default async function ClientesPage() {
   const businessId = await requireBusinessId();

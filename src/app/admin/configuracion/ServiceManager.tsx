@@ -9,6 +9,7 @@ import {
   type ActionState,
 } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
+import { formatCurrency as money } from "@/lib/format";
 
 type Service = {
   id: string;
@@ -21,10 +22,6 @@ type Service = {
 };
 
 const initialState: ActionState = {};
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export function ServiceManager({ services }: { services: Service[] }) {
   return (

@@ -4,6 +4,7 @@ import { useActionState, useRef, useState } from "react";
 import { createPublicBookingAction, type ActionState } from "./actions";
 import { getBusyTimesAction, getDayAvailabilityAction, type DayAvailability } from "./availability";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
+import { formatCurrency as money } from "@/lib/format";
 
 type Service = { id: string; name: string; durationMinutes: number; price: number };
 type Staff = { id: string; name: string };
@@ -17,10 +18,6 @@ type Product = {
 };
 
 const initialState: ActionState = {};
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export function PublicBookingForm({
   slug,

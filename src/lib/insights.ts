@@ -3,6 +3,7 @@ import { listAllProducts } from "@/lib/settings";
 import { listGiftCards } from "@/lib/giftcards";
 import { getMonthlyFinancials, currentYearMonth, listSalesForMonth } from "@/lib/finance";
 import { getLastClosedCashSession } from "@/lib/pos";
+import { formatCurrency as money } from "@/lib/format";
 
 export type Recommendation = {
   severity: "alta" | "media" | "info";
@@ -15,10 +16,6 @@ export type Recommendation = {
 const INACTIVE_DAYS_THRESHOLD = 60;
 const GIFTCARD_EXPIRY_WARNING_DAYS = 30;
 const LOW_STOCK_THRESHOLD = 3;
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 function daysBetween(a: Date, b: Date) {
   return Math.floor((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
