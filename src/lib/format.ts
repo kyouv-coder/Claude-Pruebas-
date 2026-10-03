@@ -17,3 +17,8 @@ export function formatDate(d: Date): string {
 export function formatTime(d: Date): string {
   return d.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
 }
+
+/** Fecha y hora completas en formato es-AR (dd/mm/aaaa, HH:mm:ss). */
+export function formatDateTime(d: Date): string {
+  return d.toLocaleString("es-AR");
+}

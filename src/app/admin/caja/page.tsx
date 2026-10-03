@@ -14,7 +14,7 @@ import {
   SellProductForm,
   ChargeBookingForm,
 } from "./CajaForms";
-import { formatCurrency as money, formatTime } from "@/lib/format";
+import { formatCurrency as money, formatTime, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +42,7 @@ export default async function CajaPage() {
             }`}
           >
             <p className="font-medium text-ink mb-1">
-              Último cierre — {lastClosed.closedAt!.toLocaleString("es-AR")}
+              Último cierre — {formatDateTime(lastClosed.closedAt!)}
             </p>
             <p className="text-muted">
               Esperado: {money(Number(lastClosed.expectedCashAmount))} · Contado:{" "}
@@ -86,7 +86,7 @@ export default async function CajaPage() {
       <section className="bg-surface border border-border rounded-lg p-5 flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-lg text-ink">
-            Caja abierta desde {session.openedAt.toLocaleString("es-AR")}
+            Caja abierta desde {formatDateTime(session.openedAt)}
           </h2>
           <p className="text-sm text-muted mt-1">
             Apertura: {money(Number(session.openingAmount))} · Ventas:{" "}
