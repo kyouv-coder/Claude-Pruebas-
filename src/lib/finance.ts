@@ -253,17 +253,46 @@ export async function getYearlyFinancials(businessId: string, year: number) {
   };
 }
 
+// getYearlyTrend/getMonthlyTrend se llaman desde el dashboard (este último
+// dos veces, para 6 y 12 meses) en la misma carga de página. Antes, cada
+// período hacía su propio par de queries (sales + expenses) en paralelo,
+// así que 3 años u 12 meses significaban 6 o 24 queries para una sola
+// pantalla. Acá se trae todo el rango necesario en un único par de queries
+// (select mínimo: total/amount + fecha) y se bucketea en memoria, sin
+// importar cuántos años/meses pida el caller.
 export async function getYearlyTrend(businessId: string, yearsBack = 3) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: yearsBack }, (_, i) => currentYear - (yearsBack - 1 - i));
+  const start = new Date(years[0], 0, 1);
+  const end = new Date(years[years.length - 1] + 1, 0, 1);
 
-  return Promise.all(
-    years.map(async (year) => ({
+  const [sales, expenses] = await Promise.all([
+    prisma.sale.findMany({
+      where: { businessId, createdAt: { gte: start, lt: end } },
+      select: { total: true, createdAt: true },
+    }),
+    prisma.expense.findMany({
+      where: { businessId, date: { gte: start, lt: end } },
+      select: { amount: true, date: true },
+    }),
+  ]);
+
+  return years.map((year) => {
+    const yearSales = sales.filter((s) => s.createdAt.getFullYear() === year);
+    const yearExpenses = expenses.filter((e) => e.date.getFullYear() === year);
+    const revenue = yearSales.reduce((sum, s) => sum + Number(s.total), 0);
+    const totalExpenses = yearExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
+    return {
       year,
       label: String(year),
-      ...(await getYearlyFinancials(businessId, year)),
-    }))
-  );
+      revenue,
+      expenses: totalExpenses,
+      net: revenue - totalExpenses,
+      salesCount: yearSales.length,
+      expensesCount: yearExpenses.length,
+    };
+  });
 }
 
 export async function getMonthlyTrend(businessId: string, monthsBack = 6) {
@@ -278,12 +307,37 @@ export async function getMonthlyTrend(businessId: string, monthsBack = 6) {
     });
   }
 
-  const results = await Promise.all(
-    months.map(async (m) => {
-      const financials = await getMonthlyFinancials(businessId, m.year, m.month);
-      return { ...m, ...financials };
-    })
-  );
+  const start = new Date(months[0].year, months[0].month - 1, 1);
+  const end = new Date(months[months.length - 1].year, months[months.length - 1].month, 1);
 
-  return results;
+  const [sales, expenses] = await Promise.all([
+    prisma.sale.findMany({
+      where: { businessId, createdAt: { gte: start, lt: end } },
+      select: { total: true, createdAt: true },
+    }),
+    prisma.expense.findMany({
+      where: { businessId, date: { gte: start, lt: end } },
+      select: { amount: true, date: true },
+    }),
+  ]);
+
+  return months.map((m) => {
+    const monthSales = sales.filter(
+      (s) => s.createdAt.getFullYear() === m.year && s.createdAt.getMonth() + 1 === m.month
+    );
+    const monthExpenses = expenses.filter(
+      (e) => e.date.getFullYear() === m.year && e.date.getMonth() + 1 === m.month
+    );
+    const revenue = monthSales.reduce((sum, s) => sum + Number(s.total), 0);
+    const totalExpenses = monthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
+    return {
+      ...m,
+      revenue,
+      expenses: totalExpenses,
+      net: revenue - totalExpenses,
+      salesCount: monthSales.length,
+      expensesCount: monthExpenses.length,
+    };
+  });
 }
