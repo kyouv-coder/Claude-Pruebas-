@@ -14,7 +14,21 @@ export const dynamic = "force-dynamic";
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const business = await getBusinessBySlug(slug);
-  return { title: business ? `Reservar en ${business.name}` : "Reservar" };
+  if (!business) return { title: "Reservar" };
+
+  const title = `Reservar en ${business.name}`;
+  const description =
+    business.description?.trim() || business.copy.bookingsSubtitle || `Reservá tu turno en ${business.name}.`;
+  const images = business.coverImageMimeType
+    ? [{ url: `/reservar/${slug}/imagen-negocio` }]
+    : undefined;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, images, type: "website" },
+    twitter: { card: "summary_large_image", title, description, images: images?.map((i) => i.url) },
+  };
 }
 
 export default async function PublicBookingPage({
