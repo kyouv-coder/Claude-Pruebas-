@@ -122,7 +122,18 @@ export async function updateServiceAction(
 
 export async function toggleServiceActiveAction(id: string, active: boolean) {
   const businessId = await requireAdmin();
-  await setServiceActive(businessId, id, active);
+  try {
+    await setServiceActive(businessId, id, active);
+  } catch (e) {
+    // update() con where:{id, businessId} tira P2025 si el servicio ya no
+    // existe o es de otro negocio (doble clic, dos pestañas, id manipulado)
+    // — mismo anti-patrón ya corregido en otras acciones de doble clic.
+    // No hay nada que mostrarle a la usuaria: el servicio ya no está en su
+    // lista, así que el estado deseado (que no aparezca activo) ya es real.
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025")) {
+      throw e;
+    }
+  }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
 }
@@ -226,7 +237,13 @@ export async function updateProductAction(
 
 export async function toggleProductActiveAction(id: string, active: boolean) {
   const businessId = await requireAdmin();
-  await setProductActive(businessId, id, active);
+  try {
+    await setProductActive(businessId, id, active);
+  } catch (e) {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025")) {
+      throw e;
+    }
+  }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/caja");
 }
@@ -341,7 +358,13 @@ export async function updateStaffAction(
 
 export async function toggleStaffActiveAction(id: string, active: boolean) {
   const businessId = await requireAdmin();
-  await setStaffActive(businessId, id, active);
+  try {
+    await setStaffActive(businessId, id, active);
+  } catch (e) {
+    if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025")) {
+      throw e;
+    }
+  }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
 }
