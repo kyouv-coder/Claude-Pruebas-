@@ -355,6 +355,51 @@ describeIfDb("getYearlyFinancials / getMonthlyTrend", () => {
     expect(currentEntry).toMatchObject({ year: currentYear, label: String(currentYear) });
     expect(currentEntry.revenue).toBeGreaterThanOrEqual(4444);
   });
+
+  it("does not mix up a sale from the same calendar month of a different year (year rollover)", async () => {
+    // getMonthlyTrend bucketea solo por mes filtrando por year+month en
+    // memoria (ver finance.ts) — un monthsBack que cruza fin/comienzo de año
+    // (ej. corriendo en enero y pidiendo 6 meses atrás) arma un rango de
+    // fechas que atraviesa dos años distintos. Sin comparar también el año,
+    // una venta de "este mismo mes, pero del año pasado" se contaría en el
+    // bucket equivocado.
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Rollover",
+        email: `admin-rollover-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 0 },
+    });
+
+    const current = currentYearMonth();
+    // Misma posición de mes que el actual, pero dos años antes: cae fuera de
+    // la ventana de monthsBack=3 pero comparte "mes del año" con algún
+    // bucket si el filtro solo comparara el mes sin el año.
+    const staleSameMonthDifferentYear = new Date(current.year - 2, current.month - 1, 15);
+    await prisma.sale.create({
+      data: {
+        businessId,
+        cashSessionId: session.id,
+        total: 99999,
+        paymentMethod: "CASH",
+        createdAt: staleSameMonthDifferentYear,
+        items: { create: [{ description: "Venta de hace 2 años", quantity: 1, unitPrice: 99999 }] },
+      },
+    });
+
+    const trend = await getMonthlyTrend(businessId, 3);
+    const currentEntry = trend[trend.length - 1];
+    // La venta de hace 2 años no debe sumarse al bucket del mes actual.
+    expect(currentEntry.revenue).toBeLessThan(99999);
+    // Y ningún bucket devuelto (todos dentro de la ventana de 3 meses)
+    // corresponde a ese año viejo.
+    expect(trend.every((t) => t.year !== current.year - 2)).toBe(true);
+  });
 });
 
 describeIfDb("attachSaleInvoice", () => {
