@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ExpenseCategory } from "@/generated/prisma";
+import { assertFiniteAmount, assertMaxLength, assertValidDate } from "@/lib/validation";
 
 function monthRange(year: number, month: number) {
   const start = new Date(year, month - 1, 1);
@@ -83,9 +84,16 @@ export async function createExpense(
   // esto, pero esta función no debería confiar en el caller — "Infinity" o
   // un monto negativo/cero se guardarían tal cual en un campo Decimal y
   // descuadrarían Finanzas.
-  if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    throw new Error("El monto debe ser un número mayor a 0.");
+  assertFiniteAmount(input.amount, "El monto");
+  if (input.description) {
+    assertMaxLength(input.description, 500, "La descripción");
   }
+  // Mismo motivo que startTime en createBooking: la acción ya valida que
+  // `date` sea una fecha real, pero esta función no debería depender de que
+  // ese sea el único caller. Sin este chequeo, un Date inválido se guardaría
+  // tal cual y listExpensesForMonth (que filtra por rango de fechas) nunca
+  // lo mostraría, perdiendo el gasto sin ningún error visible.
+  assertValidDate(input.date, "La fecha del gasto");
 
   return prisma.expense.create({
     data: {
@@ -147,6 +155,24 @@ export async function listSalesForMonth(businessId: string, year: number, month:
 const ALLOWED_INVOICE_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 const MAX_INVOICE_SIZE_BYTES = 5 * 1024 * 1024;
 
+// El "type" declarado es el `.type` del File elegido por quien sube el
+// archivo, no algo confiable por sí solo — mismo motivo que
+// setServiceImage/setProductImage (src/lib/settings.ts) ya chequean los
+// primeros bytes reales del archivo, no solo el tipo que dice traer.
+function matchesDeclaredInvoiceSignature(type: string, data: Buffer): boolean {
+  if (type === "image/jpeg") {
+    return data.byteLength >= 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  }
+  if (type === "image/png") {
+    const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    return data.byteLength >= 8 && pngSignature.every((byte, i) => data[i] === byte);
+  }
+  if (type === "application/pdf") {
+    return data.byteLength >= 4 && data.subarray(0, 4).toString("ascii") === "%PDF";
+  }
+  return false;
+}
+
 export async function attachSaleInvoice(
   businessId: string,
   saleId: string,
@@ -157,6 +183,9 @@ export async function attachSaleInvoice(
   }
   if (file.data.byteLength > MAX_INVOICE_SIZE_BYTES) {
     throw new Error("El archivo no puede pesar más de 5 MB.");
+  }
+  if (!matchesDeclaredInvoiceSignature(file.type, file.data)) {
+    throw new Error("El archivo no parece ser válido para el tipo indicado.");
   }
 
   await prisma.sale.findFirstOrThrow({ where: { id: saleId, businessId } });
@@ -224,17 +253,46 @@ export async function getYearlyFinancials(businessId: string, year: number) {
   };
 }
 
+// getYearlyTrend/getMonthlyTrend se llaman desde el dashboard (este último
+// dos veces, para 6 y 12 meses) en la misma carga de página. Antes, cada
+// período hacía su propio par de queries (sales + expenses) en paralelo,
+// así que 3 años u 12 meses significaban 6 o 24 queries para una sola
+// pantalla. Acá se trae todo el rango necesario en un único par de queries
+// (select mínimo: total/amount + fecha) y se bucketea en memoria, sin
+// importar cuántos años/meses pida el caller.
 export async function getYearlyTrend(businessId: string, yearsBack = 3) {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: yearsBack }, (_, i) => currentYear - (yearsBack - 1 - i));
+  const start = new Date(years[0], 0, 1);
+  const end = new Date(years[years.length - 1] + 1, 0, 1);
 
-  return Promise.all(
-    years.map(async (year) => ({
+  const [sales, expenses] = await Promise.all([
+    prisma.sale.findMany({
+      where: { businessId, createdAt: { gte: start, lt: end } },
+      select: { total: true, createdAt: true },
+    }),
+    prisma.expense.findMany({
+      where: { businessId, date: { gte: start, lt: end } },
+      select: { amount: true, date: true },
+    }),
+  ]);
+
+  return years.map((year) => {
+    const yearSales = sales.filter((s) => s.createdAt.getFullYear() === year);
+    const yearExpenses = expenses.filter((e) => e.date.getFullYear() === year);
+    const revenue = yearSales.reduce((sum, s) => sum + Number(s.total), 0);
+    const totalExpenses = yearExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
+    return {
       year,
       label: String(year),
-      ...(await getYearlyFinancials(businessId, year)),
-    }))
-  );
+      revenue,
+      expenses: totalExpenses,
+      net: revenue - totalExpenses,
+      salesCount: yearSales.length,
+      expensesCount: yearExpenses.length,
+    };
+  });
 }
 
 export async function getMonthlyTrend(businessId: string, monthsBack = 6) {
@@ -249,12 +307,37 @@ export async function getMonthlyTrend(businessId: string, monthsBack = 6) {
     });
   }
 
-  const results = await Promise.all(
-    months.map(async (m) => {
-      const financials = await getMonthlyFinancials(businessId, m.year, m.month);
-      return { ...m, ...financials };
-    })
-  );
+  const start = new Date(months[0].year, months[0].month - 1, 1);
+  const end = new Date(months[months.length - 1].year, months[months.length - 1].month, 1);
 
-  return results;
+  const [sales, expenses] = await Promise.all([
+    prisma.sale.findMany({
+      where: { businessId, createdAt: { gte: start, lt: end } },
+      select: { total: true, createdAt: true },
+    }),
+    prisma.expense.findMany({
+      where: { businessId, date: { gte: start, lt: end } },
+      select: { amount: true, date: true },
+    }),
+  ]);
+
+  return months.map((m) => {
+    const monthSales = sales.filter(
+      (s) => s.createdAt.getFullYear() === m.year && s.createdAt.getMonth() + 1 === m.month
+    );
+    const monthExpenses = expenses.filter(
+      (e) => e.date.getFullYear() === m.year && e.date.getMonth() + 1 === m.month
+    );
+    const revenue = monthSales.reduce((sum, s) => sum + Number(s.total), 0);
+    const totalExpenses = monthExpenses.reduce((sum, e) => sum + Number(e.amount), 0);
+
+    return {
+      ...m,
+      revenue,
+      expenses: totalExpenses,
+      net: revenue - totalExpenses,
+      salesCount: monthSales.length,
+      expensesCount: monthExpenses.length,
+    };
+  });
 }

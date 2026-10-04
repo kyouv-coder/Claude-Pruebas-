@@ -9,6 +9,7 @@ import {
   type ActionState,
 } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
+import { formatCurrency as money } from "@/lib/format";
 
 type Product = {
   id: string;
@@ -21,10 +22,6 @@ type Product = {
 };
 
 const initialState: ActionState = {};
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export function ProductManager({ products }: { products: Product[] }) {
   return (
@@ -69,6 +66,7 @@ function ProductForm({
           name="name"
           defaultValue={product?.name}
           required
+          maxLength={150}
           className={inputClass}
         />
       </FormField>

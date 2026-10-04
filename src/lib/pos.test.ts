@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "./prisma";
 import { Prisma } from "@/generated/prisma";
 import {
@@ -213,6 +213,67 @@ describeIfDb("openCashSession — rechaza un monto inicial inválido", () => {
   });
 });
 
+describeIfDb("openCashSession — no permite dos cajas abiertas a la vez", () => {
+  // A diferencia del test anterior, esta rama sí necesita pasar por
+  // getOperator() (cookies() con una sesión real) — se mockea next/headers
+  // con un token firmado de verdad, mismo patrón que request.test.ts.
+  it("rejects opening a second session while one is already open for the same business", async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Doble Apertura Business",
+        businessType: "SPA",
+        slug: `test-doble-apertura-${Date.now()}`,
+      },
+    });
+    const operator = await prisma.user.create({
+      data: {
+        businessId: business.id,
+        name: "Admin Test Doble Apertura",
+        email: `admin-doble-apertura-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+
+    const secret = process.env.AUTH_SECRET!;
+    const { createSessionToken } = await import("./session");
+    const { SESSION_COOKIE } = await import("./session");
+    const token = await createSessionToken(operator.id, secret, 3600);
+
+    vi.resetModules();
+    vi.doMock("next/headers", () => ({
+      cookies: async () => ({
+        get: (key: string) => (key === SESSION_COOKIE ? { value: token } : undefined),
+      }),
+    }));
+
+    try {
+      const { openCashSession: openCashSessionWithSession } = await import("./pos");
+
+      const first = await openCashSessionWithSession(business.id, 1000);
+      expect(first.closedAt).toBeNull();
+
+      await expect(
+        openCashSessionWithSession(business.id, 500)
+      ).rejects.toThrow(/Ya hay una caja abierta/);
+
+      const sessions = await prisma.cashRegisterSession.findMany({
+        where: { businessId: business.id },
+      });
+      expect(sessions).toHaveLength(1);
+      expect(Number(sessions[0].openingAmount)).toBe(1000);
+    } finally {
+      vi.doUnmock("next/headers");
+      vi.resetModules();
+    }
+
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId: business.id } });
+    await prisma.user.deleteMany({ where: { businessId: business.id } });
+    await prisma.business.delete({ where: { id: business.id } });
+    await prisma.$disconnect();
+  });
+});
+
 describeIfDb("closeCashSession — no deja cerrar dos veces la misma caja", () => {
   let businessId: string;
 
@@ -344,6 +405,73 @@ describeIfDb("sellGiftCard — no deja un cliente huérfano si falla la venta", 
         cashSessionId: "esta-caja-no-existe",
       })
     ).rejects.toThrow();
+
+    const orphan = await prisma.client.findFirst({ where: { businessId, name: clientName } });
+    expect(orphan).toBeNull();
+  });
+
+  it.each([0, -100, NaN, Infinity])(
+    "rejects an invalid amount (%s) before touching the database",
+    async (amount) => {
+      await expect(
+        sellGiftCard(businessId, {
+          clientName: "Cliente Monto Invalido",
+          amount,
+          paymentMethod: "CASH",
+          cashSessionId: "esta-caja-no-existe",
+        })
+      ).rejects.toThrow("El monto debe ser un número mayor a 0.");
+
+      const orphan = await prisma.client.findFirst({
+        where: { businessId, name: "Cliente Monto Invalido" },
+      });
+      expect(orphan).toBeNull();
+    }
+  );
+
+  it("rejects a client name longer than 150 characters before touching the database", async () => {
+    await expect(
+      sellGiftCard(businessId, {
+        clientName: "a".repeat(151),
+        amount: 1000,
+        paymentMethod: "CASH",
+        cashSessionId: "esta-caja-no-existe",
+      })
+    ).rejects.toThrow(/demasiado largo/);
+
+    const orphan = await prisma.client.findFirst({
+      where: { businessId, name: "a".repeat(151) },
+    });
+    expect(orphan).toBeNull();
+  });
+
+  it("rejects a client phone longer than 30 characters before touching the database", async () => {
+    const clientName = "Cliente Telefono Largo Giftcard";
+    await expect(
+      sellGiftCard(businessId, {
+        clientName,
+        clientPhone: "1".repeat(31),
+        amount: 1000,
+        paymentMethod: "CASH",
+        cashSessionId: "esta-caja-no-existe",
+      })
+    ).rejects.toThrow(/demasiado largo/);
+
+    const orphan = await prisma.client.findFirst({ where: { businessId, name: clientName } });
+    expect(orphan).toBeNull();
+  });
+
+  it("rejects a client email longer than 255 characters before touching the database", async () => {
+    const clientName = "Cliente Email Largo Giftcard";
+    await expect(
+      sellGiftCard(businessId, {
+        clientName,
+        clientEmail: `${"a".repeat(250)}@example.com`,
+        amount: 1000,
+        paymentMethod: "CASH",
+        cashSessionId: "esta-caja-no-existe",
+      })
+    ).rejects.toThrow(/demasiado largo/);
 
     const orphan = await prisma.client.findFirst({ where: { businessId, name: clientName } });
     expect(orphan).toBeNull();

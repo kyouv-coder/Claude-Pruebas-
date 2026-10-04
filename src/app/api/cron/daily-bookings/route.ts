@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { sendDailyBookingsEmail, type DailyBooking } from "@/lib/email";
 import { cleanupOldRateLimitAttempts } from "@/lib/maintenance";
+import { formatTime } from "@/lib/format";
 
 export async function GET(request: NextRequest) {
   // Chequeo explícito de que CRON_SECRET esté configurado: sin esto, si la
@@ -55,10 +56,7 @@ export async function GET(request: NextRequest) {
       });
 
       const dailyBookings: DailyBooking[] = bookings.map((b) => ({
-        time: b.startTime.toLocaleTimeString("es-AR", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
+        time: formatTime(b.startTime),
         clientName: b.client.name,
         clientPhone: b.client.phone,
         serviceName: b.service.name,

@@ -26,6 +26,7 @@ export function SlackForm({ currentUrl }: { currentUrl: string | null }) {
             type="url"
             placeholder="https://hooks.slack.com/services/..."
             defaultValue={currentUrl ?? ""}
+            maxLength={500}
             className={inputClass}
           />
         </FormField>

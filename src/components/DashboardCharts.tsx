@@ -13,10 +13,7 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from "recharts";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
+import { formatCurrency as money } from "@/lib/format";
 
 export function RevenueTrendChart({
   data,

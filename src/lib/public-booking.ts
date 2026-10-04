@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getVerticalCopy } from "@/lib/verticals";
+import { formatTime } from "@/lib/format";
 
 export async function getBusinessBySlug(slug: string) {
   const business = await prisma.business.findUnique({
@@ -73,7 +74,7 @@ export async function listBusyRanges(businessId: string, staffId: string, dateSt
   });
 
   return bookings.map((b) => ({
-    start: b.startTime.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
-    end: b.endTime.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }),
+    start: formatTime(b.startTime),
+    end: formatTime(b.endTime),
   }));
 }

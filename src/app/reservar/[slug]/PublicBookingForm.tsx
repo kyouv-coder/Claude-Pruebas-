@@ -4,6 +4,7 @@ import { useActionState, useRef, useState } from "react";
 import { createPublicBookingAction, type ActionState } from "./actions";
 import { getBusyTimesAction, getDayAvailabilityAction, type DayAvailability } from "./availability";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
+import { formatCurrency as money } from "@/lib/format";
 
 type Service = { id: string; name: string; durationMinutes: number; price: number };
 type Staff = { id: string; name: string };
@@ -17,10 +18,6 @@ type Product = {
 };
 
 const initialState: ActionState = {};
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export function PublicBookingForm({
   slug,
@@ -107,12 +104,12 @@ export function PublicBookingForm({
       <FormSuccess message={state.success} />
 
       <FormField label="Tu nombre" htmlFor="pbClientName" required>
-        <input id="pbClientName" name="clientName" required autoComplete="name" className={inputClass} />
+        <input id="pbClientName" name="clientName" required autoComplete="name" maxLength={150} className={inputClass} />
       </FormField>
 
       <div className="flex gap-2">
         <FormField label="Teléfono" htmlFor="pbClientPhone">
-          <input id="pbClientPhone" name="clientPhone" autoComplete="tel" className={inputClass} />
+          <input id="pbClientPhone" name="clientPhone" autoComplete="tel" maxLength={30} className={inputClass} />
         </FormField>
         <FormField label="Email" htmlFor="pbClientEmail">
           <input
@@ -120,6 +117,7 @@ export function PublicBookingForm({
             name="clientEmail"
             type="email"
             autoComplete="email"
+            maxLength={255}
             className={inputClass}
           />
         </FormField>

@@ -30,7 +30,30 @@ export async function hasConfiguredHours(businessId: string) {
   return count > 0;
 }
 
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Mismo motivo que assertFiniteAmount en finance.ts/pos.ts/settings.ts: la
+// acción del formulario (updateBusinessHoursAction) ya valida formato y que
+// apertura sea anterior a cierre, pero esta función no debería confiar en
+// que el único caller lo haga bien — sin este chequeo, un horario guardado
+// con "closeTime" antes que "openTime" (o con horas fuera de formato HH:mm)
+// dejaría checkWithinBusinessHours rechazando cualquier reserva ese día sin
+// ningún error visible al guardar.
+function assertValidDayHours(day: DayHours) {
+  if (day.closed) return;
+  if (!TIME_RE.test(day.openTime) || !TIME_RE.test(day.closeTime)) {
+    throw new Error("Los horarios deben tener formato HH:mm.");
+  }
+  if (day.openTime >= day.closeTime) {
+    throw new Error("El horario de apertura debe ser anterior al de cierre.");
+  }
+}
+
 export async function saveBusinessHours(businessId: string, days: DayHours[]) {
+  for (const day of days) {
+    assertValidDayHours(day);
+  }
+
   await prisma.$transaction(
     days.map((d) =>
       prisma.businessHours.upsert({

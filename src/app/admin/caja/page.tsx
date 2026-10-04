@@ -14,12 +14,9 @@ import {
   SellProductForm,
   ChargeBookingForm,
 } from "./CajaForms";
+import { formatCurrency as money, formatTime, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export default async function CajaPage() {
   const businessId = await requireBusinessId();
@@ -45,7 +42,7 @@ export default async function CajaPage() {
             }`}
           >
             <p className="font-medium text-ink mb-1">
-              Último cierre — {lastClosed.closedAt!.toLocaleString("es-AR")}
+              Último cierre — {formatDateTime(lastClosed.closedAt!)}
             </p>
             <p className="text-muted">
               Esperado: {money(Number(lastClosed.expectedCashAmount))} · Contado:{" "}
@@ -89,7 +86,7 @@ export default async function CajaPage() {
       <section className="bg-surface border border-border rounded-lg p-5 flex items-start justify-between gap-4">
         <div>
           <h2 className="font-display text-lg text-ink">
-            Caja abierta desde {session.openedAt.toLocaleString("es-AR")}
+            Caja abierta desde {formatDateTime(session.openedAt)}
           </h2>
           <p className="text-sm text-muted mt-1">
             Apertura: {money(Number(session.openingAmount))} · Ventas:{" "}
@@ -113,10 +110,7 @@ export default async function CajaPage() {
             <div key={b.id} className="py-3 flex items-center justify-between gap-4">
               <div className="text-sm">
                 <div className="font-medium text-ink">
-                  {b.startTime.toLocaleTimeString("es-AR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
+                  {formatTime(b.startTime)}{" "}
                   — {b.client.name}
                 </div>
                 <div className="text-muted">

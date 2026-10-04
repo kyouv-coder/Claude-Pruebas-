@@ -9,12 +9,9 @@ import { requireAdmin } from "@/lib/auth";
 import { ExpenseForm } from "./ExpenseForm";
 import { ExpenseList } from "./ExpenseList";
 import { InvoiceUploadForm } from "./InvoiceUploadForm";
+import { formatCurrency as money, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 function monthLabel(year: number, month: number) {
   return new Date(year, month - 1, 1).toLocaleDateString("es-AR", {
@@ -151,7 +148,7 @@ export default async function FinanzasPage({
             <div key={s.id} className="py-3 flex flex-wrap items-center justify-between gap-3">
               <div className="text-sm">
                 <div className="font-medium text-ink">
-                  {s.createdAt.toLocaleString("es-AR")} — {money(Number(s.total))}
+                  {formatDateTime(s.createdAt)} — {money(Number(s.total))}
                 </div>
                 <div className="text-muted">
                   {s.client?.name ?? "Sin cliente"} ·{" "}

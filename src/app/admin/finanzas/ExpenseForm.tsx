@@ -52,7 +52,7 @@ export function ExpenseForm() {
       </FormField>
 
       <FormField label="Descripción" htmlFor="expDescription">
-        <input id="expDescription" name="description" className={inputClass} />
+        <input id="expDescription" name="description" maxLength={500} className={inputClass} />
       </FormField>
 
       <FormField label="Monto" htmlFor="expAmount" required>

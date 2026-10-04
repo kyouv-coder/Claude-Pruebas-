@@ -11,6 +11,7 @@ import {
   type ActionState,
 } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
+import { formatCurrency as money } from "@/lib/format";
 
 const initialState: ActionState = {};
 
@@ -96,16 +97,17 @@ export function SellGiftCardForm({ cashSessionId }: { cashSessionId: string }) {
       <FormSuccess message={state.success} />
 
       <FormField label="Nombre del cliente" htmlFor="gcClientName" required>
-        <input id="gcClientName" name="clientName" required className={inputClass} />
+        <input id="gcClientName" name="clientName" required maxLength={150} className={inputClass} />
       </FormField>
       <FormField label="Teléfono" htmlFor="gcClientPhone">
-        <input id="gcClientPhone" name="clientPhone" className={inputClass} />
+        <input id="gcClientPhone" name="clientPhone" maxLength={30} className={inputClass} />
       </FormField>
       <FormField label="Email" htmlFor="gcClientEmail">
         <input
           id="gcClientEmail"
           name="clientEmail"
           type="email"
+          maxLength={255}
           className={inputClass}
         />
       </FormField>
@@ -176,7 +178,7 @@ export function SellProductForm({
         <select id="productId" name="productId" required className={inputClass}>
           {products.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} — {p.price.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}{" "}
+              {p.name} — {money(p.price)}{" "}
               ({p.stock} en stock)
             </option>
           ))}

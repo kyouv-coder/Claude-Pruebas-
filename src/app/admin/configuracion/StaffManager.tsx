@@ -53,6 +53,7 @@ function StaffForm({ staff, onDone }: { staff?: Staff; onDone?: () => void }) {
           name="name"
           defaultValue={staff?.name}
           required
+          maxLength={150}
           className={inputClass}
         />
       </FormField>
@@ -63,6 +64,7 @@ function StaffForm({ staff, onDone }: { staff?: Staff; onDone?: () => void }) {
           type="email"
           defaultValue={staff?.email}
           required
+          maxLength={255}
           className={inputClass}
         />
       </FormField>
@@ -73,6 +75,7 @@ function StaffForm({ staff, onDone }: { staff?: Staff; onDone?: () => void }) {
             name="password"
             type="password"
             minLength={8}
+            maxLength={72}
             required
             autoComplete="new-password"
             className={inputClass}

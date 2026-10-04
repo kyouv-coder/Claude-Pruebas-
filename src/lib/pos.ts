@@ -2,6 +2,7 @@ import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import type { PaymentMethod } from "@/generated/prisma";
+import { assertFiniteAmount, assertMaxLength } from "@/lib/validation";
 
 async function getOperator() {
   const user = await getCurrentUser();
@@ -34,9 +35,7 @@ export async function openCashSession(businessId: string, openingAmount: number)
   // formulario ya valida esto, pero esta función no debería confiar en el
   // caller — un monto inicial negativo o no finito quedaría guardado tal
   // cual y descuadraría el arqueo de caja desde el arranque.
-  if (!Number.isFinite(openingAmount) || openingAmount < 0) {
-    throw new Error("El monto inicial debe ser un número mayor o igual a 0.");
-  }
+  assertFiniteAmount(openingAmount, "El monto inicial", { allowZero: true });
 
   const operator = await getOperator();
 
@@ -89,9 +88,7 @@ export async function closeCashSession(
   // Mismo motivo que openCashSession: sin esto, un monto contado negativo o
   // no finito se guardaría tal cual y el cierre quedaría con una
   // diferencia sin sentido.
-  if (!Number.isFinite(closingAmount) || closingAmount < 0) {
-    throw new Error("El monto de cierre debe ser un número mayor o igual a 0.");
-  }
+  assertFiniteAmount(closingAmount, "El monto de cierre", { allowZero: true });
 
   // closedAt: null en el chequeo inicial: sin esto, cerrar una caja que ya
   // estaba cerrada (sessionId viejo reenviado, doble clic) no fallaba —
@@ -289,6 +286,18 @@ export async function sellGiftCard(
     expiresAt?: Date;
   }
 ) {
+  // Mismo motivo que openCashSession/closeCashSession/redeemGiftCard: la
+  // acción del formulario ya valida esto, pero esta función no debería
+  // confiar en que el único caller lo haga bien — sin este chequeo, un
+  // monto negativo, cero o "Infinity" se guardaba tal cual en la venta,
+  // en la giftcard emitida y en su transacción de ISSUE.
+  assertFiniteAmount(input.amount, "El monto");
+  // Mismo motivo que createBooking (bookings.ts): la acción de Caja ya
+  // limita estos campos de texto libre, pero sellGiftCard no debería
+  // depender de que ese sea el único caller.
+  assertMaxLength(input.clientName, 150, "El nombre del cliente");
+  if (input.clientPhone) assertMaxLength(input.clientPhone, 30, "El teléfono");
+  if (input.clientEmail) assertMaxLength(input.clientEmail, 255, "El email");
   // Sin este chequeo se podía vender una giftcard con vencimiento en el
   // pasado: el cliente paga en el momento y la tarjeta ya nace inválida
   // para canjear (redeemGiftCard la rechaza igual que una vencida normal).
@@ -391,9 +400,7 @@ export async function redeemGiftCard(
   // negativo pasa el `gte` del update condicionado de abajo (siempre es
   // "mayor o igual" a un saldo positivo) y el `decrement` termina sumando
   // saldo a la giftcard en vez de restarlo.
-  if (!Number.isFinite(input.amount) || input.amount <= 0) {
-    throw new Error("El monto debe ser un número mayor a 0.");
-  }
+  assertFiniteAmount(input.amount, "El monto");
 
   // El código siempre se genera en mayúsculas (generateGiftCardCode) y la
   // pantalla de Caja ya lo pasa a mayúsculas antes de mandarlo, pero esta

@@ -19,12 +19,9 @@ import {
   ExpensesByCategoryChart,
 } from "@/components/DashboardCharts";
 import { RevenueTrendPanel } from "@/components/RevenueTrendPanel";
+import { formatCurrency as money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 function pct(n: number) {
   return `${(n * 100).toFixed(0)}%`;

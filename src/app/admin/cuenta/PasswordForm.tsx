@@ -32,6 +32,7 @@ export function PasswordForm() {
           type="password"
           required
           minLength={8}
+          maxLength={72}
           autoComplete="new-password"
           className={inputClass}
         />
@@ -44,6 +45,7 @@ export function PasswordForm() {
           type="password"
           required
           minLength={8}
+          maxLength={72}
           autoComplete="new-password"
           className={inputClass}
         />

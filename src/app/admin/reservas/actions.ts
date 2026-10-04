@@ -24,6 +24,19 @@ export async function createBookingAction(
   if (!clientName || !serviceId || !staffId || !date || !time) {
     return { error: "Completá cliente, servicio, profesional, fecha y hora." };
   }
+  // Mismo motivo que el nombre de servicios/productos/personas: sin tope,
+  // este campo de texto libre podía crecer sin límite.
+  if (clientName.length > 150) {
+    return { error: "El nombre del cliente es demasiado largo (máximo 150 caracteres)." };
+  }
+  // Mismo motivo que el nombre: sin tope, este campo de texto libre podía
+  // crecer sin límite.
+  if (clientPhone.length > 30) {
+    return { error: "El teléfono es demasiado largo (máximo 30 caracteres)." };
+  }
+  if (clientEmail.length > 255) {
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
+  }
   // Mismo motivo que las notas del cliente: sin tope, este campo de texto
   // libre podía crecer sin límite.
   if (notes.length > 1000) {
@@ -72,6 +85,11 @@ export async function createBookingAction(
   // reservas de hoy, la ocupación y los servicios más solicitados que
   // muestra el dashboard.
   revalidatePath("/admin/dashboard");
+  // createBooking crea el cliente si no existía (findOrCreateClient) — mismo
+  // motivo que sellGiftCardAction ya revalida /admin/clientes: un cliente
+  // nuevo cargado desde una reserva podía no aparecer ahí hasta otra
+  // navegación que refrescara esa página por otro lado.
+  revalidatePath("/admin/clientes");
   return { success: "Reserva creada." };
 }
 

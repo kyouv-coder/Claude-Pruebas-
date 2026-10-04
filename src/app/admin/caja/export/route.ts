@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { listSalesForMonth, resolveYearMonth } from "@/lib/finance";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { formatDateTime } from "@/lib/format";
 
 export async function GET(request: NextRequest) {
   // Igual que el export de gastos: el detalle de ventas de todo el mes es
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   const csv = toCsv(
     sales.map((s) => ({
-      fecha: s.createdAt.toLocaleString("es-AR"),
+      fecha: formatDateTime(s.createdAt),
       cliente: s.client?.name ?? "",
       detalle: s.items.map((i) => `${i.quantity}x ${i.description}`).join(" | "),
       metodoPago: s.paymentMethod,

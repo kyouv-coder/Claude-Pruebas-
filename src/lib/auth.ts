@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
@@ -239,7 +240,12 @@ export async function requireAdmin() {
   return user.businessId;
 }
 
-export async function getCurrentUser() {
+// cache() (React, no relación con HTTP cache) memoiza por request de
+// render: el layout de /admin ya llama a esto, y casi todas las páginas
+// hijas vuelven a llamarlo vía requireBusinessId/requireAdmin — sin esto,
+// cada página hacía un segundo (o tercer) findFirst con join a business
+// idéntico al del layout, en la misma request, para el mismo resultado.
+export const getCurrentUser = cache(async function getCurrentUser() {
   const secret = process.env.AUTH_SECRET;
   if (!secret) return null;
 
@@ -258,4 +264,4 @@ export async function getCurrentUser() {
     where: { id: session.sub, active: true },
     include: { business: { omit: { coverImageData: true } } },
   });
-}
+});

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Términos de Servicio" };
 
@@ -10,7 +11,7 @@ export default function TerminosPage() {
           ← Volver
         </Link>
         <h1 className="font-display text-2xl text-ink mt-4 mb-1">Términos de Servicio</h1>
-        <p className="text-sm text-muted mb-6">Última actualización: {new Date().toLocaleDateString("es-AR")}</p>
+        <p className="text-sm text-muted mb-6">Última actualización: {formatDate(new Date())}</p>
 
         <div className="flex flex-col gap-4 text-sm text-ink leading-relaxed">
           <p>

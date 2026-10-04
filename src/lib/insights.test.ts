@@ -99,6 +99,27 @@ describeIfDb("getRecommendations", () => {
     await prisma.cashRegisterSession.delete({ where: { id: session.id } });
   });
 
+  it("flags a small cash shortfall as 'Faltante' with 'media' severity, not 'alta'", async () => {
+    const session = await prisma.cashRegisterSession.create({
+      data: {
+        businessId,
+        openedById: adminId,
+        openingAmount: 10000,
+        closedAt: new Date(),
+        closingAmount: 9000,
+        expectedCashAmount: 10000,
+      },
+    });
+
+    const recommendations = await getRecommendations(businessId);
+    const cashRec = recommendations.find((r) => r.title.includes("cierre de caja"));
+    expect(cashRec).toBeDefined();
+    expect(cashRec?.severity).toBe("media");
+    expect(cashRec?.title).toContain("Faltante");
+
+    await prisma.cashRegisterSession.delete({ where: { id: session.id } });
+  });
+
   it("sorts recommendations with 'alta' severity before 'media' and 'info'", async () => {
     const recommendations = await getRecommendations(businessId);
     const severityRank = { alta: 0, media: 1, info: 2 };

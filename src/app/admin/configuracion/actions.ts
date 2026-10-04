@@ -44,6 +44,16 @@ function assertValidDescriptionLength(description: string): string | null {
   return null;
 }
 
+// El nombre de un servicio, producto o persona tampoco tenía tope, a pesar
+// de mostrarse en la página pública y en varios desplegables del panel.
+const MAX_NAME_LENGTH = 150;
+function assertValidNameLength(name: string): string | null {
+  if (name.length > MAX_NAME_LENGTH) {
+    return `El nombre es demasiado largo (máximo ${MAX_NAME_LENGTH} caracteres).`;
+  }
+  return null;
+}
+
 export async function createServiceAction(
   _prevState: ActionState,
   formData: FormData
@@ -54,6 +64,8 @@ export async function createServiceAction(
   const price = parsePrice(formData.get("price"));
 
   if (!name) return { error: "Ingresá un nombre para el servicio." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (!durationMinutes)
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
@@ -94,6 +106,8 @@ export async function updateServiceAction(
   const price = parsePrice(formData.get("price"));
 
   if (!name) return { error: "Ingresá un nombre para el servicio." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (!durationMinutes)
     return { error: "La duración debe ser un número entero mayor a 0." };
   if (price === null) return { error: "Ingresá un precio válido." };
@@ -184,6 +198,8 @@ export async function createProductAction(
   const stock = parseStock(formData.get("stock"));
 
   if (!name) return { error: "Ingresá un nombre para el producto." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (price === null) return { error: "Ingresá un precio válido." };
   if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
   const descriptionError = assertValidDescriptionLength(description);
@@ -215,6 +231,8 @@ export async function updateProductAction(
   const stock = parseStock(formData.get("stock"));
 
   if (!name) return { error: "Ingresá un nombre para el producto." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (price === null) return { error: "Ingresá un precio válido." };
   if (stock === null) return { error: "El stock debe ser un número entero mayor o igual a 0." };
   const descriptionError = assertValidDescriptionLength(description);
@@ -278,11 +296,19 @@ export async function uploadProductImageAction(
   return { success: "Foto actualizada." };
 }
 
+const MAX_SLACK_WEBHOOK_URL_LENGTH = 500;
+
 export async function updateSlackWebhookAction(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   const url = String(formData.get("slackWebhookUrl") || "").trim();
+
+  if (url.length > MAX_SLACK_WEBHOOK_URL_LENGTH) {
+    return {
+      error: `La URL es demasiado larga (máximo ${MAX_SLACK_WEBHOOK_URL_LENGTH} caracteres).`,
+    };
+  }
 
   if (url && !url.startsWith("https://hooks.slack.com/")) {
     return {
@@ -305,10 +331,20 @@ export async function createStaffAction(
   const password = String(formData.get("password") || "");
 
   if (!name) return { error: "Ingresá un nombre." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
+  // Mismo tope que el email del cliente (255) — el de staff no lo tenía.
+  if (email.length > 255)
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
   if (password.length < 8)
     return { error: "La contraseña inicial debe tener al menos 8 caracteres." };
+  // bcrypt trunca en silencio todo lo que pase de 72 bytes: una contraseña
+  // más larga que eso da una falsa sensación de seguridad, porque el resto
+  // nunca se compara ni afecta el hash.
+  if (password.length > 72)
+    return { error: "La contraseña inicial no puede tener más de 72 caracteres." };
 
   const businessId = await requireAdmin();
 
@@ -338,8 +374,12 @@ export async function updateStaffAction(
   const email = String(formData.get("email") || "").trim();
 
   if (!name) return { error: "Ingresá un nombre." };
+  const nameError = assertValidNameLength(name);
+  if (nameError) return { error: nameError };
   if (!email || !email.includes("@"))
     return { error: "Ingresá un email válido." };
+  if (email.length > 255)
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
 
   const businessId = await requireAdmin();
 

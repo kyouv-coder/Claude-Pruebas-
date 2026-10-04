@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { requireAdmin } from "@/lib/auth";
 import { listExpensesForMonth, resolveYearMonth } from "@/lib/finance";
 import { toCsv, csvResponse } from "@/lib/csv";
+import { formatDate } from "@/lib/format";
 
 export async function GET(request: NextRequest) {
   const businessId = await requireAdmin();
@@ -14,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   const csv = toCsv(
     expenses.map((e) => ({
-      fecha: e.date.toLocaleDateString("es-AR"),
+      fecha: formatDate(e.date),
       categoria: e.category,
       descripcion: e.description ?? "",
       monto: Number(e.amount).toFixed(2),

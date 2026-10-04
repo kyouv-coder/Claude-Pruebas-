@@ -2,7 +2,7 @@ import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "./prisma";
 import { redeemGiftCard, sellGiftCard } from "./pos";
-import { getGiftCardStats } from "./giftcards";
+import { getGiftCardStats, listGiftCards } from "./giftcards";
 
 // Test de integración contra Postgres real: la resta de saldo de una
 // giftcard es dinero real, y depende de una escritura atómica en la DB —
@@ -203,6 +203,35 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
     ).rejects.toThrow(/no puede ser en el pasado/);
   });
 
+  it("rejects redeeming a code that belongs to a different business, even if the code string matches", async () => {
+    // El código es único por (businessId, code), no globalmente (ver
+    // @@unique([businessId, code]) en el schema) — dos negocios distintos
+    // pueden terminar con el mismo código al azar. Sin filtrar por
+    // businessId acá, el staff de un negocio podía canjear por error (o a
+    // propósito) la giftcard de otro negocio con el mismo código.
+    const otherBusiness = await prisma.business.create({
+      data: {
+        name: "Test Giftcard Other Business",
+        businessType: "SPA",
+        slug: `test-giftcard-other-${Date.now()}`,
+      },
+    });
+    const sharedCode = `GC-SHARED-${Date.now()}`;
+    const foreignGiftCard = await prisma.giftCard.create({
+      data: { businessId: otherBusiness.id, code: sharedCode, initialValue: 1000, balance: 1000 },
+    });
+
+    await expect(
+      redeemGiftCard(businessId, { code: sharedCode, amount: 100, cashSessionId })
+    ).rejects.toThrow();
+
+    const unchanged = await prisma.giftCard.findUniqueOrThrow({ where: { id: foreignGiftCard.id } });
+    expect(Number(unchanged.balance)).toBe(1000);
+
+    await prisma.giftCard.deleteMany({ where: { businessId: otherBusiness.id } });
+    await prisma.business.delete({ where: { id: otherBusiness.id } });
+  });
+
   it("retries with a new code if the randomly generated one collides with an existing giftcard", async () => {
     // El código sale de Math.random().toString(36) — con un valor fijo,
     // ese primer código siempre colisiona contra uno ya emitido. El
@@ -291,5 +320,60 @@ describeIfDb("getGiftCardStats", () => {
     expect(stats.total).toBe(5);
     expect(stats.activeCount).toBe(2);
     expect(stats.outstandingBalance).toBe(3000); // 1000 + 2000
+  });
+});
+
+describeIfDb("listGiftCards", () => {
+  let businessId: string;
+  let otherBusinessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: {
+        name: "Test List Giftcards Business",
+        businessType: "SPA",
+        slug: `test-list-giftcards-${Date.now()}`,
+      },
+    });
+    businessId = business.id;
+
+    const otherBusiness = await prisma.business.create({
+      data: {
+        name: "Test List Giftcards Other Business",
+        businessType: "SPA",
+        slug: `test-list-giftcards-other-${Date.now()}`,
+      },
+    });
+    otherBusinessId = otherBusiness.id;
+  });
+
+  afterAll(async () => {
+    await prisma.giftCard.deleteMany({ where: { businessId: { in: [businessId, otherBusinessId] } } });
+    await prisma.business.deleteMany({ where: { id: { in: [businessId, otherBusinessId] } } });
+    await prisma.$disconnect();
+  });
+
+  it("only lists giftcards from this business, newest first, and never leaks another business'", async () => {
+    const older = await prisma.giftCard.create({
+      data: { businessId, code: `GC-OLD-${Date.now()}`, initialValue: 1000, balance: 1000 },
+    });
+    // Aseguramos un createdAt posterior real, no solo el orden de inserción.
+    const newer = await prisma.giftCard.create({
+      data: {
+        businessId,
+        code: `GC-NEW-${Date.now()}`,
+        initialValue: 500,
+        balance: 500,
+        createdAt: new Date(older.createdAt.getTime() + 1000),
+      },
+    });
+    await prisma.giftCard.create({
+      data: { businessId: otherBusinessId, code: `GC-OTHER-${Date.now()}`, initialValue: 700, balance: 700 },
+    });
+
+    const result = await listGiftCards(businessId);
+
+    expect(result.map((g) => g.id)).toEqual([newer.id, older.id]);
+    expect(result.every((g) => g.businessId === businessId)).toBe(true);
   });
 });

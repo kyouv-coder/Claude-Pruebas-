@@ -28,17 +28,36 @@ export async function signupAction(
   if (!businessName) {
     return { error: "Ingresá el nombre de tu negocio." };
   }
+  // Ningún campo de nombre tenía tope — a diferencia de la descripción, la
+  // dirección o las notas, que ya lo tienen — a pesar de mostrarse en la
+  // página pública de reserva y en el resto del panel.
+  if (businessName.length > 150) {
+    return { error: "El nombre del negocio es demasiado largo (máximo 150 caracteres)." };
+  }
   if (!BUSINESS_TYPE_OPTIONS.some((o) => o.value === businessType)) {
     return { error: "Elegí el rubro de tu negocio." };
   }
   if (!name) {
     return { error: "Ingresá tu nombre." };
   }
+  if (name.length > 150) {
+    return { error: "Tu nombre es demasiado largo (máximo 150 caracteres)." };
+  }
   if (!email || !email.includes("@")) {
     return { error: "Ingresá un email válido." };
   }
+  // Mismo tope que el email del cliente (255) — este no lo tenía.
+  if (email.length > 255) {
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
+  }
   if (password.length < 8) {
     return { error: "La contraseña debe tener al menos 8 caracteres." };
+  }
+  // bcrypt trunca en silencio todo lo que pase de 72 bytes: una contraseña
+  // más larga que eso da una falsa sensación de seguridad, porque el resto
+  // nunca se compara ni afecta el hash.
+  if (password.length > 72) {
+    return { error: "La contraseña no puede tener más de 72 caracteres." };
   }
 
   let userId: string;

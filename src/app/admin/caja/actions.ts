@@ -11,6 +11,7 @@ import {
   sellProduct,
 } from "@/lib/pos";
 import { requireBusinessId } from "@/lib/auth";
+import { formatCurrency as money } from "@/lib/format";
 import type { PaymentMethod } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -76,9 +77,6 @@ export async function closeCashSessionAction(
   }
   revalidatePath("/admin/caja");
 
-  const money = (n: number) =>
-    n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-
   if (result.difference === 0) {
     return { success: `Caja cerrada. Cuadra exacto: ${money(result.countedCash)}.` };
   }
@@ -142,6 +140,19 @@ export async function sellGiftCardAction(
 
   if (!clientName) {
     return { error: "Ingresá el nombre del cliente." };
+  }
+  // Mismo motivo que el nombre de cliente al reservar: sin tope, este campo
+  // de texto libre podía crecer sin límite.
+  if (clientName.length > 150) {
+    return { error: "El nombre del cliente es demasiado largo (máximo 150 caracteres)." };
+  }
+  // Mismo motivo que el nombre: sin tope, este campo de texto libre podía
+  // crecer sin límite.
+  if (clientPhone.length > 30) {
+    return { error: "El teléfono es demasiado largo (máximo 30 caracteres)." };
+  }
+  if (clientEmail.length > 255) {
+    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
   }
   // Number.isFinite, no solo > 0: "Infinity" pasa el chequeo de > 0 y
   // después rompe al guardar el Decimal en la base.

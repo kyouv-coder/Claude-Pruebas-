@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { RevenueTrendChart } from "./DashboardCharts";
+import { formatCurrency as money } from "@/lib/format";
 
 type Period = "14d" | "30d" | "12m" | "3y";
 
@@ -11,10 +12,6 @@ const PERIODS: { key: Period; label: string }[] = [
   { key: "12m", label: "Mensual" },
   { key: "3y", label: "Anual" },
 ];
-
-function money(n: number) {
-  return n.toLocaleString("es-AR", { style: "currency", currency: "ARS" });
-}
 
 export function RevenueTrendPanel({
   daily14,

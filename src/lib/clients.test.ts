@@ -130,6 +130,39 @@ describeIfDb("listClients", () => {
   });
 });
 
+describeIfDb("listClients — aislamiento multi-tenant", () => {
+  let businessId: string;
+  let otherBusinessId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Clients Isolation Business", businessType: "SPA", slug: `test-clients-iso-${Date.now()}` },
+    });
+    businessId = business.id;
+    const otherBusiness = await prisma.business.create({
+      data: { name: "Test Clients Isolation Other Business", businessType: "SPA", slug: `test-clients-iso-other-${Date.now()}` },
+    });
+    otherBusinessId = otherBusiness.id;
+
+    await prisma.client.create({ data: { businessId, name: "Cliente Propio" } });
+    await prisma.client.create({ data: { businessId: otherBusinessId, name: "Cliente Ajeno" } });
+  });
+
+  afterAll(async () => {
+    await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.client.deleteMany({ where: { businessId: otherBusinessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.business.delete({ where: { id: otherBusinessId } });
+    await prisma.$disconnect();
+  });
+
+  it("only returns clients belonging to the requested business", async () => {
+    const clients = await listClients(businessId);
+    expect(clients).toHaveLength(1);
+    expect(clients[0].name).toBe("Cliente Propio");
+  });
+});
+
 describeIfDb("listFrequentNoShowClients", () => {
   let businessId: string;
   let staffId: string;
@@ -257,6 +290,12 @@ describeIfDb("updateClientNotes — aislamiento multi-tenant", () => {
   it("updates notes for a client in the correct business", async () => {
     const updated = await updateClientNotes(businessId, clientId, "Prefiere la tarde");
     expect(updated.notes).toBe("Prefiere la tarde");
+  });
+
+  it("rejects notes longer than 1000 characters even if the caller doesn't validate", async () => {
+    await expect(updateClientNotes(businessId, clientId, "a".repeat(1001))).rejects.toThrow(
+      /demasiado larg/
+    );
   });
 });
 
