@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { SignupForm } from "./SignupForm";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Creá tu cuenta · Sistema de gestión",
+};
 
 export default function SignupPage() {
   return (

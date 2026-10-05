@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { LoginForm } from "./LoginForm";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Ingresar · Sistema de gestión",
+};
 
 export default async function LoginPage({
   searchParams,
