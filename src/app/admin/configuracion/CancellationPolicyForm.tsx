@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { updateCancellationPolicyAction, type ActionState } from "./actions";
-import { FormError, FormSuccess } from "@/components/FormField";
+import { FormError, FormField, FormSuccess, inputClass } from "@/components/FormField";
 
 const initialState: ActionState = {};
 
@@ -20,14 +20,17 @@ export function CancellationPolicyForm({ currentPolicy }: { currentPolicy: strin
       <form action={formAction} className="flex flex-col gap-3" noValidate>
         <FormError message={state.error} />
         <FormSuccess message={state.success} />
-        <textarea
-          name="cancellationPolicy"
-          rows={4}
-          maxLength={1000}
-          placeholder="Ej: Las cancelaciones se aceptan hasta 24hs antes del turno. Pasado ese plazo, se cobra el 50% del servicio en la próxima visita."
-          defaultValue={currentPolicy ?? ""}
-          className="border border-border rounded-md px-3 py-2 text-sm bg-surface text-ink placeholder:text-muted focus-visible:outline-2 focus-visible:outline-accent"
-        />
+        <FormField label="Política de cancelación" htmlFor="cancellationPolicy">
+          <textarea
+            id="cancellationPolicy"
+            name="cancellationPolicy"
+            rows={4}
+            maxLength={1000}
+            placeholder="Ej: Las cancelaciones se aceptan hasta 24hs antes del turno. Pasado ese plazo, se cobra el 50% del servicio en la próxima visita."
+            defaultValue={currentPolicy ?? ""}
+            className={inputClass}
+          />
+        </FormField>
         <button
           type="submit"
           disabled={pending}
