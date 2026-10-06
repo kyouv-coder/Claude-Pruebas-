@@ -263,3 +263,7 @@ Usando la skill `context-budget` sobre nuestro propio `.claude/`, se sacaron 9 s
 - **3 de git-worktree** (`git-worktree`, `git-worktree-status`, `git-worktree-clean`) — referenciaban comandos en `.claude/commands/` que nunca existieron en este repo, y este proyecto no trabaja con worktrees paralelos.
 - **`tdd-workflow-guide`** — duplicado casi exacto de `test-driven-dev`.
 - **`session-save`** — duplicado de `handoff-create` (que además tiene su contraparte `handoff-resume`, cosa que `session-save` no tenía).
+
+### Pendiente / gaps conocidos (continuación)
+
+- **`signUp` confiaba en que `signupAction` ya validara los topes de largo (corregido, mismo patrón)**: `signupAction` sí valida nombre del negocio/nombre/email (150/150/255 caracteres) antes de llamar a `signUp`, pero `signUp` (`src/lib/auth.ts`) no repetía ese chequeo por su cuenta — mismo anti-patrón ya corregido antes en `createBooking`, `sellGiftCard`, `createClient` y el resto de las funciones de dominio, que no deberían depender de que el único caller valide bien. Ahora `signUp` exige esos mismos límites con `assertMaxLength`, con tests.

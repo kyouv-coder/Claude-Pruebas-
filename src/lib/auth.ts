@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, type BusinessType } from "@/generated/prisma";
 import { generateUniqueSlug } from "@/lib/slug";
 import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "@/lib/session";
+import { assertMaxLength } from "@/lib/validation";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 días
 
@@ -68,6 +69,16 @@ export async function signUp(input: {
   email: string;
   password: string;
 }) {
+  // signupAction ya valida estos topes en el formulario, pero el mismo
+  // patrón usado en createBooking/sellGiftCard/createClient (etc.) es que
+  // la función de dominio no dependa de que el único caller la valide
+  // bien — sin esto, un valor gigante llegado por otro camino (o un
+  // cambio futuro en la action que se olvide del límite) se guardaba tal
+  // cual en el negocio y el usuario.
+  assertMaxLength(input.businessName, 150, "El nombre del negocio");
+  assertMaxLength(input.name, 150, "El nombre");
+  assertMaxLength(input.email, 255, "El email");
+
   const passwordHash = await hashPassword(input.password);
 
   // generateUniqueSlug chequea que el slug no exista y recién después se

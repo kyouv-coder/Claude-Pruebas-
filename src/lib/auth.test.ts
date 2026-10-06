@@ -10,6 +10,47 @@ import { signUp, checkLoginRateLimit, recordLoginAttempt, changePassword, hashPa
 const hasDb = Boolean(process.env.DATABASE_URL);
 const describeIfDb = hasDb ? describe : describe.skip;
 
+describe("signUp — topes de largo (mismo patrón que createBooking/createClient)", () => {
+  // No necesita la base: assertMaxLength tira antes de llegar a cualquier
+  // query — signupAction ya valida estos mismos topes en el formulario,
+  // pero signUp no debería depender de que ese sea el único caller.
+  it("rejects a businessName longer than 150 characters", async () => {
+    await expect(
+      signUp({
+        businessName: "a".repeat(151),
+        businessType: "SPA",
+        name: "Admin",
+        email: "admin@example.com",
+        password: "changeme123",
+      })
+    ).rejects.toThrow(/nombre del negocio es demasiado largo/);
+  });
+
+  it("rejects a name longer than 150 characters", async () => {
+    await expect(
+      signUp({
+        businessName: "Spa Luna",
+        businessType: "SPA",
+        name: "a".repeat(151),
+        email: "admin@example.com",
+        password: "changeme123",
+      })
+    ).rejects.toThrow(/nombre es demasiado largo/);
+  });
+
+  it("rejects an email longer than 255 characters", async () => {
+    await expect(
+      signUp({
+        businessName: "Spa Luna",
+        businessType: "SPA",
+        name: "Admin",
+        email: `${"a".repeat(250)}@example.com`,
+        password: "changeme123",
+      })
+    ).rejects.toThrow(/email es demasiado largo/);
+  });
+});
+
 describeIfDb("signUp — slugs únicos ante negocios con nombre parecido", () => {
   const createdBusinessIds: string[] = [];
 
