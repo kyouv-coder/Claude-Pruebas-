@@ -31,6 +31,11 @@ export function AdminSidebar({
   ];
   const visibleLinks = links.filter((link) => !link.adminOnly || isAdmin);
 
+  // Match exacto o de subpágina (ej. /admin/clientes/123, el detalle de un
+  // cliente) — con solo "===" el link de la sección quedaba sin resaltar
+  // en cualquier ruta anidada bajo ella.
+  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
   return (
     <nav
       aria-label="Navegación principal"
@@ -43,7 +48,7 @@ export function AdminSidebar({
         <p className="text-xs text-muted mt-0.5">Administración</p>
       </div>
       {visibleLinks.map((link) => {
-        const active = pathname === link.href;
+        const active = isActive(link.href);
         return (
           <Link
             key={link.href}
@@ -67,9 +72,9 @@ export function AdminSidebar({
         )}
         <Link
           href="/admin/cuenta"
-          aria-current={pathname === "/admin/cuenta" ? "page" : undefined}
+          aria-current={isActive("/admin/cuenta") ? "page" : undefined}
           className={`block rounded-md px-3 py-2 text-sm transition-colors ${
-            pathname === "/admin/cuenta"
+            isActive("/admin/cuenta")
               ? "bg-accent-soft text-ink font-medium"
               : "text-muted hover:bg-accent-soft/60 hover:text-ink"
           }`}
@@ -78,9 +83,9 @@ export function AdminSidebar({
         </Link>
         <Link
           href="/admin/soporte"
-          aria-current={pathname === "/admin/soporte" ? "page" : undefined}
+          aria-current={isActive("/admin/soporte") ? "page" : undefined}
           className={`block rounded-md px-3 py-2 text-sm transition-colors ${
-            pathname === "/admin/soporte"
+            isActive("/admin/soporte")
               ? "bg-accent-soft text-ink font-medium"
               : "text-muted hover:bg-accent-soft/60 hover:text-ink"
           }`}
