@@ -7,7 +7,11 @@ export function PublicBookingLink({ url, bookingSingular }: { url: string; booki
         Compartí este link con tus clientes — pueden pedir una {bookingSingular}{" "}
         ellos mismos, sin necesitar una cuenta.
       </p>
+      <label htmlFor="publicBookingLink" className="sr-only">
+        Link público para compartir
+      </label>
       <input
+        id="publicBookingLink"
         readOnly
         value={url}
         onFocus={(e) => e.currentTarget.select()}
