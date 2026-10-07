@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
@@ -270,8 +271,19 @@ export async function sellProduct(
   });
 }
 
+const GIFT_CARD_CODE_ALPHABET = "0123456789abcdefghijklmnopqrstuvwxyz";
+
 function generateGiftCardCode() {
-  return `GC-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+  // Math.random() no es criptográficamente seguro (en V8 es un PRNG
+  // predecible si se conoce el estado interno) y una giftcard es, en los
+  // hechos, un bearer token: quien tenga el código puede canjear el saldo
+  // sin más autenticación. randomInt usa el generador seguro del sistema
+  // operativo, igual que el resto de los secretos de esta app.
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += GIFT_CARD_CODE_ALPHABET[randomInt(GIFT_CARD_CODE_ALPHABET.length)];
+  }
+  return `GC-${code.toUpperCase()}`;
 }
 
 export async function sellGiftCard(

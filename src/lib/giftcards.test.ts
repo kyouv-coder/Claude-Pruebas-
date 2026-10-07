@@ -4,6 +4,16 @@ import { prisma } from "./prisma";
 import { redeemGiftCard, sellGiftCard } from "./pos";
 import { getGiftCardStats, listGiftCards } from "./giftcards";
 
+// node:crypto es un built-in: sus propiedades no son redefinibles, así que
+// vi.spyOn directo sobre el módulo falla con "Cannot redefine property".
+// vi.mock con importOriginal envuelve solo randomInt en un vi.fn y deja el
+// resto del módulo real intacto.
+vi.mock("node:crypto", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:crypto")>();
+  return { ...actual, randomInt: vi.fn(actual.randomInt) };
+});
+import { randomInt } from "node:crypto";
+
 // Test de integración contra Postgres real: la resta de saldo de una
 // giftcard es dinero real, y depende de una escritura atómica en la DB —
 // no se puede probar de forma aislada sin una base de verdad.
@@ -233,18 +243,27 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
   });
 
   it("retries with a new code if the randomly generated one collides with an existing giftcard", async () => {
-    // El código sale de Math.random().toString(36) — con un valor fijo,
-    // ese primer código siempre colisiona contra uno ya emitido. El
-    // segundo mockReturnValue simula un reintento con otro código.
-    const collidingCode = `GC-${(0.123456789).toString(36).slice(2, 8).toUpperCase()}`;
+    // El código sale de randomInt (crypto) armado carácter por carácter —
+    // con los primeros 6 llamados fijos en 0, ese primer código siempre
+    // colisiona contra uno ya emitido. El mockReturnValue de después simula
+    // un reintento que arma otro código distinto.
+    const collidingCode = "GC-000000";
     await prisma.giftCard.create({
       data: { businessId, code: collidingCode, initialValue: 500, balance: 500 },
     });
 
-    const randomSpy = vi
-      .spyOn(Math, "random")
-      .mockReturnValueOnce(0.123456789)
-      .mockReturnValue(0.987654321);
+    // randomInt tiene varias sobrecargas (sync y con callback); el cast
+    // deja claro que acá se usa la forma sync `(max) => number`, igual
+    // que en generateGiftCardCode.
+    const randomIntMock = vi.mocked(randomInt as (max: number) => number);
+    randomIntMock
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValueOnce(0)
+      .mockReturnValue(5);
 
     try {
       const giftCard = await sellGiftCard(businessId, {
@@ -255,7 +274,7 @@ describeIfDb("redeemGiftCard — evita dejar el saldo negativo", () => {
       });
       expect(giftCard.code).not.toBe(collidingCode);
     } finally {
-      randomSpy.mockRestore();
+      randomIntMock.mockRestore();
     }
   });
 });
