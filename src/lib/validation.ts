@@ -1,3 +1,5 @@
+import { timingSafeEqual } from "crypto";
+
 // Antes duplicado idéntico (mismo `Number.isFinite` + comparación, distinto
 // solo en el texto del campo) en finance.ts, pos.ts (tres veces) y
 // settings.ts — todos protegiendo contra el mismo caso real ya reproducido
@@ -46,6 +48,27 @@ export function assertPasswordByteLength(password: string, label = "La contrase�
   if (Buffer.byteLength(password, "utf8") > 72) {
     throw new Error(`${label} no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno).`);
   }
+}
+
+// El cron diario comparaba el header Authorization contra el secreto
+// esperado con `!==` — una comparación de strings nativa de JS corta en
+// el primer byte distinto, así que el tiempo de respuesta varía según
+// cuántos caracteres iniciales coinciden. Eso deja un side-channel de
+// timing: alguien sin el secreto puede ir adivinándolo carácter por
+// carácter midiendo cuál intento tarda un poco más en responder.
+// `crypto.timingSafeEqual` compara en tiempo constante, pero exige que
+// ambos buffers tengan el mismo largo (si no, tira en vez de comparar) —
+// por eso el chequeo de longitud va primero, con un valor que de todas
+// formas nunca va a matchear en vez de cortar temprano revelando el largo
+// real esperado del lado del atacante (el largo de `expected` siempre es
+// el mismo, fijo por `CRON_SECRET`, así que no agrega información).
+export function timingSafeEqualStrings(actual: string, expected: string) {
+  const actualBuffer = Buffer.from(actual, "utf8");
+  const expectedBuffer = Buffer.from(expected, "utf8");
+  if (actualBuffer.length !== expectedBuffer.length) {
+    return timingSafeEqual(expectedBuffer, expectedBuffer) && false;
+  }
+  return timingSafeEqual(actualBuffer, expectedBuffer);
 }
 
 // Tanto /admin/reservas como la reserva pública parsean `startTime` con

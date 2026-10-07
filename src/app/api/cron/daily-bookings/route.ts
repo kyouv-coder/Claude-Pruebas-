@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendDailyBookingsEmail, type DailyBooking } from "@/lib/email";
 import { cleanupOldRateLimitAttempts } from "@/lib/maintenance";
 import { formatTime } from "@/lib/format";
+import { timingSafeEqualStrings } from "@/lib/validation";
 
 export async function GET(request: NextRequest) {
   // Chequeo explícito de que CRON_SECRET esté configurado: sin esto, si la
@@ -11,7 +12,10 @@ export async function GET(request: NextRequest) {
   // autenticable por cualquiera en vez de fallar cerrado.
   const cronSecret = process.env.CRON_SECRET;
   const authHeader = request.headers.get("authorization");
-  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+  // timingSafeEqualStrings en vez de `!==`: una comparación de strings
+  // nativa corta en el primer carácter distinto, filtrando por timing
+  // cuántos caracteres iniciales del secreto adivinó un intento.
+  if (!cronSecret || !authHeader || !timingSafeEqualStrings(authHeader, `Bearer ${cronSecret}`)) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 

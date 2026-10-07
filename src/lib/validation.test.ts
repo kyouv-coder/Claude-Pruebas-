@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { assertFiniteAmount, assertMaxLength, assertPasswordByteLength } from "./validation";
+import {
+  assertFiniteAmount,
+  assertMaxLength,
+  assertPasswordByteLength,
+  timingSafeEqualStrings,
+} from "./validation";
 
 describe("assertFiniteAmount", () => {
   it("acepta un monto positivo finito", () => {
@@ -83,5 +88,29 @@ describe("assertPasswordByteLength", () => {
     expect(() => assertPasswordByteLength(password)).toThrow(
       "La contraseña no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno)."
     );
+  });
+});
+
+describe("timingSafeEqualStrings", () => {
+  it("acepta dos strings idénticos", () => {
+    expect(timingSafeEqualStrings("Bearer secreto123", "Bearer secreto123")).toBe(true);
+  });
+
+  it("rechaza strings distintos del mismo largo", () => {
+    expect(timingSafeEqualStrings("Bearer secreto123", "Bearer secreto124")).toBe(false);
+  });
+
+  it("rechaza strings de largo distinto sin tirar (timingSafeEqual exige mismo largo)", () => {
+    expect(timingSafeEqualStrings("Bearer corto", "Bearer un secreto mucho más largo")).toBe(
+      false
+    );
+  });
+
+  it("rechaza un string vacío contra uno no vacío", () => {
+    expect(timingSafeEqualStrings("", "Bearer secreto")).toBe(false);
+  });
+
+  it("distingue mayúsculas de minúsculas", () => {
+    expect(timingSafeEqualStrings("Bearer Secreto", "Bearer secreto")).toBe(false);
   });
 });
