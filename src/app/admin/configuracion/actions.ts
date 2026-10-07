@@ -340,11 +340,13 @@ export async function createStaffAction(
     return { error: "El email es demasiado largo (máximo 255 caracteres)." };
   if (password.length < 8)
     return { error: "La contraseña inicial debe tener al menos 8 caracteres." };
-  // bcrypt trunca en silencio todo lo que pase de 72 bytes: una contraseña
-  // más larga que eso da una falsa sensación de seguridad, porque el resto
-  // nunca se compara ni afecta el hash.
-  if (password.length > 72)
-    return { error: "La contraseña inicial no puede tener más de 72 caracteres." };
+  // bcrypt trunca en silencio todo lo que pase de 72 BYTES al hashear: una
+  // contraseña más larga que eso da una falsa sensación de seguridad, porque
+  // el resto nunca se compara ni afecta el hash. Se mide en bytes (no
+  // `.length`, que cuenta unidades UTF-16): una contraseña con tildes o
+  // emojis puede tener 72 caracteres o menos y ya superar los 72 bytes.
+  if (Buffer.byteLength(password, "utf8") > 72)
+    return { error: "La contraseña inicial no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno)." };
 
   const businessId = await requireAdmin();
 

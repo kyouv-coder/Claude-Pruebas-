@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertFiniteAmount, assertMaxLength } from "./validation";
+import { assertFiniteAmount, assertMaxLength, assertPasswordByteLength } from "./validation";
 
 describe("assertFiniteAmount", () => {
   it("acepta un monto positivo finito", () => {
@@ -59,6 +59,29 @@ describe("assertMaxLength", () => {
   it("usa el label recibido en el mensaje de error", () => {
     expect(() => assertMaxLength("demasiado largo", 3, "La dirección")).toThrow(
       "La dirección es demasiado largo (máximo 3 caracteres)."
+    );
+  });
+});
+
+describe("assertPasswordByteLength", () => {
+  it("acepta una contraseña ASCII de 72 caracteres (72 bytes)", () => {
+    expect(() => assertPasswordByteLength("a".repeat(72))).not.toThrow();
+  });
+
+  it("rechaza una contraseña ASCII de 73 caracteres (73 bytes)", () => {
+    expect(() => assertPasswordByteLength("a".repeat(73))).toThrow(
+      "La contraseña no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno)."
+    );
+  });
+
+  it("rechaza una contraseña con tildes que tiene 72 caracteres pero más de 72 bytes", () => {
+    // "á" ocupa 2 bytes en UTF-8: 36 "á" dan 36 caracteres pero 72 bytes, y
+    // agregando más caracteres ASCII hasta llegar a 72 caracteres totales
+    // ya supera los 72 bytes aunque `.length` siga diciendo 72.
+    const password = "á".repeat(36) + "b".repeat(36);
+    expect(password.length).toBe(72);
+    expect(() => assertPasswordByteLength(password)).toThrow(
+      "La contraseña no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno)."
     );
   });
 });

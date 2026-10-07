@@ -32,6 +32,22 @@ export function assertMaxLength(value: string, max: number, label: string) {
   }
 }
 
+// bcrypt trunca en silencio todo lo que pase de 72 BYTES (no caracteres) al
+// hashear: el resto nunca se compara ni afecta el hash, dando una falsa
+// sensación de seguridad. Las tres acciones que piden una contraseña nueva
+// (signup, alta de staff, cambio de contraseña) ya comparaban
+// `password.length > 72`, pero `.length` en JS cuenta unidades UTF-16, no
+// bytes — una contraseña con tildes, "ñ" o emojis puede tener 72 caracteres
+// o menos y superar igual los 72 bytes en UTF-8 (lo que realmente mide
+// bcrypt), pasando ese chequeo sin aviso y truncándose igual. hashPassword
+// no debería depender de que las tres acciones lo validen bien: por eso
+// también se llama acá, mismo patrón que el resto de este archivo.
+export function assertPasswordByteLength(password: string, label = "La contraseña") {
+  if (Buffer.byteLength(password, "utf8") > 72) {
+    throw new Error(`${label} no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno).`);
+  }
+}
+
 // Tanto /admin/reservas como la reserva pública parsean `startTime` con
 // `new Date(\`${date}T${time}:00\`)` y ya chequean `Number.isNaN(startTime.getTime())`
 // antes de llamar a createBooking — pero createBooking no debería depender de

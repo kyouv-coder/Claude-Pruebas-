@@ -18,11 +18,13 @@ export async function changePasswordAction(
   if (newPassword.length < 8) {
     return { error: "La nueva contraseña debe tener al menos 8 caracteres." };
   }
-  // bcrypt trunca en silencio todo lo que pase de 72 bytes: una contraseña
-  // más larga que eso da una falsa sensación de seguridad, porque el resto
-  // nunca se compara ni afecta el hash.
-  if (newPassword.length > 72) {
-    return { error: "La nueva contraseña no puede tener más de 72 caracteres." };
+  // bcrypt trunca en silencio todo lo que pase de 72 BYTES al hashear: una
+  // contraseña más larga que eso da una falsa sensación de seguridad, porque
+  // el resto nunca se compara ni afecta el hash. Se mide en bytes (no
+  // `.length`, que cuenta unidades UTF-16): una contraseña con tildes o
+  // emojis puede tener 72 caracteres o menos y ya superar los 72 bytes.
+  if (Buffer.byteLength(newPassword, "utf8") > 72) {
+    return { error: "La nueva contraseña no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno)." };
   }
   if (newPassword !== confirmPassword) {
     return { error: "La confirmación no coincide con la nueva contraseña." };

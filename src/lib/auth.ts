@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma, type BusinessType } from "@/generated/prisma";
 import { generateUniqueSlug } from "@/lib/slug";
 import { SESSION_COOKIE, createSessionToken, verifySessionToken } from "@/lib/session";
-import { assertMaxLength } from "@/lib/validation";
+import { assertMaxLength, assertPasswordByteLength } from "@/lib/validation";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7; // 7 días
 
@@ -20,6 +20,7 @@ const DUMMY_HASH =
   "$2a$10$CwTycUXWue0Thq9StjUM0uJ8vJ5EexZO/Nkl6P6dLPwUv3rHKvYh6";
 
 export async function hashPassword(password: string) {
+  assertPasswordByteLength(password);
   return bcrypt.hash(password, 10);
 }
 
