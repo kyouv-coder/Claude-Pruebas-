@@ -15,6 +15,7 @@ export async function GET(
   }
 
   return new NextResponse(new Uint8Array(image.data), {
-    headers: { "Content-Type": image.mimeType },
+    // Ver comentario equivalente en imagen-servicio/[id]/route.ts.
+    headers: { "Content-Type": image.mimeType, "Cache-Control": "private, max-age=3600" },
   });
 }
