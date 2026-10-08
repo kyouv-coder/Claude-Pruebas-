@@ -50,6 +50,12 @@ export default async function PublicBookingPage({
 
   return (
     <div className="min-h-screen bg-paper">
+      <a
+        href="#reservar-formulario"
+        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:bg-ink focus:text-paper focus:rounded-md focus:px-3 focus:py-2 focus:text-sm"
+      >
+        Saltar al formulario de reserva
+      </a>
       <div className="relative">
         {business.coverImageMimeType ? (
           // eslint-disable-next-line @next/next/no-img-element -- imagen servida por una API propia, no un dominio remoto configurable
@@ -170,7 +176,7 @@ export default async function PublicBookingPage({
           </div>
         )}
 
-        <div className="bg-surface border border-border rounded-lg p-6">
+        <div id="reservar-formulario" tabIndex={-1} className="bg-surface border border-border rounded-lg p-6">
           <h2 className="font-display text-lg text-ink mb-4">{business.copy.newBookingCta}</h2>
           {services.length === 0 ? (
             <p className="text-sm text-muted text-center">
