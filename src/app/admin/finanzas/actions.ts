@@ -47,12 +47,22 @@ export async function createExpenseAction(
 
   const businessId = await requireAdmin();
 
-  await createExpense(businessId, {
-    date,
-    category,
-    description: description || undefined,
-    amount,
-  });
+  // Sin este try/catch, cualquier error inesperado de createExpense (ej. un
+  // problema transitorio de conexión con la base) tumbaba toda la página de
+  // Finanzas con el error genérico de Next — el mismo anti-patrón ya
+  // corregido antes en chargeBookingAction, sellGiftCardAction, etc.
+  try {
+    await createExpense(businessId, {
+      date,
+      category,
+      description: description || undefined,
+      amount,
+    });
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "No se pudo registrar el gasto.",
+    };
+  }
 
   revalidatePath("/admin/finanzas");
   revalidatePath("/admin/dashboard");
