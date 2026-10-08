@@ -16,6 +16,20 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // Sin esto, el navegador puede resolver DNS por adelantado para los
+          // dominios de cada link de la página (incluidos los de la landing
+          // pública /reservar/[slug]) antes de que el usuario haga clic —
+          // filtra a terceros qué dominios aparecen en la página que alguien
+          // está mirando, sin ningún beneficio funcional para esta app.
+          { key: "X-DNS-Prefetch-Control", value: "off" },
+          // Aísla cada pestaña del panel de admin de cualquier ventana de
+          // otro origen que pudiera quedarse con una referencia a ella (ej.
+          // abierta con window.open desde un sitio de terceros) — sin esto,
+          // ese otro origen podría leer/manipular algunas propiedades del
+          // objeto window de esta pestaña. No hay ningún flujo propio (OAuth,
+          // pasarela de pago) que dependa de compartir ventana con otro
+          // origen, así que no rompe nada activarlo.
+          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
           // Sin esto, un usuario que llega por http:// (link viejo, autocompletado
           // del navegador, red wifi con portal cautivo) queda expuesto a que un
           // atacante en el medio intercepte esa primera conexión antes de que
