@@ -35,7 +35,19 @@ export async function changePasswordAction(
     return { error: "No hay una sesión activa." };
   }
 
-  const result = await changePassword(user.id, currentPassword, newPassword);
+  // Sin este try/catch, cualquier error inesperado de changePassword (ej. el
+  // findUniqueOrThrow si la sesión quedó apuntando a un usuario ya borrado, o
+  // un problema transitorio de conexión con la base) tumbaba toda la página
+  // de "Mi cuenta" con el error genérico de Next — el mismo anti-patrón ya
+  // corregido antes en chargeBookingAction, createExpenseAction, etc.
+  let result;
+  try {
+    result = await changePassword(user.id, currentPassword, newPassword);
+  } catch (e) {
+    return {
+      error: e instanceof Error ? e.message : "No se pudo actualizar la contraseña.",
+    };
+  }
   if (result.error) {
     return { error: result.error };
   }
