@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertFiniteAmount,
   assertMaxLength,
+  assertMinPasswordLength,
   assertPasswordByteLength,
   sanitizeFileNameForHeader,
   timingSafeEqualStrings,
@@ -88,6 +89,24 @@ describe("assertPasswordByteLength", () => {
     expect(password.length).toBe(72);
     expect(() => assertPasswordByteLength(password)).toThrow(
       "La contraseña no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno)."
+    );
+  });
+});
+
+describe("assertMinPasswordLength", () => {
+  it("acepta una contraseña de exactamente 8 caracteres", () => {
+    expect(() => assertMinPasswordLength("a".repeat(8))).not.toThrow();
+  });
+
+  it("rechaza una contraseña de 7 caracteres", () => {
+    expect(() => assertMinPasswordLength("a".repeat(7))).toThrow(
+      "La contraseña debe tener al menos 8 caracteres."
+    );
+  });
+
+  it("usa el label recibido en el mensaje de error", () => {
+    expect(() => assertMinPasswordLength("corta", "La nueva contraseña")).toThrow(
+      "La nueva contraseña debe tener al menos 8 caracteres."
     );
   });
 });

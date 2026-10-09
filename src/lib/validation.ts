@@ -50,6 +50,21 @@ export function assertPasswordByteLength(password: string, label = "La contrase�
   }
 }
 
+// Las tres acciones que piden una contraseña nueva (signup, alta de staff,
+// cambio de contraseña) ya comparan `password.length < 8` antes de llamar a
+// hashPassword — mismo motivo que el resto de este archivo: hashPassword no
+// debería depender de que las tres lo validen bien. Sin este chequeo acá
+// también, una contraseña corta llegada por otro camino (o un cambio futuro
+// en alguna de las tres actions que se olvide del mínimo) se hashearía y
+// guardaría igual, sin ningún aviso.
+export const MIN_PASSWORD_LENGTH = 8;
+
+export function assertMinPasswordLength(password: string, label = "La contraseña") {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    throw new Error(`${label} debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+  }
+}
+
 // El cron diario comparaba el header Authorization contra el secreto
 // esperado con `!==` — una comparación de strings nativa de JS corta en
 // el primer byte distinto, así que el tiempo de respuesta varía según
