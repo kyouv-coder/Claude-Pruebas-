@@ -245,6 +245,7 @@ model GiftCard {
   transactions GiftCardTransaction[]
 
   @@unique([businessId, code])
+  @@index([clientId])
 }
 
 model GiftCardTransaction {
@@ -256,6 +257,9 @@ model GiftCardTransaction {
   sale       Sale?          @relation(fields: [saleId], references: [id])
   saleId     String?
   createdAt  DateTime       @default(now())
+
+  @@index([giftCardId])
+  @@index([saleId])
 }
 
 model CashRegisterSession {
@@ -303,6 +307,7 @@ model Sale {
 
   @@index([businessId, cashSessionId])
   @@index([businessId, createdAt])
+  @@index([clientId])
 }
 
 model SaleItem {
@@ -314,6 +319,8 @@ model SaleItem {
   description String
   quantity    Int      @default(1)
   unitPrice   Decimal  @db.Decimal(10, 2)
+
+  @@index([saleId])
 }
 
 model Expense {
