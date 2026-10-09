@@ -6,7 +6,6 @@ import {
   getSaleInvoiceFile,
   resolveYearMonth,
   currentYearMonth,
-  sanitizeFileNameForHeader,
   createExpense,
   getMonthlyFinancials,
   getExpensesByCategory,
@@ -50,20 +49,6 @@ describe("resolveYearMonth", () => {
   it("rejects a non-integer month instead of silently truncating it", () => {
     const current = currentYearMonth();
     expect(resolveYearMonth("2026", "3.5")).toEqual({ year: 2026, month: current.month });
-  });
-});
-
-describe("sanitizeFileNameForHeader", () => {
-  it("strips double quotes that would break out of the Content-Disposition filename param", () => {
-    expect(sanitizeFileNameForHeader('foo".pdf')).toBe("foo.pdf");
-  });
-
-  it("strips CR/LF that could be used for header injection", () => {
-    expect(sanitizeFileNameForHeader("foo\r\nX-Injected: 1.pdf")).toBe("fooX-Injected: 1.pdf");
-  });
-
-  it("leaves a normal file name untouched", () => {
-    expect(sanitizeFileNameForHeader("comprobante-enero.pdf")).toBe("comprobante-enero.pdf");
   });
 });
 

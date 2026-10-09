@@ -3,6 +3,7 @@ import {
   assertFiniteAmount,
   assertMaxLength,
   assertPasswordByteLength,
+  sanitizeFileNameForHeader,
   timingSafeEqualStrings,
 } from "./validation";
 
@@ -88,6 +89,20 @@ describe("assertPasswordByteLength", () => {
     expect(() => assertPasswordByteLength(password)).toThrow(
       "La contraseña no puede tener más de 72 bytes (los acentos y emojis cuentan más de uno)."
     );
+  });
+});
+
+describe("sanitizeFileNameForHeader", () => {
+  it("strips double quotes that would break out of the Content-Disposition filename param", () => {
+    expect(sanitizeFileNameForHeader('foo".pdf')).toBe("foo.pdf");
+  });
+
+  it("strips CR/LF that could be used for header injection", () => {
+    expect(sanitizeFileNameForHeader("foo\r\nX-Injected: 1.pdf")).toBe("fooX-Injected: 1.pdf");
+  });
+
+  it("leaves a normal file name untouched", () => {
+    expect(sanitizeFileNameForHeader("comprobante-enero.pdf")).toBe("comprobante-enero.pdf");
   });
 });
 

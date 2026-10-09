@@ -85,3 +85,15 @@ export function assertValidDate(value: Date, label: string) {
     throw new Error(`${label} no es una fecha válida.`);
   }
 }
+
+// Antes duplicada idéntica en finance.ts (comprobantes adjuntos) y csv.ts
+// (exports de Caja/Finanzas) — mismo motivo que llevó a centralizar
+// getClientIp en request.ts: el nombre de archivo es texto que alguien
+// elige (al subir un comprobante, o derivado de parámetros de la URL en los
+// CSV) y termina interpolado en el header Content-Disposition al
+// descargarlo. Sin sanitizar, una comilla rompe la sintaxis del header (todo
+// lo que sigue queda fuera de las comillas), y un salto de línea sería un
+// intento de header injection.
+export function sanitizeFileNameForHeader(fileName: string) {
+  return fileName.replace(/[\r\n"]/g, "");
+}

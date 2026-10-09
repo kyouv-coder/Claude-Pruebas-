@@ -2,6 +2,10 @@ import { prisma } from "@/lib/prisma";
 import type { ExpenseCategory } from "@/generated/prisma";
 import { assertFiniteAmount, assertMaxLength, assertValidDate } from "@/lib/validation";
 
+// Re-exportado desde validation.ts (donde vive ahora, compartido con
+// csv.ts) para no romper a quien ya la importaba desde acá.
+export { sanitizeFileNameForHeader } from "@/lib/validation";
+
 function monthRange(year: number, month: number) {
   const start = new Date(year, month - 1, 1);
   const end = new Date(year, month, 1);
@@ -199,15 +203,6 @@ export async function attachSaleInvoice(
       invoiceUploadedAt: new Date(),
     },
   });
-}
-
-// El nombre de archivo es texto que alguien eligió al subirlo
-// (uploadSaleInvoiceAction) y termina interpolado en el header
-// Content-Disposition al descargarlo — sin sanitizar, una comilla rompe la
-// sintaxis del header (todo lo que sigue queda fuera de las comillas), y un
-// salto de línea sería un intento de header injection.
-export function sanitizeFileNameForHeader(fileName: string) {
-  return fileName.replace(/[\r\n"]/g, "");
 }
 
 export async function getSaleInvoiceFile(businessId: string, saleId: string) {

@@ -1,3 +1,5 @@
+import { sanitizeFileNameForHeader } from "@/lib/validation";
+
 // Un valor que arranca con =, +, -, @ o tab se interpreta como fórmula al
 // abrir el CSV en Excel/Sheets — un nombre de cliente/producto malicioso
 // podría ejecutar código (CSV injection). Se neutraliza anteponiendo un
@@ -26,16 +28,6 @@ export function toCsv<T extends Record<string, unknown>>(
   );
   // BOM al inicio para que Excel reconozca UTF-8 (tildes, ñ) sin configurarlo a mano.
   return "﻿" + [header, ...lines].join("\n");
-}
-
-// Mismo motivo que sanitizeFileNameForHeader (finance.ts) para los
-// comprobantes adjuntos: el nombre termina interpolado en el header
-// Content-Disposition, y una comilla o un salto de línea rompen la sintaxis
-// o abren la puerta a un header injection. Hoy los dos únicos callers arman
-// el nombre ellos mismos a partir de año/mes ya validados, pero esta
-// función no debería depender de que siga siendo así.
-function sanitizeFileNameForHeader(fileName: string) {
-  return fileName.replace(/[\r\n"]/g, "");
 }
 
 export function csvResponse(csv: string, filename: string) {
