@@ -11,6 +11,14 @@ export async function getBusinessBySlug(slug: string) {
   return { ...business, copy: getVerticalCopy(business.businessType) };
 }
 
+// Para el sitemap: todas las páginas públicas de reserva existentes.
+export async function listPublicBusinessSlugs() {
+  return prisma.business.findMany({
+    select: { slug: true, createdAt: true },
+    orderBy: { slug: "asc" },
+  });
+}
+
 export async function listPublicServices(businessId: string) {
   const services = await prisma.service.findMany({
     where: { businessId, active: true },
