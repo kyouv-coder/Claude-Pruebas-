@@ -7,9 +7,22 @@ import {
 } from "@/lib/public-booking";
 import { getBusinessHours, hasConfiguredHours, DAY_NAMES } from "@/lib/business-hours";
 import { formatCurrency as money } from "@/lib/format";
+import { getSiteUrl } from "@/lib/site-url";
 import { PublicBookingForm } from "./PublicBookingForm";
 
 export const dynamic = "force-dynamic";
+
+// schema.org usa días de semana en inglés, lunes-primero (vs. DAY_NAMES que
+// es español domingo-primero para la UI). Mismo índice que JS Date#getDay().
+const SCHEMA_DAY_NAMES = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -48,8 +61,37 @@ export default async function PublicBookingPage({
   ]);
   const hours = hoursConfigured ? await getBusinessHours(business.id) : null;
 
+  const siteUrl = getSiteUrl();
+  const pageUrl = `${siteUrl}/reservar/${slug}`;
+  const jsonLd: Record<string, unknown> = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: business.name,
+    url: pageUrl,
+    ...(business.description ? { description: business.description } : {}),
+    ...(business.address ? { address: { "@type": "PostalAddress", streetAddress: business.address } } : {}),
+    ...(business.coverImageMimeType ? { image: `${siteUrl}/reservar/${slug}/imagen-negocio` } : {}),
+    ...(hours
+      ? {
+          openingHoursSpecification: hours
+            .filter((h) => !h.closed)
+            .map((h) => ({
+              "@type": "OpeningHoursSpecification",
+              dayOfWeek: `https://schema.org/${SCHEMA_DAY_NAMES[h.dayOfWeek]}`,
+              opens: h.openTime,
+              closes: h.closeTime,
+            })),
+        }
+      : {}),
+  };
+
   return (
     <div className="min-h-screen bg-paper">
+      {/* JSON.stringify de datos propios del negocio, no HTML de usuario */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <a
         href="#reservar-formulario"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 focus:bg-ink focus:text-paper focus:rounded-md focus:px-3 focus:py-2 focus:text-sm"
