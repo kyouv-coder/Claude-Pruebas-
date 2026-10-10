@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { Prisma, type BusinessType } from "@/generated/prisma";
 import { signUp, createSession, checkSignupRateLimit, recordSignupAttempt } from "@/lib/auth";
+import { logUnexpectedError } from "@/lib/log";
 import { BUSINESS_TYPE_OPTIONS } from "@/lib/verticals";
 import { getClientIp } from "@/lib/request";
 
@@ -67,6 +68,7 @@ export async function signupAction(
     const result = await signUp({ businessName, businessType, name, email, password });
     userId = result.user.id;
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       const target = e.meta?.target;
       if (Array.isArray(target) && target.includes("email")) {

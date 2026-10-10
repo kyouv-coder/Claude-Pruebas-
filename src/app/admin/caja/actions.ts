@@ -12,6 +12,7 @@ import {
 } from "@/lib/pos";
 import { requireBusinessId } from "@/lib/auth";
 import { formatCurrency as money } from "@/lib/format";
+import { logUnexpectedError } from "@/lib/log";
 import type { PaymentMethod } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -44,6 +45,7 @@ export async function openCashSessionAction(
   try {
     await openCashSession(businessId, openingAmount);
   } catch (e) {
+    logUnexpectedError(e);
     revalidatePath("/admin/caja");
     return {
       error: e instanceof Error ? e.message : "No se pudo abrir la caja.",
@@ -67,6 +69,7 @@ export async function closeCashSessionAction(
   try {
     result = await closeCashSession(businessId, sessionId, closingAmount);
   } catch (e) {
+    logUnexpectedError(e);
     revalidatePath("/admin/caja");
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "No se encontró una caja abierta con ese ID." };
@@ -103,6 +106,7 @@ export async function chargeBookingAction(
   try {
     await chargeBooking(businessId, bookingId, cashSessionId, paymentMethod);
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError) {
       if (e.code === "P2025") {
         return { error: "No se encontró la reserva." };
@@ -188,6 +192,7 @@ export async function sellGiftCardAction(
       expiresAt,
     });
   } catch (e) {
+    logUnexpectedError(e);
     return {
       error: e instanceof Error ? e.message : "No se pudo vender la giftcard.",
     };
@@ -227,6 +232,7 @@ export async function sellProductAction(
   try {
     await sellProduct(businessId, { productId, quantity, paymentMethod, cashSessionId });
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "No se encontró el producto." };
     }
@@ -260,6 +266,7 @@ export async function redeemGiftCardAction(
   try {
     await redeemGiftCard(businessId, { code, amount, cashSessionId });
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "No se encontró ninguna giftcard con ese código." };
     }

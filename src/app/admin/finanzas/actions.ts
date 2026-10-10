@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma";
 import { createExpense, deleteExpense, attachSaleInvoice } from "@/lib/finance";
 import { requireAdmin } from "@/lib/auth";
+import { logUnexpectedError } from "@/lib/log";
 import type { ExpenseCategory } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -59,6 +60,7 @@ export async function createExpenseAction(
       amount,
     });
   } catch (e) {
+    logUnexpectedError(e);
     return {
       error: e instanceof Error ? e.message : "No se pudo registrar el gasto.",
     };
@@ -74,6 +76,7 @@ export async function deleteExpenseAction(id: string) {
   try {
     await deleteExpense(businessId, id);
   } catch (e) {
+    logUnexpectedError(e);
     // Un doble clic en "Eliminar" (o dos pestañas) puede mandar el borrado
     // dos veces: la segunda ya no encuentra el gasto (P2025). El resultado
     // que el usuario quería (que el gasto no exista) ya está logrado, así
@@ -113,6 +116,7 @@ export async function uploadSaleInvoiceAction(
       data: buffer,
     });
   } catch (e) {
+    logUnexpectedError(e);
     // attachSaleInvoice hace un findFirstOrThrow de la venta — un P2025 acá
     // (saleId inválido) relayaba el texto verboso de Prisma en vez de un
     // mensaje entendible, mismo caso ya corregido en otras acciones.

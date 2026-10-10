@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma";
 import { updateClientNotes } from "@/lib/clients";
 import { requireBusinessId } from "@/lib/auth";
+import { logUnexpectedError } from "@/lib/log";
 
 export type ActionState = { error?: string; success?: string };
 
@@ -24,6 +25,7 @@ export async function updateClientNotesAction(
   try {
     await updateClientNotes(businessId, id, notes);
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "No se encontró el cliente." };
     }

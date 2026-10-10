@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma";
 import { createBooking, updateBookingStatus } from "@/lib/bookings";
 import { requireBusinessId, getCurrentUser } from "@/lib/auth";
+import { logUnexpectedError } from "@/lib/log";
 import { sendSlackNotification } from "@/lib/slack";
 
 export type ActionState = { error?: string; success?: string };
@@ -62,6 +63,7 @@ export async function createBookingAction(
       notes: notes || undefined,
     });
   } catch (e) {
+    logUnexpectedError(e);
     // createBooking hace un findFirstOrThrow del servicio — un P2025 acá
     // (serviceId ya no existe, o desplegable con datos viejos) relayaba el
     // texto verboso de Prisma tal cual en vez de un mensaje entendible.

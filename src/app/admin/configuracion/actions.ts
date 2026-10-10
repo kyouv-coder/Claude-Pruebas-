@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma";
+import { logUnexpectedError } from "@/lib/log";
 import {
   createService,
   updateService,
@@ -82,6 +83,7 @@ export async function createServiceAction(
       price,
     });
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe un servicio con ese nombre." };
     }
@@ -124,6 +126,7 @@ export async function updateServiceAction(
       price,
     });
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe un servicio con ese nombre." };
     }
@@ -139,6 +142,7 @@ export async function toggleServiceActiveAction(id: string, active: boolean) {
   try {
     await setServiceActive(businessId, id, active);
   } catch (e) {
+    logUnexpectedError(e);
     // update() con where:{id, businessId} tira P2025 si el servicio ya no
     // existe o es de otro negocio (doble clic, dos pestañas, id manipulado)
     // — mismo anti-patrón ya corregido en otras acciones de doble clic.
@@ -170,6 +174,7 @@ export async function uploadServiceImageAction(
   try {
     await setServiceImage(businessId, id, { type: file.type, data: buffer });
   } catch (e) {
+    logUnexpectedError(e);
     // findFirstOrThrow (setServiceImage) tira un P2025 con un mensaje
     // verboso de Prisma que no tiene sentido mostrarle a la usuaria — un id
     // manipulado (de otro negocio, o ya borrado) cae acá en vez de
@@ -210,6 +215,7 @@ export async function createProductAction(
   try {
     await createProduct(businessId, { name, description: description || undefined, price, stock });
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe un producto con ese nombre." };
     }
@@ -243,6 +249,7 @@ export async function updateProductAction(
   try {
     await updateProduct(businessId, id, { name, description: description || undefined, price, stock });
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe un producto con ese nombre." };
     }
@@ -258,6 +265,7 @@ export async function toggleProductActiveAction(id: string, active: boolean) {
   try {
     await setProductActive(businessId, id, active);
   } catch (e) {
+    logUnexpectedError(e);
     if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025")) {
       throw e;
     }
@@ -284,6 +292,7 @@ export async function uploadProductImageAction(
   try {
     await setProductImage(businessId, id, { type: file.type, data: buffer });
   } catch (e) {
+    logUnexpectedError(e);
     // Mismo motivo que uploadServiceImageAction: no relayar el mensaje
     // verboso de Prisma cuando el id no corresponde a ningún producto de
     // este negocio.
@@ -353,6 +362,7 @@ export async function createStaffAction(
   try {
     await createStaff(businessId, { name, email, password });
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe una persona con ese email." };
     }
@@ -388,6 +398,7 @@ export async function updateStaffAction(
   try {
     await updateStaff(businessId, id, { name, email });
   } catch (e) {
+    logUnexpectedError(e);
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       return { error: "Ya existe una persona con ese email." };
     }
@@ -403,6 +414,7 @@ export async function toggleStaffActiveAction(id: string, active: boolean) {
   try {
     await setStaffActive(businessId, id, active);
   } catch (e) {
+    logUnexpectedError(e);
     if (!(e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025")) {
       throw e;
     }
@@ -502,6 +514,7 @@ export async function uploadBusinessCoverImageAction(
   try {
     await setBusinessCoverImage(businessId, { type: file.type, data: buffer });
   } catch (e) {
+    logUnexpectedError(e);
     return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
   }
   revalidatePath("/admin/configuracion");

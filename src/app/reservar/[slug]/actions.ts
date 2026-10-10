@@ -11,6 +11,7 @@ import {
 } from "@/lib/public-booking";
 import { sendSlackNotification } from "@/lib/slack";
 import { getClientIp } from "@/lib/request";
+import { logUnexpectedError } from "@/lib/log";
 
 export type ActionState = { error?: string; success?: string };
 
@@ -130,6 +131,8 @@ export async function createPublicBookingAction(
           lastError = null;
           break;
         } catch (e) {
+          // Esperado: este profesional no estaba libre en ese horario:
+          // seguimos probando con el resto antes de darlo por error real.
           lastError = e instanceof Error ? e : new Error("Error desconocido");
         }
       }
@@ -154,6 +157,7 @@ export async function createPublicBookingAction(
       success: `¡Listo! Tu ${business.copy.bookingSingular} quedó agendada para el ${booking.startTime.toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}.`,
     };
   } catch (e) {
+    logUnexpectedError(e);
     return {
       error: e instanceof Error ? e.message : "No se pudo crear la reserva. Probá con otro horario.",
     };
