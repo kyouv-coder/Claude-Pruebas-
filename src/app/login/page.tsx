@@ -24,6 +24,11 @@ export default async function LoginPage({
         </p>
         <LoginForm next={params.next} />
         <p className="text-sm text-muted mt-4">
+          <Link href="/forgot-password" className="text-accent hover:underline">
+            ¿Olvidaste tu contraseña?
+          </Link>
+        </p>
+        <p className="text-sm text-muted mt-2">
           ¿No tenés cuenta todavía?{" "}
           <Link href="/signup" className="text-accent hover:underline">
             Creá tu negocio acá

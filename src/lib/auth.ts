@@ -2,6 +2,7 @@ import { cache } from "react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import bcrypt from "bcryptjs";
+import { randomBytes, createHash } from "node:crypto";
 import { prisma } from "@/lib/prisma";
 import { Prisma, type BusinessType } from "@/generated/prisma";
 import { generateUniqueSlug } from "@/lib/slug";
@@ -62,6 +63,86 @@ export async function checkLoginRateLimit(ip: string) {
 
 export async function recordLoginAttempt(ip: string) {
   await prisma.loginAttempt.create({ data: { ip } });
+}
+
+const PASSWORD_RESET_WINDOW_MINUTES = 60;
+const PASSWORD_RESET_MAX_ATTEMPTS = 5;
+
+// Mismo motivo que checkSignupRateLimit/checkLoginRateLimit: sin esto,
+// alguien podía mandar el formulario de "olvidé mi contraseña" sin límite
+// para una misma IP, ya sea para enumerar emails con cuenta o para saturar
+// de emails una bandeja ajena.
+export async function checkPasswordResetRateLimit(ip: string) {
+  const windowStart = new Date(Date.now() - PASSWORD_RESET_WINDOW_MINUTES * 60_000);
+  const recentAttempts = await prisma.passwordResetAttempt.count({
+    where: { ip, createdAt: { gte: windowStart } },
+  });
+  return recentAttempts < PASSWORD_RESET_MAX_ATTEMPTS;
+}
+
+export async function recordPasswordResetAttempt(ip: string) {
+  await prisma.passwordResetAttempt.create({ data: { ip } });
+}
+
+const PASSWORD_RESET_TOKEN_TTL_MINUTES = 60;
+
+// El token que se manda por email es el valor crudo (lo necesita el link);
+// solo su hash SHA-256 se guarda en la base — mismo motivo que passwordHash
+// con bcrypt: si alguien llegara a leer la tabla (backup filtrado, acceso
+// de lectura a la base), no podría usarla para resetear la contraseña de
+// nadie, porque no puede reconstruir el token crudo a partir del hash.
+function hashResetToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+// No revela si el email existe ni si el envío falló — el caller (la
+// action) siempre debería mostrar el mismo mensaje genérico, para no dejar
+// que alguien use este formulario para enumerar qué emails tienen cuenta
+// (mismo motivo que DUMMY_HASH en verifyCredentials, pero a nivel de
+// action en vez de timing).
+export async function requestPasswordReset(email: string): Promise<{ token: string; userId: string } | null> {
+  const user = await prisma.user.findFirst({
+    where: { email: email.toLowerCase(), active: true },
+  });
+  if (!user) return null;
+
+  const token = randomBytes(32).toString("hex");
+  await prisma.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash: hashResetToken(token),
+      expiresAt: new Date(Date.now() + PASSWORD_RESET_TOKEN_TTL_MINUTES * 60_000),
+    },
+  });
+  return { token, userId: user.id };
+}
+
+// Un solo uso: se marca `usedAt` dentro de la misma transacción que
+// cambia la contraseña, así un link reenviado o abierto dos veces (doble
+// clic, dos pestañas) no puede resetear la contraseña dos veces ni
+// quedarse disponible para quien lo haya interceptado después de usarlo.
+export async function resetPasswordWithToken(token: string, newPassword: string) {
+  const tokenHash = hashResetToken(token);
+  const resetToken = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+  });
+
+  if (!resetToken || resetToken.usedAt || resetToken.expiresAt < new Date()) {
+    return { error: "Este link para restablecer la contraseña venció o ya fue usado. Pedí uno nuevo." };
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: resetToken.userId },
+      data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+    }),
+    prisma.passwordResetToken.update({
+      where: { id: resetToken.id },
+      data: { usedAt: new Date() },
+    }),
+  ]);
+  return { error: null };
 }
 
 export async function signUp(input: {

@@ -69,6 +69,19 @@ export function formatBookingsTable(bookings: DailyBooking[]): string {
     </table>`;
 }
 
+export async function sendPasswordResetEmail(to: string, resetUrl: string) {
+  await getResendClient().emails.send({
+    from: process.env.EMAIL_FROM ?? "reservas@spa.local",
+    to,
+    subject: "Restablecer tu contraseña",
+    html: `
+      <p>Pediste restablecer tu contraseña. Entrá al siguiente link para elegir una nueva (vence en 1 hora):</p>
+      <p><a href="${resetUrl}">${resetUrl}</a></p>
+      <p>Si no fuiste vos, podés ignorar este email — tu contraseña actual sigue funcionando.</p>
+    `,
+  });
+}
+
 export async function sendDailyBookingsEmail(
   to: string,
   bookings: DailyBooking[],

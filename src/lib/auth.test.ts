@@ -2,7 +2,16 @@ import "dotenv/config";
 import bcrypt from "bcryptjs";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { signUp, checkLoginRateLimit, recordLoginAttempt, changePassword, hashPassword, verifyCredentials } from "./auth";
+import {
+  signUp,
+  checkLoginRateLimit,
+  recordLoginAttempt,
+  changePassword,
+  hashPassword,
+  verifyCredentials,
+  requestPasswordReset,
+  resetPasswordWithToken,
+} from "./auth";
 
 // Test de integración contra Postgres real: generateUniqueSlug chequea
 // existencia y crea el negocio en pasos separados (no atómico), así que la
@@ -212,5 +221,77 @@ describeIfDb("changePassword — bloqueo tras intentos fallidos con la contrase�
       where: { id: userId },
       data: { passwordHash: await hashPassword(realPassword) },
     });
+  });
+});
+
+describeIfDb("requestPasswordReset / resetPasswordWithToken", () => {
+  let businessId: string;
+  let userId: string;
+  let email: string;
+  const originalPassword = "contrasena-original-123";
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Reset Business", businessType: "SPA", slug: `test-reset-${Date.now()}` },
+    });
+    businessId = business.id;
+    email = `admin-reset-${Date.now()}@example.com`;
+
+    const user = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test",
+        email,
+        passwordHash: await hashPassword(originalPassword),
+        role: "ADMIN",
+      },
+    });
+    userId = user.id;
+  });
+
+  afterAll(async () => {
+    await prisma.passwordResetToken.deleteMany({ where: { userId } });
+    await prisma.user.delete({ where: { id: userId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("returns null for an email that has no account, without revealing that", async () => {
+    const result = await requestPasswordReset("no-existe@example.com");
+    expect(result).toBeNull();
+  });
+
+  it("issues a token that resets the password, then rejects reusing it", async () => {
+    const issued = await requestPasswordReset(email);
+    expect(issued).not.toBeNull();
+
+    const result = await resetPasswordWithToken(issued!.token, "una-contrasena-nueva-456");
+    expect(result.error).toBeNull();
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const matchesNew = await bcrypt.compare("una-contrasena-nueva-456", user.passwordHash);
+    expect(matchesNew).toBe(true);
+
+    // El mismo token no puede volver a usarse (un solo uso).
+    const reused = await resetPasswordWithToken(issued!.token, "otra-contrasena-789");
+    expect(reused.error).toMatch(/venció o ya fue usado/);
+  });
+
+  it("rejects a token that doesn't exist", async () => {
+    const result = await resetPasswordWithToken("token-inexistente", "otra-contrasena-nueva-789");
+    expect(result.error).toMatch(/venció o ya fue usado/);
+  });
+
+  it("rejects an expired token", async () => {
+    const issued = await requestPasswordReset(email);
+    expect(issued).not.toBeNull();
+
+    await prisma.passwordResetToken.updateMany({
+      where: { userId },
+      data: { expiresAt: new Date(Date.now() - 60_000) },
+    });
+
+    const result = await resetPasswordWithToken(issued!.token, "otra-contrasena-mas-000");
+    expect(result.error).toMatch(/venció o ya fue usado/);
   });
 });

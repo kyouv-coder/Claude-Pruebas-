@@ -91,6 +91,35 @@ model LoginAttempt {
   @@index([ip, createdAt])
 }
 
+// Igual que SignupAttempt/LoginAttempt/PublicBookingAttempt: límite por IP
+// para pedir un reset de contraseña, así alguien no puede usar ese
+// formulario para enumerar qué emails tienen cuenta (mandando muchos pedidos
+// y mirando tiempos/efectos secundarios) ni para saturar de emails una
+// bandeja de entrada ajena.
+model PasswordResetAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+}
+
+// El token nunca se guarda en texto plano (mismo motivo que passwordHash en
+// User): si la base se filtrara, alguien con acceso de lectura no podría
+// usar esta tabla para resetear contraseñas ajenas. Un solo uso (usedAt) y
+// con vencimiento corto (1 hora, ver requestPasswordReset).
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
 model Business {
   id               String       @id @default(cuid())
   name             String
@@ -130,8 +159,9 @@ model User {
   lockedUntil         DateTime?
   createdAt           DateTime  @default(now())
 
-  bookings     Booking[]             @relation("StaffBookings")
-  cashSessions CashRegisterSession[]
+  bookings           Booking[]             @relation("StaffBookings")
+  cashSessions       CashRegisterSession[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([businessId])
 }
