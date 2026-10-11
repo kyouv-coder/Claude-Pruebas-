@@ -19,6 +19,26 @@ export async function countGiftCards(businessId: string) {
   return prisma.giftCard.count({ where: { businessId } });
 }
 
+/**
+ * Giftcards activas, con saldo, que vencen dentro de los próximos `days` días.
+ * Filtra en la base (no trae `purchasedBy` ni el resto de las giftcards) porque
+ * solo se usa para una alerta puntual, a diferencia de `listGiftCards` que
+ * alimenta la pantalla completa de /admin/giftcards.
+ */
+export async function listExpiringGiftCards(businessId: string, days: number) {
+  const now = new Date();
+  const limit = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+  return prisma.giftCard.findMany({
+    where: {
+      businessId,
+      active: true,
+      balance: { gt: 0 },
+      expiresAt: { gte: now, lte: limit },
+    },
+    select: { balance: true, expiresAt: true },
+  });
+}
+
 export async function getGiftCardStats(businessId: string) {
   const giftCards = await prisma.giftCard.findMany({
     where: { businessId },

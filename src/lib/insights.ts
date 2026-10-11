@@ -1,6 +1,6 @@
 import { listClients, listFrequentNoShowClients } from "@/lib/clients";
 import { listAllProducts } from "@/lib/settings";
-import { listGiftCards } from "@/lib/giftcards";
+import { listExpiringGiftCards } from "@/lib/giftcards";
 import { getMonthlyFinancials, currentYearMonth, listSalesForMonth } from "@/lib/finance";
 import { getLastClosedCashSession } from "@/lib/pos";
 import { formatCurrency as money, formatDate } from "@/lib/format";
@@ -28,7 +28,7 @@ export async function getRecommendations(businessId: string): Promise<Recommenda
   const [
     clients,
     products,
-    giftCards,
+    expiringSoon,
     financials,
     lastClosedSession,
     salesThisMonth,
@@ -36,7 +36,7 @@ export async function getRecommendations(businessId: string): Promise<Recommenda
   ] = await Promise.all([
     listClients(businessId),
     listAllProducts(businessId),
-    listGiftCards(businessId),
+    listExpiringGiftCards(businessId, GIFTCARD_EXPIRY_WARNING_DAYS),
     getMonthlyFinancials(businessId, year, month),
     getLastClosedCashSession(businessId),
     listSalesForMonth(businessId, year, month),
@@ -77,11 +77,6 @@ export async function getRecommendations(businessId: string): Promise<Recommenda
   }
 
   // Giftcards por vencer con saldo
-  const expiringSoon = giftCards.filter((g) => {
-    if (!g.active || Number(g.balance) <= 0 || !g.expiresAt) return false;
-    const daysLeft = daysBetween(g.expiresAt, now);
-    return daysLeft >= 0 && daysLeft <= GIFTCARD_EXPIRY_WARNING_DAYS;
-  });
   if (expiringSoon.length > 0) {
     const totalAtRisk = expiringSoon.reduce((sum, g) => sum + Number(g.balance), 0);
     recommendations.push({
