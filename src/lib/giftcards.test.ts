@@ -2,7 +2,7 @@ import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "./prisma";
 import { redeemGiftCard, sellGiftCard } from "./pos";
-import { getGiftCardStats, listGiftCards } from "./giftcards";
+import { countGiftCards, getGiftCardStats, listGiftCards } from "./giftcards";
 
 // node:crypto es un built-in: sus propiedades no son redefinibles, así que
 // vi.spyOn directo sobre el módulo falla con "Cannot redefine property".
@@ -394,5 +394,31 @@ describeIfDb("listGiftCards", () => {
 
     expect(result.map((g) => g.id)).toEqual([newer.id, older.id]);
     expect(result.every((g) => g.businessId === businessId)).toBe(true);
+  });
+
+  it("paginates with skip/take and countGiftCards matches the total", async () => {
+    const base = Date.now();
+    for (let i = 0; i < 3; i++) {
+      await prisma.giftCard.create({
+        data: {
+          businessId,
+          code: `GC-PAGE-${base}-${i}`,
+          initialValue: 100,
+          balance: 100,
+          createdAt: new Date(base + i * 1000),
+        },
+      });
+    }
+
+    const total = await countGiftCards(businessId);
+    const firstPage = await listGiftCards(businessId, { skip: 0, take: 2 });
+    const secondPage = await listGiftCards(businessId, { skip: 2, take: 2 });
+
+    expect(total).toBeGreaterThanOrEqual(5);
+    expect(firstPage).toHaveLength(2);
+    expect(firstPage.every((g) => g.businessId === businessId)).toBe(true);
+    // Las páginas no se pisan entre sí.
+    const firstIds = new Set(firstPage.map((g) => g.id));
+    expect(secondPage.every((g) => !firstIds.has(g.id))).toBe(true);
   });
 });

@@ -1,4 +1,10 @@
-import { listGiftCards, getGiftCardStats } from "@/lib/giftcards";
+import Link from "next/link";
+import {
+  listGiftCards,
+  getGiftCardStats,
+  countGiftCards,
+  GIFT_CARDS_PAGE_SIZE,
+} from "@/lib/giftcards";
 import { requireBusinessId } from "@/lib/auth";
 import { formatCurrency as money, formatDate } from "@/lib/format";
 
@@ -18,12 +24,27 @@ function statusOf(giftCard: {
   return { label: "Activa", color: "text-success" };
 }
 
-export default async function GiftCardsPage() {
+export default async function GiftCardsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const businessId = await requireBusinessId();
-  const [giftCards, stats] = await Promise.all([
-    listGiftCards(businessId),
+  const { page: pageParam } = await searchParams;
+  const requestedPage = Number(pageParam ?? "1");
+  const page =
+    Number.isFinite(requestedPage) && requestedPage > 0
+      ? Math.floor(requestedPage)
+      : 1;
+  const [giftCards, stats, total] = await Promise.all([
+    listGiftCards(businessId, {
+      skip: (page - 1) * GIFT_CARDS_PAGE_SIZE,
+      take: GIFT_CARDS_PAGE_SIZE,
+    }),
     getGiftCardStats(businessId),
+    countGiftCards(businessId),
   ]);
+  const totalPages = Math.max(1, Math.ceil(total / GIFT_CARDS_PAGE_SIZE));
 
   return (
     <div className="flex flex-col gap-6">
@@ -102,6 +123,37 @@ export default async function GiftCardsPage() {
           </div>
         )}
       </section>
+
+      {totalPages > 1 && (
+        <nav
+          aria-label="Paginación de giftcards"
+          className="flex items-center justify-between text-sm"
+        >
+          {page > 1 ? (
+            <Link
+              href={`/admin/giftcards?page=${page - 1}`}
+              className="text-accent hover:underline"
+            >
+              ← Anterior
+            </Link>
+          ) : (
+            <span />
+          )}
+          <span className="text-muted">
+            Página {page} de {totalPages}
+          </span>
+          {page < totalPages ? (
+            <Link
+              href={`/admin/giftcards?page=${page + 1}`}
+              className="text-accent hover:underline"
+            >
+              Siguiente →
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
+      )}
     </div>
   );
 }
