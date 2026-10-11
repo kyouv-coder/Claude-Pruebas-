@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { prisma } from "./prisma";
-import { listClients, listFrequentNoShowClients, updateClientNotes, getClientDetail } from "./clients";
+import { listClients, listFrequentNoShowClients, updateClientNotes, getClientDetail, countClients } from "./clients";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 const describeIfDb = hasDb ? describe : describe.skip;
@@ -160,6 +160,69 @@ describeIfDb("listClients — aislamiento multi-tenant", () => {
     const clients = await listClients(businessId);
     expect(clients).toHaveLength(1);
     expect(clients[0].name).toBe("Cliente Propio");
+  });
+});
+
+describeIfDb("listClients — paginación ordenada por gastado total", () => {
+  let businessId: string;
+  let staffId: string;
+
+  beforeAll(async () => {
+    const business = await prisma.business.create({
+      data: { name: "Test Clients Pagination Business", businessType: "SPA", slug: `test-clients-page-${Date.now()}` },
+    });
+    businessId = business.id;
+    const staff = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Staff Test",
+        email: `staff-pagination-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "STAFF",
+      },
+    });
+    staffId = staff.id;
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: staffId, openingAmount: 0 },
+    });
+
+    const amounts = [3000, 1000, 5000];
+    for (const total of amounts) {
+      const client = await prisma.client.create({
+        data: { businessId, name: `Cliente ${total}` },
+      });
+      await prisma.sale.create({
+        data: {
+          businessId,
+          clientId: client.id,
+          cashSessionId: session.id,
+          total,
+          paymentMethod: "CASH",
+          items: { create: [{ description: "Producto", quantity: 1, unitPrice: total }] },
+        },
+      });
+    }
+  });
+
+  afterAll(async () => {
+    await prisma.saleItem.deleteMany({ where: { sale: { businessId } } });
+    await prisma.sale.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
+    await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
+    await prisma.business.delete({ where: { id: businessId } });
+    await prisma.$disconnect();
+  });
+
+  it("orders by total spent descending and respects skip/take", async () => {
+    const total = await countClients(businessId);
+    expect(total).toBe(3);
+
+    const firstPage = await listClients(businessId, { skip: 0, take: 2 });
+    expect(firstPage.map((c) => c.totalSpent)).toEqual([5000, 3000]);
+
+    const secondPage = await listClients(businessId, { skip: 2, take: 2 });
+    expect(secondPage.map((c) => c.totalSpent)).toEqual([1000]);
   });
 });
 

@@ -1,15 +1,32 @@
 import Link from "next/link";
-import { listClients } from "@/lib/clients";
+import { listClients, countClients, CLIENTS_PAGE_SIZE } from "@/lib/clients";
 import { requireBusinessId, getCurrentUser } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
 import { formatCurrency as money, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientesPage() {
+export default async function ClientesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const businessId = await requireBusinessId();
-  const [clients, user] = await Promise.all([listClients(businessId), getCurrentUser()]);
-  const sorted = [...clients].sort((a, b) => b.totalSpent - a.totalSpent);
+  const { page: pageParam } = await searchParams;
+  const requestedPage = Number(pageParam ?? "1");
+  const page =
+    Number.isFinite(requestedPage) && requestedPage > 0
+      ? Math.floor(requestedPage)
+      : 1;
+  const [clients, user, total] = await Promise.all([
+    listClients(businessId, {
+      skip: (page - 1) * CLIENTS_PAGE_SIZE,
+      take: CLIENTS_PAGE_SIZE,
+    }),
+    getCurrentUser(),
+    countClients(businessId),
+  ]);
+  const totalPages = Math.max(1, Math.ceil(total / CLIENTS_PAGE_SIZE));
   const copy = getVerticalCopy(user?.business.businessType);
 
   return (
@@ -23,7 +40,7 @@ export default async function ClientesPage() {
       </div>
 
       <section className="bg-surface border border-border rounded-lg overflow-hidden">
-        {sorted.length === 0 ? (
+        {clients.length === 0 ? (
           <p className="text-sm text-muted p-4">
             Todavía no hay clientes cargados. Se crean solos al hacer una
             reserva o una venta.
@@ -41,7 +58,7 @@ export default async function ClientesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {sorted.map((c) => (
+                {clients.map((c) => (
                   <tr key={c.id}>
                     <td className="px-4 py-3">
                       <Link
@@ -66,6 +83,37 @@ export default async function ClientesPage() {
           </div>
         )}
       </section>
+
+      {totalPages > 1 && (
+        <nav
+          aria-label={`Paginación de ${copy.clientLabel.toLowerCase()}`}
+          className="flex items-center justify-between text-sm"
+        >
+          {page > 1 ? (
+            <Link
+              href={`/admin/clientes?page=${page - 1}`}
+              className="text-accent hover:underline"
+            >
+              ← Anterior
+            </Link>
+          ) : (
+            <span />
+          )}
+          <span className="text-muted">
+            Página {page} de {totalPages}
+          </span>
+          {page < totalPages ? (
+            <Link
+              href={`/admin/clientes?page=${page + 1}`}
+              className="text-accent hover:underline"
+            >
+              Siguiente →
+            </Link>
+          ) : (
+            <span />
+          )}
+        </nav>
+      )}
     </div>
   );
 }

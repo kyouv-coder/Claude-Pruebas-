@@ -1,42 +1,75 @@
+import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { assertMaxLength } from "@/lib/validation";
 
-export async function listClients(businessId: string) {
-  const clients = await prisma.client.findMany({
-    where: { businessId },
-    orderBy: { name: "asc" },
-    include: {
-      bookings: { select: { id: true, startTime: true, status: true } },
-      sales: { select: { total: true, createdAt: true } },
-    },
-  });
+export const CLIENTS_PAGE_SIZE = 25;
 
-  return clients.map((c) => {
-    const totalSpent = c.sales.reduce((sum, s) => sum + Number(s.total), 0);
-    // "Visita" = algo que realmente pasó — un turno completado o una
-    // venta cobrada. Un turno pendiente/confirmado todavía no ocurrió
-    // (mostrar su fecha como "última visita" sería una fecha futura,
-    // confuso), y uno cancelado o no-show tampoco fue una visita real.
-    const attendedBookings = c.bookings.filter((b) => b.status === "COMPLETED");
-    const visitDates = [
-      ...attendedBookings.map((b) => b.startTime),
-      ...c.sales.map((s) => s.createdAt),
-    ];
-    const lastVisit =
-      visitDates.length > 0
-        ? new Date(Math.max(...visitDates.map((d) => d.getTime())))
-        : null;
+type ClientRow = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  bookingsCount: bigint;
+  totalSpent: Prisma.Decimal | null;
+  lastVisit: Date | null;
+};
 
-    return {
-      id: c.id,
-      name: c.name,
-      email: c.email,
-      phone: c.phone,
-      bookingsCount: attendedBookings.length,
-      totalSpent,
-      lastVisit,
-    };
-  });
+// Antes esta función traía TODOS los clientes con TODAS sus reservas y
+// ventas, y ordenaba/sumaba en JS — con negocios grandes eso es cada vez
+// más memoria y CPU en cada visita a /admin/clientes, justo porque el
+// orden por defecto de la pantalla es "gastado total" (no se puede
+// calcular ese orden sin ver todas las ventas de todos los clientes).
+// Ahora la suma, el conteo y el orden los hace Postgres con una consulta
+// agregada, y solo se trae la página pedida.
+export async function listClients(
+  businessId: string,
+  { skip = 0, take }: { skip?: number; take?: number } = {}
+) {
+  // `take` es opcional (no undefined != 0): algunos callers (ej. el motor de
+  // recomendaciones, que necesita ver a TODOS los clientes para detectar
+  // inactivos) necesitan la lista completa, no solo una página.
+  const limitClause = take !== undefined ? Prisma.sql`LIMIT ${take}` : Prisma.empty;
+  const rows = await prisma.$queryRaw<ClientRow[]>`
+    SELECT
+      c.id,
+      c.name,
+      c.email,
+      c.phone,
+      COALESCE(booking_agg."bookingsCount", 0) AS "bookingsCount",
+      COALESCE(sale_agg."totalSpent", 0) AS "totalSpent",
+      GREATEST(booking_agg."lastBooking", sale_agg."lastSale") AS "lastVisit"
+    FROM "Client" c
+    LEFT JOIN (
+      SELECT "clientId", SUM(total) AS "totalSpent", MAX("createdAt") AS "lastSale"
+      FROM "Sale"
+      WHERE "businessId" = ${businessId} AND "clientId" IS NOT NULL
+      GROUP BY "clientId"
+    ) sale_agg ON sale_agg."clientId" = c.id
+    LEFT JOIN (
+      SELECT "clientId", COUNT(*) AS "bookingsCount", MAX("startTime") AS "lastBooking"
+      FROM "Booking"
+      WHERE "businessId" = ${businessId} AND status = 'COMPLETED'
+      GROUP BY "clientId"
+    ) booking_agg ON booking_agg."clientId" = c.id
+    WHERE c."businessId" = ${businessId}
+    ORDER BY "totalSpent" DESC, c.name ASC
+    ${limitClause}
+    OFFSET ${skip}
+  `;
+
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    email: r.email,
+    phone: r.phone,
+    bookingsCount: Number(r.bookingsCount),
+    totalSpent: r.totalSpent ? Number(r.totalSpent) : 0,
+    lastVisit: r.lastVisit,
+  }));
+}
+
+export async function countClients(businessId: string) {
+  return prisma.client.count({ where: { businessId } });
 }
 
 // findFirst (no findFirstOrThrow): un id que no existe o de otro negocio
