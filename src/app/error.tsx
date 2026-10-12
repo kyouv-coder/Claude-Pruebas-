@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
+import { logUnexpectedError } from "@/lib/log";
 
 // Error boundary global: sin este archivo, cualquier error no atrapado en
 // un server component o layout (no una server action — esas ya devuelven
@@ -8,11 +10,20 @@ import Link from "next/link";
 // Next ("Application error: a client-side exception has occurred"), sin
 // ninguna salida para la usuaria más que recargar a mano.
 export default function GlobalError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Antes este error se mostraba pero nunca se registraba: Next.js solo
+  // reporta a Vercel los errores de render de servidor, no los que llegan
+  // acá (ya atrapados por este boundary). Sin esto, un bug de un client
+  // component roto no dejaba ningún rastro ni en los logs ni en Sentry.
+  useEffect(() => {
+    logUnexpectedError(error);
+  }, [error]);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-paper px-4">
       <div className="w-full max-w-sm text-center">
