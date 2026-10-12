@@ -266,6 +266,38 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
     });
     expect(bookingsAtSlot).toBe(1);
   });
+
+  it("never creates two clients for the same new email reserved in parallel", async () => {
+    // Dos reservas simultáneas (distintos horarios, para no chocar con el
+    // chequeo de solapamiento) con el mismo email todavía inexistente: sin
+    // manejar la carrera contra @@unique([businessId, email]), la segunda
+    // en insertar explotaba con un P2002 crudo en vez de reusar al cliente
+    // que la primera ya creó.
+    const email = `concurrente-nuevo-${Date.now()}@example.com`;
+    const results = await Promise.allSettled([
+      createBooking(businessId, {
+        clientName: "Cliente Nuevo Concurrente A",
+        clientEmail: email,
+        serviceId,
+        staffId,
+        startTime: new Date("2027-01-22T10:00:00Z"),
+      }),
+      createBooking(businessId, {
+        clientName: "Cliente Nuevo Concurrente B",
+        clientEmail: email,
+        serviceId,
+        staffId,
+        startTime: new Date("2027-01-22T13:00:00Z"),
+      }),
+    ]);
+
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    const fulfilled = results as PromiseFulfilledResult<Awaited<ReturnType<typeof createBooking>>>[];
+    expect(fulfilled[0].value.clientId).toBe(fulfilled[1].value.clientId);
+
+    const clients = await prisma.client.findMany({ where: { businessId, email } });
+    expect(clients).toHaveLength(1);
+  });
 });
 
 describeIfDb("updateBookingStatus — no permite cambiar el estado de un turno ya cobrado", () => {

@@ -62,14 +62,29 @@ export async function findOrCreateClient(
   });
   if (existing) return existing;
 
-  return prisma.client.create({
-    data: {
-      businessId,
-      name: input.name,
-      phone: input.phone || null,
-      email: email || null,
-    },
-  });
+  try {
+    return await prisma.client.create({
+      data: {
+        businessId,
+        name: input.name,
+        phone: input.phone || null,
+        email: email || null,
+      },
+    });
+  } catch (e) {
+    // Dos reservas casi simultáneas con el mismo email nuevo (ej. dos
+    // pestañas, o un doble click en /reservar) pueden pasar ambas el
+    // findFirst de arriba antes de que ninguna haya insertado todavía, y
+    // chocar contra el @@unique([businessId, email]) de Client: la segunda
+    // en llegar explotaba con un P2002 crudo en vez de simplemente usar al
+    // cliente que la primera ya creó.
+    const isUniqueEmailConflict =
+      email != null &&
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002";
+    if (!isUniqueEmailConflict) throw e;
+    return prisma.client.findFirstOrThrow({ where: { businessId, email } });
+  }
 }
 
 export async function createBooking(
