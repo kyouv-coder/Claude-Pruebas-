@@ -132,16 +132,33 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
   }
 
   const passwordHash = await hashPassword(newPassword);
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: resetToken.userId },
-      data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
-    }),
-    prisma.passwordResetToken.update({
-      where: { id: resetToken.id },
-      data: { usedAt: new Date() },
-    }),
-  ]);
+  // El findUnique de arriba no alcanza para garantizar un solo uso: dos
+  // requests concurrentes (doble clic, el link abierto en dos pestañas)
+  // podrían pasar ambas el chequeo de `usedAt` antes de que cualquiera
+  // llegue a esta transacción. Por eso el marcado de uso va condicionado
+  // (updateMany con `usedAt: null` en el where, mismo patrón que el
+  // decremento de stock/saldo en pos.ts) y, si otra request ya lo marcó
+  // primero, esta aborta sin tocar la contraseña del usuario.
+  try {
+    await prisma.$transaction(async (tx) => {
+      const marked = await tx.passwordResetToken.updateMany({
+        where: { id: resetToken.id, usedAt: null },
+        data: { usedAt: new Date() },
+      });
+      if (marked.count === 0) {
+        throw new Error("PASSWORD_RESET_TOKEN_ALREADY_USED");
+      }
+      await tx.user.update({
+        where: { id: resetToken.userId },
+        data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+      });
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "PASSWORD_RESET_TOKEN_ALREADY_USED") {
+      return { error: "Este link para restablecer la contraseña venció o ya fue usado. Pedí uno nuevo." };
+    }
+    throw e;
+  }
   return { error: null };
 }
 

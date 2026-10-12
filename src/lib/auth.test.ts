@@ -277,6 +277,22 @@ describeIfDb("requestPasswordReset / resetPasswordWithToken", () => {
     expect(reused.error).toMatch(/venció o ya fue usado/);
   });
 
+  it("only lets one of two concurrent uses of the same token succeed", async () => {
+    const issued = await requestPasswordReset(email);
+    expect(issued).not.toBeNull();
+
+    const [first, second] = await Promise.all([
+      resetPasswordWithToken(issued!.token, "concurrente-uno-123"),
+      resetPasswordWithToken(issued!.token, "concurrente-dos-456"),
+    ]);
+    const results = [first, second];
+    const succeeded = results.filter((r) => r.error === null);
+    const rejected = results.filter((r) => r.error !== null);
+    expect(succeeded).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0]!.error).toMatch(/venció o ya fue usado/);
+  });
+
   it("rejects a token that doesn't exist", async () => {
     const result = await resetPasswordWithToken("token-inexistente", "otra-contrasena-nueva-789");
     expect(result.error).toMatch(/venció o ya fue usado/);
