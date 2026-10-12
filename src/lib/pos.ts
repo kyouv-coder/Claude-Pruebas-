@@ -172,9 +172,28 @@ export async function chargeBooking(
     where: { id: bookingId, businessId },
     include: { service: true },
   });
+  if (booking.status === "COMPLETED") {
+    throw new Error("Este turno ya fue cobrado.");
+  }
 
   return prisma.$transaction(async (tx) => {
-    const sale = await tx.sale.create({
+    // El findFirstOrThrow de arriba no alcanza para garantizar un solo
+    // cobro: dos clics (o dos personas de staff) cobrando el mismo turno
+    // casi al mismo tiempo podrían pasar ambos el chequeo de `status`
+    // antes de que cualquiera llegara a esta transacción, y terminar
+    // creando dos ventas para el mismo turno. El marcado a COMPLETED va
+    // condicionado (updateMany con `status: { not: "COMPLETED" }` en el
+    // where, mismo patrón que el token de reset de contraseña en auth.ts)
+    // y, si otra request ya lo cobró primero, esta aborta sin crear una
+    // segunda venta.
+    const marked = await tx.booking.updateMany({
+      where: { id: booking.id, status: { not: "COMPLETED" } },
+      data: { status: "COMPLETED" },
+    });
+    if (marked.count === 0) {
+      throw new Error("Este turno ya fue cobrado.");
+    }
+    return tx.sale.create({
       data: {
         businessId,
         clientId: booking.clientId,
@@ -193,11 +212,6 @@ export async function chargeBooking(
         },
       },
     });
-    await tx.booking.update({
-      where: { id: booking.id },
-      data: { status: "COMPLETED" },
-    });
-    return sale;
   });
 }
 

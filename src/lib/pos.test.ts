@@ -564,27 +564,58 @@ describeIfDb("chargeBooking — no permite cobrar dos veces el mismo turno", () 
     await prisma.$disconnect();
   });
 
-  it("rejects a second charge with a known Prisma unique-constraint error", async () => {
+  it("rejects a second charge with a clear business error, not a raw Prisma one", async () => {
     await chargeBooking(businessId, bookingId, cashSessionId, "CASH");
 
-    // Sale.bookingId es @unique — un doble clic o dos pestañas cobrando el
-    // mismo turno caen acá con un error identificable (P2002), no una
-    // excepción genérica que tumbe toda la página.
-    await expect(chargeBooking(businessId, bookingId, cashSessionId, "CASH")).rejects.toMatchObject({
-      code: "P2002",
-    });
+    // Un doble clic o dos pestañas cobrando el mismo turno caen acá con un
+    // mensaje entendible en vez de una excepción genérica (antes, un P2002
+    // crudo de Sale.bookingId @unique) que tumbe toda la página.
+    await expect(
+      chargeBooking(businessId, bookingId, cashSessionId, "CASH")
+    ).rejects.toThrow("Este turno ya fue cobrado.");
 
     const sales = await prisma.sale.findMany({ where: { bookingId } });
     expect(sales).toHaveLength(1);
   });
 
-  it("is an instance of Prisma.PrismaClientKnownRequestError", async () => {
+  it("does not leak a raw Prisma error on a second charge", async () => {
     try {
       await chargeBooking(businessId, bookingId, cashSessionId, "CASH");
       expect.unreachable("Se esperaba que fallara al cobrar un turno ya cobrado.");
     } catch (e) {
-      expect(e).toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
+      expect(e).not.toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
     }
+  });
+
+  it("does not create a second Sale when two charges race concurrently", async () => {
+    // Antes del updateMany condicionado, dos charges concurrentes para el
+    // mismo turno podían pasar ambos el chequeo de estado antes de que
+    // cualquiera llegara a marcar COMPLETED, creando dos Sale para el mismo
+    // booking. Se usa un turno nuevo porque el de arriba ya quedó cobrado.
+    const client = await prisma.client.findFirst({ where: { businessId } });
+    const service = await prisma.service.findFirst({ where: { businessId } });
+    const staff = await prisma.user.findFirst({ where: { businessId, role: "STAFF" } });
+    const raceBooking = await prisma.booking.create({
+      data: {
+        businessId,
+        clientId: client!.id,
+        serviceId: service!.id,
+        staffId: staff!.id,
+        startTime: new Date(Date.now() + 60 * 60_000),
+        endTime: new Date(Date.now() + 90 * 60_000),
+      },
+    });
+
+    const results = await Promise.allSettled([
+      chargeBooking(businessId, raceBooking.id, cashSessionId, "CASH"),
+      chargeBooking(businessId, raceBooking.id, cashSessionId, "CASH"),
+    ]);
+
+    const fulfilled = results.filter((r) => r.status === "fulfilled");
+    expect(fulfilled).toHaveLength(1);
+
+    const sales = await prisma.sale.findMany({ where: { bookingId: raceBooking.id } });
+    expect(sales).toHaveLength(1);
   });
 });
 

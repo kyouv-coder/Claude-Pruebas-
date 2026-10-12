@@ -237,8 +237,19 @@ export async function updateBookingStatus(
   if (booking.status === "COMPLETED") {
     throw new Error("Este turno ya fue cobrado, no se puede cambiar su estado.");
   }
-  return prisma.booking.update({
-    where: { id, businessId },
+  // El chequeo de arriba no alcanza para evitar la carrera con
+  // chargeBooking (pos.ts): si alguien cobra el turno justo entre ese
+  // chequeo y este update, el cambio de estado de acá (cancelar/no-show)
+  // podía pisar el COMPLETED recién puesto, dejando una venta ya cobrada
+  // con un turno que dice cancelado. El update va condicionado igual que
+  // chargeBooking — si ya se cobró en el medio, esta acción aborta en vez
+  // de pisarlo.
+  const updated = await prisma.booking.updateMany({
+    where: { id, businessId, status: { not: "COMPLETED" } },
     data: { status },
   });
+  if (updated.count === 0) {
+    throw new Error("Este turno ya fue cobrado, no se puede cambiar su estado.");
+  }
+  return prisma.booking.findFirstOrThrow({ where: { id, businessId } });
 }

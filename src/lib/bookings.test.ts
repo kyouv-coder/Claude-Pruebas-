@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "./prisma";
 import { createBooking, updateBookingStatus } from "./bookings";
 
@@ -331,6 +331,75 @@ describeIfDb("updateBookingStatus — no permite cambiar el estado de un turno y
     await expect(updateBookingStatus(businessId, bookingId, "NO_SHOW")).rejects.toThrow(
       /ya fue cobrado/
     );
+  });
+
+  it("aborts without overwriting a status that just became COMPLETED mid-flight", async () => {
+    // Simula la carrera con chargeBooking (pos.ts): el turno todavía no
+    // está COMPLETED cuando pasa el chequeo inicial, pero lo está para
+    // cuando llega el update condicionado — el cambio de estado no se debe
+    // aplicar igual, pisando el cobro recién hecho.
+    const business = await prisma.business.create({
+      data: {
+        name: "Test Race Booking Business",
+        businessType: "SPA",
+        slug: `test-race-booking-${Date.now()}`,
+      },
+    });
+    const staff = await prisma.user.create({
+      data: {
+        businessId: business.id,
+        name: "Staff Race",
+        email: `staff-race-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "STAFF",
+      },
+    });
+    const service = await prisma.service.create({
+      data: { businessId: business.id, name: "Servicio Race", durationMinutes: 30, price: 5000 },
+    });
+    const client = await prisma.client.create({ data: { businessId: business.id, name: "Cliente Race" } });
+    const booking = await prisma.booking.create({
+      data: {
+        businessId: business.id,
+        clientId: client.id,
+        serviceId: service.id,
+        staffId: staff.id,
+        startTime: new Date(),
+        endTime: new Date(Date.now() + 30 * 60_000),
+        status: "CONFIRMED",
+      },
+    });
+
+    const originalFindFirstOrThrow = prisma.booking.findFirstOrThrow.bind(prisma.booking);
+    let callCount = 0;
+    const spy = vi
+      .spyOn(prisma.booking, "findFirstOrThrow")
+      .mockImplementation((...args: Parameters<typeof originalFindFirstOrThrow>) => {
+        callCount += 1;
+        if (callCount === 1) {
+          // Alguien cobra el turno justo después de que updateBookingStatus
+          // ya pasó el chequeo inicial de arriba, pero antes de su update.
+          return prisma.booking
+            .update({ where: { id: booking.id }, data: { status: "COMPLETED" } })
+            .then(() => originalFindFirstOrThrow(...args)) as ReturnType<typeof originalFindFirstOrThrow>;
+        }
+        return originalFindFirstOrThrow(...args);
+      });
+
+    try {
+      await expect(updateBookingStatus(business.id, booking.id, "CANCELLED")).rejects.toThrow(
+        /ya fue cobrado/
+      );
+      const final = await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } });
+      expect(final.status).toBe("COMPLETED");
+    } finally {
+      spy.mockRestore();
+      await prisma.booking.deleteMany({ where: { businessId: business.id } });
+      await prisma.client.deleteMany({ where: { businessId: business.id } });
+      await prisma.service.deleteMany({ where: { businessId: business.id } });
+      await prisma.user.deleteMany({ where: { businessId: business.id } });
+      await prisma.business.delete({ where: { id: business.id } });
+    }
   });
 });
 
