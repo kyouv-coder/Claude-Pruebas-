@@ -478,6 +478,20 @@ describeIfDb("attachSaleInvoice", () => {
     ).rejects.toThrow(/no parece ser válido/);
   });
 
+  it("rejects a file name longer than 255 characters", async () => {
+    const pngData = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      Buffer.from("fake-png-body"),
+    ]);
+    await expect(
+      attachSaleInvoice(businessId, saleId, {
+        name: `${"a".repeat(256)}.png`,
+        type: "image/png",
+        data: pngData,
+      })
+    ).rejects.toThrow(/demasiado largo/);
+  });
+
   it("rejects attaching to a sale from another business", async () => {
     const pngData = Buffer.concat([
       Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),

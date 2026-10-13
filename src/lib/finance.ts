@@ -188,6 +188,14 @@ export async function attachSaleInvoice(
   if (file.data.byteLength > MAX_INVOICE_SIZE_BYTES) {
     throw new Error("El archivo no puede pesar más de 5 MB.");
   }
+  // El nombre de archivo lo elige quien sube el comprobante (es el nombre
+  // original del File del navegador) y no tiene tope de largo en la acción
+  // del formulario ni en la columna de la base (String sin límite) — mismo
+  // motivo que el resto de este archivo: sin este chequeo, un nombre
+  // gigante armado a mano (el input `type=file` no limita esto) se guarda
+  // tal cual en cada fila de Sale, y vuelve entero cada vez que se lista el
+  // mes en Finanzas.
+  assertMaxLength(file.name, 255, "El nombre del archivo");
   if (!matchesDeclaredInvoiceSignature(file.type, file.data)) {
     throw new Error("El archivo no parece ser válido para el tipo indicado.");
   }
