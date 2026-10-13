@@ -16,7 +16,13 @@ const categoryLabel: Record<string, string> = {
 };
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  // Fecha local del navegador, no UTC: toISOString() convierte a UTC, así
+  // que entre las 21:00 y las 23:59 (hora Argentina) el campo quedaba
+  // precargado con la fecha de "mañana" en vez de la de hoy.
+  const d = new Date();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${month}-${day}`;
 }
 
 export function ExpenseForm() {
