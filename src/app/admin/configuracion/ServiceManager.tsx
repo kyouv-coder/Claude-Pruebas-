@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useActionState } from "react";
+import { useState, useTransition, useActionState, useEffect, useRef } from "react";
 import {
   createServiceAction,
   updateServiceAction,
@@ -54,9 +54,21 @@ function ServiceForm({
   const action = service ? updateServiceAction : createServiceAction;
   const [state, formAction, pending] = useActionState(action, initialState);
   const idSuffix = service?.id ?? "new";
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Este formulario de alta queda visible en la pantalla (no se cierra tras
+  // crear), así que si no lo limpiamos después de un alta exitosa quedan
+  // los datos del servicio anterior cargados — mismo riesgo ya corregido en
+  // BookingForm (reservas) y PasswordForm (cuenta). En edición no se toca:
+  // el formulario ya muestra los valores recién guardados.
+  useEffect(() => {
+    if (state.success && !service) {
+      formRef.current?.reset();
+    }
+  }, [state.success, service]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3" noValidate>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-3" noValidate>
       {service && <input type="hidden" name="id" value={service.id} />}
       <FormError message={state.error} />
       <FormSuccess message={state.success} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useActionState } from "react";
+import { useState, useTransition, useActionState, useEffect, useRef } from "react";
 import {
   createStaffAction,
   updateStaffAction,
@@ -41,9 +41,20 @@ function StaffForm({ staff, onDone }: { staff?: Staff; onDone?: () => void }) {
   const action = staff ? updateStaffAction : createStaffAction;
   const [state, formAction, pending] = useActionState(action, initialState);
   const idSuffix = staff?.id ?? "new";
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Mismo motivo que ServiceForm/ProductForm/BookingForm: el alta de
+  // personal no se cierra tras crear, así que además de dejar cargados
+  // nombre/email del alta anterior, quedaba visible en el DOM la
+  // contraseña inicial ya tipeada. En edición no se toca.
+  useEffect(() => {
+    if (state.success && !staff) {
+      formRef.current?.reset();
+    }
+  }, [state.success, staff]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3" noValidate>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-3" noValidate>
       {staff && <input type="hidden" name="id" value={staff.id} />}
       <FormError message={state.error} />
       <FormSuccess message={state.success} />

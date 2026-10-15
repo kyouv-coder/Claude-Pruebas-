@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useActionState } from "react";
+import { useState, useTransition, useActionState, useEffect, useRef } from "react";
 import {
   createProductAction,
   updateProductAction,
@@ -54,9 +54,19 @@ function ProductForm({
   const action = product ? updateProductAction : createProductAction;
   const [state, formAction, pending] = useActionState(action, initialState);
   const idSuffix = product?.id ?? "new";
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Mismo motivo que ServiceForm/BookingForm: el alta de producto no se
+  // cierra tras crear, así que hay que limpiarla para no dejar cargados
+  // los datos del producto anterior. En edición no se toca.
+  useEffect(() => {
+    if (state.success && !product) {
+      formRef.current?.reset();
+    }
+  }, [state.success, product]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3" noValidate>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-3" noValidate>
       {product && <input type="hidden" name="id" value={product.id} />}
       <FormError message={state.error} />
       <FormSuccess message={state.success} />
