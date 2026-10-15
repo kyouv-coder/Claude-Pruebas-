@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { createBookingAction, type ActionState } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
 
@@ -22,9 +22,21 @@ export function BookingForm({
     createBookingAction,
     initialState
   );
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Este panel queda visible en la página (no se cierra ni redirige tras
+  // crear la reserva), así que si no limpiamos los campos después de un
+  // alta exitosa quedan los datos del cliente anterior cargados: fácil
+  // fuente de un alta duplicada o con la fecha/hora equivocada si el
+  // usuario no se da cuenta y vuelve a tocar "Crear".
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+    }
+  }, [state.success]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3" noValidate>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-3" noValidate>
       <FormError message={state.error} />
       <FormSuccess message={state.success} />
 
