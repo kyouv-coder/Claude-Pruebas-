@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { uploadSaleInvoiceAction, type ActionState } from "./actions";
 
 const initialState: ActionState = {};
@@ -13,9 +13,19 @@ export function InvoiceUploadForm({
   hasInvoice: boolean;
 }) {
   const [state, formAction, pending] = useActionState(uploadSaleInvoiceAction, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Tras subir con éxito, el input de archivo seguía mostrando el nombre
+  // del archivo ya enviado, dando la falsa impresión de que había que
+  // volver a subirlo (o de que el reemplazo quedó pendiente).
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+    }
+  }, [state.success]);
 
   return (
-    <form action={formAction} className="flex items-center gap-2 text-xs">
+    <form ref={formRef} action={formAction} className="flex items-center gap-2 text-xs">
       <input type="hidden" name="saleId" value={saleId} />
       {hasInvoice && (
         <a
