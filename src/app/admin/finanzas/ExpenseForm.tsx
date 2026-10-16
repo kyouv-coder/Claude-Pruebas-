@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { createExpenseAction, type ActionState } from "./actions";
 import { FormField, FormError, FormSuccess, inputClass } from "@/components/FormField";
 
@@ -30,9 +30,19 @@ export function ExpenseForm() {
     createExpenseAction,
     initialState
   );
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Este panel queda visible tras registrar el gasto, así que si no
+  // limpiamos los campos queda el monto/descripción anterior cargado:
+  // fácil fuente de un alta duplicada si el usuario no se da cuenta.
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+    }
+  }, [state.success]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3" noValidate>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-3" noValidate>
       <FormError message={state.error} />
       <FormSuccess message={state.success} />
 

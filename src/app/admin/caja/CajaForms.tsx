@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import {
   openCashSessionAction,
   closeCashSessionAction,
@@ -89,9 +89,19 @@ export function SellGiftCardForm({ cashSessionId }: { cashSessionId: string }) {
     sellGiftCardAction,
     initialState
   );
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Este panel queda visible tras vender la giftcard, así que si no
+  // limpiamos los campos quedan los datos del cliente anterior cargados:
+  // fácil fuente de una venta duplicada si el usuario no se da cuenta.
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+    }
+  }, [state.success]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3" noValidate>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-3" noValidate>
       <input type="hidden" name="cashSessionId" value={cashSessionId} />
       <FormError message={state.error} />
       <FormSuccess message={state.success} />
@@ -159,6 +169,16 @@ export function SellProductForm({
   products: SellableProduct[];
 }) {
   const [state, formAction, pending] = useActionState(sellProductAction, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Este panel queda visible tras vender el producto, así que si no
+  // limpiamos la cantidad quedan los datos de la venta anterior cargados:
+  // fácil fuente de una venta duplicada si el usuario no se da cuenta.
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+    }
+  }, [state.success]);
 
   if (products.length === 0) {
     return (
@@ -169,7 +189,7 @@ export function SellProductForm({
   }
 
   return (
-    <form action={formAction} className="flex flex-col gap-3" noValidate>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-3" noValidate>
       <input type="hidden" name="cashSessionId" value={cashSessionId} />
       <FormError message={state.error} />
       <FormSuccess message={state.success} />
@@ -264,9 +284,19 @@ export function RedeemGiftCardForm({ cashSessionId }: { cashSessionId: string })
     redeemGiftCardAction,
     initialState
   );
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Este panel queda visible tras canjear, así que si no limpiamos el
+  // código y el monto queda cargado el canje anterior: fácil fuente de
+  // un canje duplicado si el usuario no se da cuenta.
+  useEffect(() => {
+    if (state.success) {
+      formRef.current?.reset();
+    }
+  }, [state.success]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-3" noValidate>
+    <form ref={formRef} action={formAction} className="flex flex-col gap-3" noValidate>
       <input type="hidden" name="cashSessionId" value={cashSessionId} />
       <FormError message={state.error} />
       <FormSuccess message={state.success} />
