@@ -1,5 +1,15 @@
 import { Resend } from "resend";
 
+// Mismo motivo que el timeout ya agregado a sendSlackNotification: sin esto,
+// un envío que cuelga (Resend no responde, en vez de fallar rápido) deja la
+// llamada esperando indefinidamente. A diferencia de Slack, acá sí dejamos
+// que el error se propague (quien llama ya decide si importa o no), pero sin
+// timeout ese "colgado" nunca se resuelve: bloquea para siempre el pedido de
+// "olvidé mi contraseña" (el usuario nunca recibe respuesta) o, en el cron
+// diario, puede comerse todo el tiempo disponible de la función y dejar sin
+// avisar a los negocios que siguen en la lista.
+const EMAIL_TIMEOUT_MS = 5000;
+
 // Instanciado recién al enviar (no a nivel de módulo): Resend tira si no hay
 // API key configurada, y eso rompía hasta importar este archivo para testear
 // la lógica pura de armado del HTML, sin necesidad real de mandar un email.
@@ -79,7 +89,7 @@ export async function sendPasswordResetEmail(to: string, resetUrl: string) {
       <p><a href="${resetUrl}">${resetUrl}</a></p>
       <p>Si no fuiste vos, podés ignorar este email — tu contraseña actual sigue funcionando.</p>
     `,
-  });
+  }, { signal: AbortSignal.timeout(EMAIL_TIMEOUT_MS) });
 }
 
 export async function sendDailyBookingsEmail(
@@ -95,5 +105,5 @@ export async function sendDailyBookingsEmail(
       <h2>Agenda del día — ${dateLabel}</h2>
       ${formatBookingsTable(bookings)}
     `,
-  });
+  }, { signal: AbortSignal.timeout(EMAIL_TIMEOUT_MS) });
 }
