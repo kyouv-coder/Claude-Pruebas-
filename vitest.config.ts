@@ -9,6 +9,21 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    environmentMatchGlobs: [["**/*.test.tsx", "jsdom"]],
+    projects: [
+      {
+        extends: true,
+        test: {
+          environment: "node",
+          include: ["src/**/*.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          environment: "jsdom",
+          include: ["src/**/*.test.tsx"],
+        },
+      },
+    ],
   },
 });
