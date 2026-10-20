@@ -118,6 +118,11 @@ model PasswordResetToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+  // El cron diario borra tokens vencidos filtrando por expiresAt
+  // (cleanupOldRateLimitAttempts, src/lib/maintenance.ts) — sin este índice
+  // esa limpieza recorre la tabla entera, mismo motivo que ya tienen
+  // (ip, createdAt) en SignupAttempt/LoginAttempt/etc. para su propia limpieza.
+  @@index([expiresAt])
 }
 
 model Business {
