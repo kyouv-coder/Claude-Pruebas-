@@ -4,6 +4,7 @@ import { sendDailyBookingsEmail, type DailyBooking } from "@/lib/email";
 import { cleanupOldRateLimitAttempts } from "@/lib/maintenance";
 import { formatTime } from "@/lib/format";
 import { timingSafeEqualStrings } from "@/lib/validation";
+import { logUnexpectedError } from "@/lib/log";
 
 export async function GET(request: NextRequest) {
   // Chequeo explícito de que CRON_SECRET esté configurado: sin esto, si la
@@ -71,7 +72,11 @@ export async function GET(request: NextRequest) {
       await sendDailyBookingsEmail(admin.email, dailyBookings, dateLabel);
       businessesNotified++;
     } catch (error) {
-      console.error(`No se pudo notificar al negocio ${business.id}:`, error);
+      // Mismo motivo que el resto de las acciones del sitio (ver
+      // logUnexpectedError, src/lib/log.ts): un console.error suelto acá no
+      // llega a Sentry aunque el DSN esté configurado, perdiendo la traza de
+      // qué negocio no recibió su resumen diario y por qué.
+      logUnexpectedError(error);
       failedBusinessIds.push(business.id);
     }
   }
