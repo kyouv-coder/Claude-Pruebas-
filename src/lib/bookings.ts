@@ -220,7 +220,16 @@ export async function createBooking(
   // genuino vuelve a fallar de forma determinística con el error de
   // negocio de arriba (la otra reserva ya quedó confirmada en la DB), y uno
   // falso simplemente se resuelve solo.
-  const MAX_ATTEMPTS = 3;
+  // MAX_ATTEMPTS=3 alcanzaba para el caso normal, pero bajo carga alta (ej.
+  // toda la suite de tests corriendo en paralelo contra la misma tabla) el
+  // detector de conflictos de Postgres (SSI) puede dar más de dos falsos
+  // positivos seguidos entre transacciones que en realidad no se solapan —
+  // eso hacía fallar de forma esporádica un intento de reserva que no tenía
+  // ningún conflicto real. Más intentos, con un pequeño backoff con jitter
+  // entre cada uno (en vez de reintentar en el instante), reduce esa chance
+  // sin cambiar el comportamiento ante un conflicto genuino (que sigue
+  // fallando siempre, de forma determinística).
+  const MAX_ATTEMPTS = 5;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       return await runAttempt();
@@ -233,6 +242,7 @@ export async function createBooking(
         }
         throw e;
       }
+      await new Promise((resolve) => setTimeout(resolve, Math.random() * 20 * attempt));
     }
   }
   throw new Error("No se pudo crear la reserva, intentá de nuevo.");
