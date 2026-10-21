@@ -298,6 +298,23 @@ describeIfDb("requestPasswordReset / resetPasswordWithToken", () => {
     expect(result.error).toMatch(/venció o ya fue usado/);
   });
 
+  it("invalidates a previously issued, still-unused token when a new one is requested", async () => {
+    const first = await requestPasswordReset(email);
+    expect(first).not.toBeNull();
+
+    const second = await requestPasswordReset(email);
+    expect(second).not.toBeNull();
+
+    // El link viejo (nunca usado) ya no debería servir, aunque todavía no
+    // haya vencido por su cuenta.
+    const resultOld = await resetPasswordWithToken(first!.token, "primer-token-ya-viejo-1");
+    expect(resultOld.error).toMatch(/venció o ya fue usado/);
+
+    // El más nuevo sigue funcionando.
+    const resultNew = await resetPasswordWithToken(second!.token, "segundo-token-vigente-2");
+    expect(resultNew.error).toBeNull();
+  });
+
   it("rejects an expired token", async () => {
     const issued = await requestPasswordReset(email);
     expect(issued).not.toBeNull();

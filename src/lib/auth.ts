@@ -107,6 +107,17 @@ export async function requestPasswordReset(email: string): Promise<{ token: stri
   if (!user) return null;
 
   const token = randomBytes(32).toString("hex");
+  // Pedir el link varias veces (reintento tras no recibir el email, varias
+  // pestañas, o alguien más mandándolo a propósito) dejaba todos los tokens
+  // anteriores todavía válidos hasta su propio vencimiento — cualquier link
+  // viejo que haya quedado en una bandeja de entrada o en el historial del
+  // navegador seguía pudiendo usarse en paralelo al más nuevo. Invalidar los
+  // anteriores no vencidos y sin usar reduce esa ventana a un solo link
+  // vigente por usuario, igual que hace un "cerrar otras sesiones".
+  await prisma.passwordResetToken.updateMany({
+    where: { userId: user.id, usedAt: null },
+    data: { usedAt: new Date() },
+  });
   await prisma.passwordResetToken.create({
     data: {
       userId: user.id,
