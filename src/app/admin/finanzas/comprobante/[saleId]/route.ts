@@ -15,9 +15,16 @@ export async function GET(
   }
 
   return new NextResponse(new Uint8Array(file.data), {
+    // Mismo patrón que las fotos de Configuración (imagen-negocio,
+    // imagen-servicio, imagen-producto): el comprobante adjunto de una venta
+    // no cambia una vez subido, pero esta ruta no mandaba ningún
+    // Cache-Control, así que el navegador lo volvía a descargar completo
+    // cada vez que se abría — a diferencia de esas fotos, ya corregidas.
+    // `private` (no `public`) porque es un documento de este negocio.
     headers: {
       "Content-Type": file.mimeType,
       "Content-Disposition": `inline; filename="${sanitizeFileNameForHeader(file.fileName)}"`,
+      "Cache-Control": "private, max-age=3600",
     },
   });
 }
