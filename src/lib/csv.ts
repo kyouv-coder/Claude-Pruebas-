@@ -35,6 +35,15 @@ export function csvResponse(csv: string, filename: string) {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${sanitizeFileNameForHeader(filename)}"`,
+      // A diferencia de las fotos/comprobantes (archivos estáticos que no
+      // cambian una vez subidos, con Cache-Control: max-age), este export es
+      // un reporte dinámico: el mes en curso cambia con cada venta/gasto
+      // nuevo. Sin ningún header, un proxy o caché compartida podría guardar
+      // una respuesta vieja y servirla ante el mismo query de año/mes más
+      // tarde, mostrando datos financieros desactualizados. `no-store`
+      // fuerza a pedirlo de nuevo siempre; `private` porque es información
+      // de este negocio puntual.
+      "Cache-Control": "private, no-store",
     },
   });
 }

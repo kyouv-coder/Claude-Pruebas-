@@ -63,4 +63,9 @@ describe("csvResponse", () => {
       'attachment; filename="ventas-2026-01.csv"'
     );
   });
+
+  it("marks the response as private and never cacheable, since it's a dynamic financial report", () => {
+    const response = csvResponse("a,b\n1,2", "ventas-2026-01.csv");
+    expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+  });
 });
