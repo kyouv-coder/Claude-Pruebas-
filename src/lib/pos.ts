@@ -175,6 +175,13 @@ export async function chargeBooking(
   if (booking.status === "COMPLETED") {
     throw new Error("Este turno ya fue cobrado.");
   }
+  // getTodaysUnpaidBookings (la lista que alimenta la pantalla de Caja) ya
+  // excluye los turnos CANCELLED/NO_SHOW, pero el bookingId llega acá como
+  // un campo de formulario cualquiera — un request manipulado podía cobrar
+  // igual un turno cancelado o marcado como no-show.
+  if (booking.status === "CANCELLED" || booking.status === "NO_SHOW") {
+    throw new Error("Este turno está cancelado y no se puede cobrar.");
+  }
 
   return prisma.$transaction(async (tx) => {
     // El findFirstOrThrow de arriba no alcanza para garantizar un solo

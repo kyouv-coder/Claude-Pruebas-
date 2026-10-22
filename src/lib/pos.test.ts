@@ -617,6 +617,50 @@ describeIfDb("chargeBooking — no permite cobrar dos veces el mismo turno", () 
     const sales = await prisma.sale.findMany({ where: { bookingId: raceBooking.id } });
     expect(sales).toHaveLength(1);
   });
+
+  it("rejects charging a booking that was cancelled or marked as no-show", async () => {
+    // getTodaysUnpaidBookings ya excluye CANCELLED/NO_SHOW, pero el
+    // bookingId llega como cualquier otro campo de formulario — un request
+    // manipulado no debería poder cobrar un turno que ya no es válido.
+    const client = await prisma.client.findFirst({ where: { businessId } });
+    const service = await prisma.service.findFirst({ where: { businessId } });
+    const staff = await prisma.user.findFirst({ where: { businessId, role: "STAFF" } });
+
+    const cancelledBooking = await prisma.booking.create({
+      data: {
+        businessId,
+        clientId: client!.id,
+        serviceId: service!.id,
+        staffId: staff!.id,
+        startTime: new Date(Date.now() + 2 * 60 * 60_000),
+        endTime: new Date(Date.now() + 2.5 * 60 * 60_000),
+        status: "CANCELLED",
+      },
+    });
+    await expect(
+      chargeBooking(businessId, cancelledBooking.id, cashSessionId, "CASH")
+    ).rejects.toThrow("Este turno está cancelado y no se puede cobrar.");
+
+    const noShowBooking = await prisma.booking.create({
+      data: {
+        businessId,
+        clientId: client!.id,
+        serviceId: service!.id,
+        staffId: staff!.id,
+        startTime: new Date(Date.now() + 3 * 60 * 60_000),
+        endTime: new Date(Date.now() + 3.5 * 60 * 60_000),
+        status: "NO_SHOW",
+      },
+    });
+    await expect(
+      chargeBooking(businessId, noShowBooking.id, cashSessionId, "CASH")
+    ).rejects.toThrow("Este turno está cancelado y no se puede cobrar.");
+
+    const sales = await prisma.sale.findMany({
+      where: { bookingId: { in: [cancelledBooking.id, noShowBooking.id] } },
+    });
+    expect(sales).toHaveLength(0);
+  });
 });
 
 describeIfDb("getTodaysUnpaidBookings / getCashSessionSummary", () => {
