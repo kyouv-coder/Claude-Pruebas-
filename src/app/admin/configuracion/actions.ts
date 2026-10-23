@@ -326,7 +326,12 @@ export async function updateSlackWebhookAction(
   }
 
   const businessId = await requireAdmin();
-  await updateSlackWebhook(businessId, url || null);
+  try {
+    await updateSlackWebhook(businessId, url || null);
+  } catch (e) {
+    logUnexpectedError(e);
+    return { error: "No se pudo guardar la URL de Slack." };
+  }
   revalidatePath("/admin/configuracion");
   return { success: url ? "Notificaciones de Slack activadas." : "Notificaciones de Slack desactivadas." };
 }
@@ -433,7 +438,12 @@ export async function updateCancellationPolicyAction(
   }
 
   const businessId = await requireAdmin();
-  await updateCancellationPolicy(businessId, policy || null);
+  try {
+    await updateCancellationPolicy(businessId, policy || null);
+  } catch (e) {
+    logUnexpectedError(e);
+    return { error: "No se pudo guardar la política de cancelación." };
+  }
   revalidatePath("/admin/configuracion");
   return { success: policy ? "Política de cancelación guardada." : "Política de cancelación eliminada." };
 }
@@ -469,7 +479,12 @@ export async function updateBusinessHoursAction(
   }
 
   const businessId = await requireAdmin();
-  await saveBusinessHours(businessId, days);
+  try {
+    await saveBusinessHours(businessId, days);
+  } catch (e) {
+    logUnexpectedError(e);
+    return { error: "No se pudo guardar el horario de atención." };
+  }
   revalidatePath("/admin/configuracion");
   return { success: "Horario de atención guardado." };
 }
@@ -491,10 +506,15 @@ export async function updateBusinessProfileAction(
   }
 
   const businessId = await requireAdmin();
-  await updateBusinessProfile(businessId, {
-    description: description || undefined,
-    address: address || undefined,
-  });
+  try {
+    await updateBusinessProfile(businessId, {
+      description: description || undefined,
+      address: address || undefined,
+    });
+  } catch (e) {
+    logUnexpectedError(e);
+    return { error: "No se pudieron guardar los datos del negocio." };
+  }
   revalidatePath("/admin/configuracion");
   return { success: "Datos del negocio guardados." };
 }
