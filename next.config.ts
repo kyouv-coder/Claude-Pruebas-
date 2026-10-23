@@ -2,6 +2,17 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs/config";
 
 const nextConfig: NextConfig = {
+  // Las Server Actions tienen un tope de 1MB por defecto — attachSaleInvoice
+  // (finance.ts) ya acepta comprobantes de hasta 5MB y le muestra ese límite
+  // al usuario en el mensaje de error, pero sin este override cualquier
+  // archivo de entre 1MB y 5MB nunca llegaba a esa validación: Next lo
+  // rechazaba antes con un error genérico de framework ("Body exceeded 1 MB
+  // limit"), no con el mensaje entendible de la acción.
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "5mb",
+    },
+  },
   // Sin esto, todo el sitio (incluido el panel de admin ya logueado) es
   // embebible en un <iframe> de cualquier otro dominio — habilita
   // clickjacking (un sitio malicioso superpone su propia UI sobre un iframe
