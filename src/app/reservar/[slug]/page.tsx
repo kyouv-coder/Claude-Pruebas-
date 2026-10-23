@@ -8,6 +8,7 @@ import {
 import { getBusinessHours, hasConfiguredHours, DAY_NAMES } from "@/lib/business-hours";
 import { formatCurrency as money } from "@/lib/format";
 import { getSiteUrl } from "@/lib/site-url";
+import { safeJsonLdScript } from "@/lib/validation";
 import { PublicBookingForm } from "./PublicBookingForm";
 
 export const dynamic = "force-dynamic";
@@ -87,10 +88,12 @@ export default async function PublicBookingPage({
 
   return (
     <div className="min-h-screen bg-paper">
-      {/* JSON.stringify de datos propios del negocio, no HTML de usuario */}
+      {/* Texto libre del negocio (nombre, descripción, dirección) puede
+          contener "</script>" — safeJsonLdScript escapa lo necesario para
+          que no cierre el bloque antes de tiempo e inyecte HTML/JS. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLdScript(jsonLd) }}
       />
       <a
         href="#reservar-formulario"

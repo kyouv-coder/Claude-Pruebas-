@@ -4,6 +4,7 @@ import {
   assertMaxLength,
   assertMinPasswordLength,
   assertPasswordByteLength,
+  safeJsonLdScript,
   sanitizeFileNameForHeader,
   timingSafeEqualStrings,
 } from "./validation";
@@ -122,6 +123,40 @@ describe("sanitizeFileNameForHeader", () => {
 
   it("leaves a normal file name untouched", () => {
     expect(sanitizeFileNameForHeader("comprobante-enero.pdf")).toBe("comprobante-enero.pdf");
+  });
+});
+
+describe("safeJsonLdScript", () => {
+  it("escapes a closing </script> tag embedded in business data so it can't break out of the script block", () => {
+    const html = safeJsonLdScript({ description: "</script><script>alert(1)</script>" });
+    expect(html).not.toContain("</script>");
+    expect(html).not.toContain("<script>");
+    expect(html).toContain("\\u003c/script\\u003e");
+  });
+
+  it("escapes a bare < or > even without a full script tag", () => {
+    const html = safeJsonLdScript({ name: "<img src=x onerror=alert(1)>" });
+    expect(html).not.toMatch(/[<>]/);
+  });
+
+  it("escapes U+2028/U+2029 line separators", () => {
+    const html = safeJsonLdScript({ name: "a\u2028b\u2029c" });
+    expect(html).toContain("\\u2028");
+    expect(html).toContain("\\u2029");
+  });
+
+  it("round-trips back to the original data once the \\u escapes are decoded like a browser would", () => {
+    const original = { description: "</script>", name: "Spa Test" };
+    const html = safeJsonLdScript(original);
+    const decoded = html.replace(/\\u([0-9a-f]{4})/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16))
+    );
+    expect(JSON.parse(decoded)).toEqual(original);
+  });
+
+  it("leaves plain data without angle brackets unchanged in shape", () => {
+    const original = { name: "Spa Normal", address: { streetAddress: "Calle 123" } };
+    expect(JSON.parse(safeJsonLdScript(original))).toEqual(original);
   });
 });
 

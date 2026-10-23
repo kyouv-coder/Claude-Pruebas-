@@ -112,3 +112,24 @@ export function assertValidDate(value: Date, label: string) {
 export function sanitizeFileNameForHeader(fileName: string) {
   return fileName.replace(/[\r\n"]/g, "");
 }
+
+// `/reservar/[slug]` embebe un bloque `<script type="application/ld+json">`
+// armado con `JSON.stringify` de datos que carga la dueña del negocio (nombre,
+// descripción, dirección) desde Configuración — no el formulario público sin
+// autenticar, pero sí texto libre que termina en el HTML de una página que
+// ve cualquier visitante. `JSON.stringify` no escapa la secuencia `</`, así
+// que una descripción con algo como `</script><script>alert(1)</script>`
+// cierra el bloque JSON-LD antes de lo esperado e inyecta HTML/JS propio en
+// la página pública — distinto del caso ya corregido en el email diario
+// (ahí era el nombre del cliente sin autenticar; acá es el propio dato del
+// negocio, pero el bloque de salida es HTML igual). U+2028/U+2029 también se
+// escapan porque son saltos de línea válidos dentro de un string JSON pero
+// inválidos en JS fuera de un string, y algunos navegadores viejos los
+// interpretaban así al parsear el script.
+export function safeJsonLdScript(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
