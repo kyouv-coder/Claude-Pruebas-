@@ -1,7 +1,20 @@
 import "dotenv/config";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { GET } from "./route";
+import { logUnexpectedError } from "@/lib/log";
+import * as maintenance from "@/lib/maintenance";
+
+vi.mock("@/lib/log", () => ({ logUnexpectedError: vi.fn() }));
+
+// vi.spyOn directo sobre el módulo falla con "Cannot redefine property" (ver
+// el mismo comentario en src/lib/giftcards.test.ts) — hace falta vi.mock con
+// importOriginal para poder reemplazar cleanupOldRateLimitAttempts caso por
+// caso.
+vi.mock("@/lib/maintenance", async (importOriginal) => {
+  const actual = await importOriginal<typeof maintenance>();
+  return { ...actual, cleanupOldRateLimitAttempts: vi.fn(actual.cleanupOldRateLimitAttempts) };
+});
 
 // Este endpoint lo llama un cron externo (Vercel Cron) para mandar el email
 // diario de reservas a cada negocio — no requiere sesión de usuario, solo el
@@ -59,5 +72,44 @@ describe("GET /api/cron/daily-bookings — autenticación", () => {
     const response = await GET(request);
 
     expect(response.status).toBe(401);
+  });
+});
+
+// La limpieza de intentos viejos (cleanupOldRateLimitAttempts) es
+// mantenimiento incidental de este cron, no su propósito — un error ahí (p.ej.
+// un hiccup de DB) no debe impedir que se mande el resumen diario de
+// reservas a cada negocio, que es lo que de verdad importa. Antes, un throw
+// en la limpieza tiraba abajo el handler entero antes de llegar siquiera a
+// leer los negocios.
+const hasDb = Boolean(process.env.DATABASE_URL);
+const describeIfDb = hasDb ? describe : describe.skip;
+
+describeIfDb("GET /api/cron/daily-bookings — falla de mantenimiento no bloquea el envío", () => {
+  const originalSecret = process.env.CRON_SECRET;
+
+  afterEach(() => {
+    vi.mocked(maintenance.cleanupOldRateLimitAttempts).mockRestore();
+    if (originalSecret === undefined) {
+      delete process.env.CRON_SECRET;
+    } else {
+      process.env.CRON_SECRET = originalSecret;
+    }
+  });
+
+  it("still responds 200 and reports businessesNotified when cleanup throws", async () => {
+    process.env.CRON_SECRET = "the-real-secret";
+    vi.mocked(maintenance.cleanupOldRateLimitAttempts).mockRejectedValueOnce(
+      new Error("DB hiccup during cleanup"),
+    );
+    const request = new NextRequest("http://localhost/api/cron/daily-bookings", {
+      headers: { authorization: "Bearer the-real-secret" },
+    });
+
+    const response = await GET(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.businessesNotified).toBeTypeOf("number");
+    expect(logUnexpectedError).toHaveBeenCalledWith(expect.objectContaining({ message: "DB hiccup during cleanup" }));
   });
 });

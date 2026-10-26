@@ -31,13 +31,27 @@ export async function GET(request: NextRequest) {
 
   // One cron job, many negocios: cada uno recibe su propio resumen en el
   // email de su usuaria ADMIN, no hay un solo ADMIN_EMAIL global.
-  const businesses = await prisma.business.findMany({
-    include: {
-      users: { where: { role: "ADMIN", active: true }, take: 1 },
-    },
-  });
+  let businesses;
+  try {
+    businesses = await prisma.business.findMany({
+      include: {
+        users: { where: { role: "ADMIN", active: true }, take: 1 },
+      },
+    });
+  } catch (error) {
+    logUnexpectedError(error);
+    return NextResponse.json({ error: "Error al leer negocios" }, { status: 500 });
+  }
 
-  const cleanup = await cleanupOldRateLimitAttempts();
+  // La limpieza de intentos viejos es mantenimiento, no el propósito del
+  // cron: si falla (p.ej. un hiccup de DB) no debe impedir que se mande el
+  // resumen diario a cada negocio, que es lo que de verdad importa acá.
+  let cleanup: Awaited<ReturnType<typeof cleanupOldRateLimitAttempts>> | null = null;
+  try {
+    cleanup = await cleanupOldRateLimitAttempts();
+  } catch (error) {
+    logUnexpectedError(error);
+  }
 
   let businessesNotified = 0;
   const failedBusinessIds: string[] = [];
@@ -81,5 +95,5 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ businessesNotified, failedBusinessIds, ...cleanup });
+  return NextResponse.json({ businessesNotified, failedBusinessIds, ...(cleanup ?? {}) });
 }
