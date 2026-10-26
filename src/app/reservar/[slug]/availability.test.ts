@@ -1,7 +1,20 @@
 import "dotenv/config";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@/lib/prisma";
-import { getDayAvailabilityAction } from "./availability";
+import { getBusyTimesAction, getDayAvailabilityAction } from "./availability";
+import * as publicBooking from "@/lib/public-booking";
+import { logUnexpectedError } from "@/lib/log";
+
+vi.mock("@/lib/log", () => ({ logUnexpectedError: vi.fn() }));
+
+// vi.spyOn directo sobre el módulo falla con "Cannot redefine property"
+// (ver el mismo comentario en src/lib/giftcards.test.ts) — hace falta
+// vi.mock con importOriginal para poder reemplazar getBusinessBySlug caso
+// por caso.
+vi.mock("@/lib/public-booking", async (importOriginal) => {
+  const actual = await importOriginal<typeof publicBooking>();
+  return { ...actual, getBusinessBySlug: vi.fn(actual.getBusinessBySlug) };
+});
 
 // getDayAvailabilityAction es un server action expuesto directamente en la
 // página pública de reserva — cualquiera puede invocarlo con un string
@@ -54,5 +67,19 @@ describeIfDb("getDayAvailabilityAction", () => {
       openTime: "09:00",
       closeTime: "18:00",
     });
+  });
+
+  it("logs and returns configured:false instead of throwing on an unexpected DB error", async () => {
+    vi.mocked(publicBooking.getBusinessBySlug).mockRejectedValueOnce(new Error("DB down"));
+    await expect(getDayAvailabilityAction(slug, "2027-01-04")).resolves.toEqual({ configured: false });
+    expect(logUnexpectedError).toHaveBeenCalledTimes(1);
+  });
+});
+
+describeIfDb("getBusyTimesAction", () => {
+  it("logs and returns [] instead of throwing on an unexpected DB error", async () => {
+    vi.mocked(publicBooking.getBusinessBySlug).mockRejectedValueOnce(new Error("DB down"));
+    await expect(getBusyTimesAction("some-slug", "staff-1", "2027-01-04")).resolves.toEqual([]);
+    expect(logUnexpectedError).toHaveBeenCalledTimes(1);
   });
 });
