@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma";
 import { createExpense, deleteExpense, attachSaleInvoice } from "@/lib/finance";
 import { requireAdmin } from "@/lib/auth";
-import { logUnexpectedError } from "@/lib/log";
+import { logUnexpectedError, getSafeErrorMessage } from "@/lib/log";
 import type { ExpenseCategory } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -62,7 +62,7 @@ export async function createExpenseAction(
   } catch (e) {
     logUnexpectedError(e);
     return {
-      error: e instanceof Error ? e.message : "No se pudo registrar el gasto.",
+      error: getSafeErrorMessage(e, "No se pudo registrar el gasto."),
     };
   }
 
@@ -123,7 +123,7 @@ export async function uploadSaleInvoiceAction(
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "No se encontró la venta." };
     }
-    return { error: e instanceof Error ? e.message : "No se pudo subir el comprobante." };
+    return { error: getSafeErrorMessage(e, "No se pudo subir el comprobante.") };
   }
 
   revalidatePath("/admin/finanzas");

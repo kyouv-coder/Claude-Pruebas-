@@ -12,7 +12,7 @@ import {
 } from "@/lib/pos";
 import { requireBusinessId } from "@/lib/auth";
 import { formatCurrency as money } from "@/lib/format";
-import { logUnexpectedError } from "@/lib/log";
+import { logUnexpectedError, getSafeErrorMessage } from "@/lib/log";
 import type { PaymentMethod } from "@/generated/prisma";
 
 export type ActionState = { error?: string; success?: string };
@@ -48,7 +48,7 @@ export async function openCashSessionAction(
     logUnexpectedError(e);
     revalidatePath("/admin/caja");
     return {
-      error: e instanceof Error ? e.message : "No se pudo abrir la caja.",
+      error: getSafeErrorMessage(e, "No se pudo abrir la caja."),
     };
   }
   revalidatePath("/admin/caja");
@@ -75,7 +75,7 @@ export async function closeCashSessionAction(
       return { error: "No se encontró una caja abierta con ese ID." };
     }
     return {
-      error: e instanceof Error ? e.message : "No se pudo cerrar la caja.",
+      error: getSafeErrorMessage(e, "No se pudo cerrar la caja."),
     };
   }
   revalidatePath("/admin/caja");
@@ -118,7 +118,7 @@ export async function chargeBookingAction(
       }
     }
     return {
-      error: e instanceof Error ? e.message : "No se pudo registrar el cobro.",
+      error: getSafeErrorMessage(e, "No se pudo registrar el cobro."),
     };
   }
   revalidatePath("/admin/caja");
@@ -194,7 +194,7 @@ export async function sellGiftCardAction(
   } catch (e) {
     logUnexpectedError(e);
     return {
-      error: e instanceof Error ? e.message : "No se pudo vender la giftcard.",
+      error: getSafeErrorMessage(e, "No se pudo vender la giftcard."),
     };
   }
   revalidatePath("/admin/caja");
@@ -237,7 +237,7 @@ export async function sellProductAction(
       return { error: "No se encontró el producto." };
     }
     return {
-      error: e instanceof Error ? e.message : "No se pudo registrar la venta.",
+      error: getSafeErrorMessage(e, "No se pudo registrar la venta."),
     };
   }
   revalidatePath("/admin/caja");
@@ -271,7 +271,7 @@ export async function redeemGiftCardAction(
       return { error: "No se encontró ninguna giftcard con ese código." };
     }
     return {
-      error: e instanceof Error ? e.message : "No se pudo canjear la giftcard.",
+      error: getSafeErrorMessage(e, "No se pudo canjear la giftcard."),
     };
   }
   revalidatePath("/admin/caja");

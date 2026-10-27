@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma";
-import { logUnexpectedError } from "@/lib/log";
+import { logUnexpectedError, getSafeErrorMessage } from "@/lib/log";
 import {
   createService,
   updateService,
@@ -182,7 +182,7 @@ export async function uploadServiceImageAction(
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "No se encontró el servicio." };
     }
-    return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
+    return { error: getSafeErrorMessage(e, "No se pudo subir la foto.") };
   }
   revalidatePath("/admin/configuracion");
   return { success: "Foto actualizada." };
@@ -299,7 +299,7 @@ export async function uploadProductImageAction(
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "No se encontró el producto." };
     }
-    return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
+    return { error: getSafeErrorMessage(e, "No se pudo subir la foto.") };
   }
   revalidatePath("/admin/configuracion");
   return { success: "Foto actualizada." };
@@ -535,7 +535,7 @@ export async function uploadBusinessCoverImageAction(
     await setBusinessCoverImage(businessId, { type: file.type, data: buffer });
   } catch (e) {
     logUnexpectedError(e);
-    return { error: e instanceof Error ? e.message : "No se pudo subir la foto." };
+    return { error: getSafeErrorMessage(e, "No se pudo subir la foto.") };
   }
   revalidatePath("/admin/configuracion");
   return { success: "Foto de portada actualizada." };

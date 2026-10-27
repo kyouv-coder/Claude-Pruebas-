@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@/generated/prisma";
 import { createBooking, updateBookingStatus } from "@/lib/bookings";
 import { requireBusinessId, getCurrentUser } from "@/lib/auth";
-import { logUnexpectedError } from "@/lib/log";
+import { logUnexpectedError, getSafeErrorMessage } from "@/lib/log";
 import { sendSlackNotification } from "@/lib/slack";
 
 export type ActionState = { error?: string; success?: string };
@@ -70,7 +70,7 @@ export async function createBookingAction(
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
       return { error: "El servicio elegido ya no está disponible." };
     }
-    return { error: e instanceof Error ? e.message : "No se pudo crear la reserva." };
+    return { error: getSafeErrorMessage(e, "No se pudo crear la reserva.") };
   }
 
   const user = await getCurrentUser();

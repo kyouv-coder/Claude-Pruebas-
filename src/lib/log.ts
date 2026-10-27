@@ -17,3 +17,32 @@ export function logUnexpectedError(e: unknown): void {
   console.error(e);
   Sentry.captureException(e);
 }
+
+/**
+ * Devuelve un mensaje seguro para mostrarle al usuario a partir de un error
+ * atrapado en una server action.
+ *
+ * Las funciones de negocio (src/lib/pos.ts, availability, etc.) tiran
+ * `new Error("mensaje en castellano para el usuario")` a propósito para los
+ * casos esperados ("Esta caja ya fue cerrada.", "Saldo insuficiente en la
+ * giftcard") — esos son seguros de mostrar tal cual. Pero un error que no
+ * previmos (falla de conexión, violación de constraint, columna que no
+ * existe) puede traer en `message` detalles internos de Postgres/Prisma
+ * (nombres de tabla, de columna, fragmentos de la query) que no deberían
+ * llegar a la pantalla de un usuario final. Por eso cualquier error de
+ * Prisma cae siempre al mensaje genérico, nunca se expone `e.message`.
+ *
+ * Se detecta por duck typing (en vez de `instanceof Prisma.PrismaClient...`)
+ * a propósito: este helper también lo usa `src/app/error.tsx`, un client
+ * component, y el paquete de Prisma generado (`@/generated/prisma`) usa
+ * `node:fs`/`node:fs/promises` — importarlo ahí rompe el build de webpack
+ * ("UnhandledSchemeError") porque intentaría meter el runtime de Prisma en
+ * el bundle del navegador. Todos los errores de Prisma (known/unknown
+ * request, validation, initialization, rust panic) exponen `clientVersion`.
+ */
+export function getSafeErrorMessage(e: unknown, fallback: string): string {
+  if (e && typeof e === "object" && "clientVersion" in e) {
+    return fallback;
+  }
+  return e instanceof Error ? e.message : fallback;
+}

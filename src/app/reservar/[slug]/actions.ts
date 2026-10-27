@@ -11,7 +11,7 @@ import {
 } from "@/lib/public-booking";
 import { sendSlackNotification } from "@/lib/slack";
 import { getClientIp } from "@/lib/request";
-import { logUnexpectedError } from "@/lib/log";
+import { logUnexpectedError, getSafeErrorMessage } from "@/lib/log";
 
 export type ActionState = { error?: string; success?: string };
 
@@ -159,7 +159,7 @@ export async function createPublicBookingAction(
   } catch (e) {
     logUnexpectedError(e);
     return {
-      error: e instanceof Error ? e.message : "No se pudo crear la reserva. Probá con otro horario.",
+      error: getSafeErrorMessage(e, "No se pudo crear la reserva. Probá con otro horario."),
     };
   }
 }

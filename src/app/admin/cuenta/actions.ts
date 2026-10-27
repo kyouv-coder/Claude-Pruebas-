@@ -1,7 +1,7 @@
 "use server";
 
 import { getCurrentUser, changePassword } from "@/lib/auth";
-import { logUnexpectedError } from "@/lib/log";
+import { logUnexpectedError, getSafeErrorMessage } from "@/lib/log";
 
 export type ActionState = { error?: string; success?: string };
 
@@ -47,7 +47,7 @@ export async function changePasswordAction(
   } catch (e) {
     logUnexpectedError(e);
     return {
-      error: e instanceof Error ? e.message : "No se pudo actualizar la contraseña.",
+      error: getSafeErrorMessage(e, "No se pudo actualizar la contraseña."),
     };
   }
   if (result.error) {
