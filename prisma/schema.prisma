@@ -286,6 +286,14 @@ model GiftCard {
 
   @@unique([businessId, code])
   @@index([clientId])
+  // listGiftCards (admin/giftcards) ordena por createdAt sin filtrar por
+  // code, así que el índice de arriba no sirve para ese orden — mismo
+  // motivo que [businessId, startTime] en Booking.
+  @@index([businessId, createdAt])
+  // listExpiringGiftCards filtra por rango de expiresAt para la alerta de
+  // vencimiento próximo; sin este índice recorre todas las giftcards del
+  // negocio en cada verificación.
+  @@index([businessId, expiresAt])
 }
 
 model GiftCardTransaction {
