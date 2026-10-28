@@ -246,6 +246,11 @@ model Booking {
 
   @@index([businessId, staffId, startTime])
   @@index([businessId, clientId])
+  // El dashboard y las recomendaciones filtran reservas por rango de fecha
+  // (y a veces status) sin especificar staffId, por lo que no pueden usar
+  // bien el índice [businessId, staffId, startTime] de arriba.
+  @@index([businessId, startTime])
+  @@index([businessId, status, startTime])
 }
 
 // Productos que el cliente pidió llevarse junto con el turno, elegidos en la

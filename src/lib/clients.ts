@@ -92,23 +92,32 @@ export async function getClientDetail(businessId: string, id: string) {
   });
 }
 
+// El conteo por cliente lo hace Postgres (GROUP BY + HAVING) en vez de traer
+// todas las filas de no-show a JS para agruparlas ahí — con negocios con
+// muchos no-shows acumulados eso es traer y recorrer filas de más solo para
+// tirar la mayoría (los que no llegan a minCount).
 export async function listFrequentNoShowClients(businessId: string, minCount = 2) {
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-  const noShows = await prisma.booking.findMany({
+  const grouped = await prisma.booking.groupBy({
+    by: ["clientId"],
     where: { businessId, status: "NO_SHOW", startTime: { gte: ninetyDaysAgo } },
-    select: { clientId: true, client: { select: { name: true } } },
+    _count: { clientId: true },
+    having: { clientId: { _count: { gte: minCount } } },
   });
 
-  const counts = new Map<string, { name: string; count: number }>();
-  for (const b of noShows) {
-    const entry = counts.get(b.clientId) ?? { name: b.client.name, count: 0 };
-    entry.count += 1;
-    counts.set(b.clientId, entry);
-  }
+  if (grouped.length === 0) return [];
 
-  return [...counts.entries()]
-    .filter(([, v]) => v.count >= minCount)
-    .map(([clientId, v]) => ({ clientId, name: v.name, count: v.count }));
+  const clients = await prisma.client.findMany({
+    where: { id: { in: grouped.map((g) => g.clientId) } },
+    select: { id: true, name: true },
+  });
+  const nameById = new Map(clients.map((c) => [c.id, c.name]));
+
+  return grouped.map((g) => ({
+    clientId: g.clientId,
+    name: nameById.get(g.clientId) ?? "",
+    count: g._count.clientId,
+  }));
 }
 
 export async function updateClientNotes(businessId: string, id: string, notes: string) {
