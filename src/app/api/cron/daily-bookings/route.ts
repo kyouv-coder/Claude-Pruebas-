@@ -71,7 +71,17 @@ export async function GET(request: NextRequest) {
           status: { in: ["PENDING", "CONFIRMED"] },
         },
         orderBy: { startTime: "asc" },
-        include: { client: true, service: true, staff: true },
+        // select explícito (no `include: { staff: true }`) porque `staff`
+        // es la relación a User (ver schema.prisma) — un include completo
+        // trae passwordHash y los campos de bloqueo de cuenta sin
+        // necesitarlos, mismo problema ya corregido en las queries de
+        // listados de Staff.
+        select: {
+          startTime: true,
+          client: { select: { name: true, phone: true } },
+          service: { select: { name: true, durationMinutes: true } },
+          staff: { select: { name: true } },
+        },
       });
 
       const dailyBookings: DailyBooking[] = bookings.map((b) => ({
