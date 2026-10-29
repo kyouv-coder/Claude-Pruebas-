@@ -15,6 +15,7 @@ export async function listStaff(businessId: string) {
   return prisma.user.findMany({
     where: { businessId, role: "STAFF", active: true },
     orderBy: { name: "asc" },
+    select: { id: true, name: true },
   });
 }
 
@@ -120,6 +121,7 @@ export async function createBooking(
   // terminaba mostrado en /admin/reservas de este negocio).
   const staff = await prisma.user.findFirst({
     where: { id: input.staffId, businessId, role: "STAFF", active: true },
+    select: { id: true },
   });
   if (!staff) {
     throw new Error("El profesional elegido ya no está disponible.");

@@ -41,6 +41,7 @@ export async function listPublicStaff(businessId: string) {
   return prisma.user.findMany({
     where: { businessId, role: "STAFF", active: true },
     orderBy: { name: "asc" },
+    select: { id: true, name: true },
   });
 }
 

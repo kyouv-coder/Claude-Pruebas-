@@ -305,6 +305,7 @@ export async function listAllStaff(businessId: string) {
   return prisma.user.findMany({
     where: { businessId, role: "STAFF" },
     orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true, active: true },
   });
 }
 
