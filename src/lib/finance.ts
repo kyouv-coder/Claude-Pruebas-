@@ -120,27 +120,37 @@ export async function getMonthlyFinancials(
   month: number
 ) {
   const { start, end } = monthRange(year, month);
+  return getFinancialsForRange(businessId, start, end);
+}
 
-  const [sales, expenses] = await Promise.all([
-    prisma.sale.findMany({
+// Antes, tanto getMonthlyFinancials como getYearlyFinancials traían todas las
+// filas del período (findMany) solo para sumarlas en JS. Para un negocio con
+// muchas ventas/gastos acumulados eso es transferir y recorrer filas enteras
+// cuando lo único que se necesita es un total y un conteo — algo que Postgres
+// puede calcular directamente con aggregate(), sin traer ninguna fila.
+async function getFinancialsForRange(businessId: string, start: Date, end: Date) {
+  const [salesAgg, expensesAgg] = await Promise.all([
+    prisma.sale.aggregate({
       where: { businessId, createdAt: { gte: start, lt: end } },
-      select: { total: true },
+      _sum: { total: true },
+      _count: true,
     }),
-    prisma.expense.findMany({
+    prisma.expense.aggregate({
       where: { businessId, date: { gte: start, lt: end } },
-      select: { amount: true },
+      _sum: { amount: true },
+      _count: true,
     }),
   ]);
 
-  const revenue = sales.reduce((sum, s) => sum + Number(s.total), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+  const revenue = Number(salesAgg._sum.total ?? 0);
+  const totalExpenses = Number(expensesAgg._sum.amount ?? 0);
 
   return {
     revenue,
     expenses: totalExpenses,
     net: revenue - totalExpenses,
-    salesCount: sales.length,
-    expensesCount: expenses.length,
+    salesCount: salesAgg._count,
+    expensesCount: expensesAgg._count,
   };
 }
 
@@ -232,28 +242,7 @@ function yearRange(year: number) {
 
 export async function getYearlyFinancials(businessId: string, year: number) {
   const { start, end } = yearRange(year);
-
-  const [sales, expenses] = await Promise.all([
-    prisma.sale.findMany({
-      where: { businessId, createdAt: { gte: start, lt: end } },
-      select: { total: true },
-    }),
-    prisma.expense.findMany({
-      where: { businessId, date: { gte: start, lt: end } },
-      select: { amount: true },
-    }),
-  ]);
-
-  const revenue = sales.reduce((sum, s) => sum + Number(s.total), 0);
-  const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
-
-  return {
-    revenue,
-    expenses: totalExpenses,
-    net: revenue - totalExpenses,
-    salesCount: sales.length,
-    expensesCount: expenses.length,
-  };
+  return getFinancialsForRange(businessId, start, end);
 }
 
 // getYearlyTrend/getMonthlyTrend se llaman desde el dashboard (este último
