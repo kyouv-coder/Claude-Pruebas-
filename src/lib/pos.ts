@@ -156,7 +156,14 @@ export async function getTodaysUnpaidBookings(businessId: string) {
       sale: null,
     },
     orderBy: { startTime: "asc" },
-    include: { client: true, service: true, staff: true },
+    include: {
+      client: true,
+      service: true,
+      // select explícito (no `include: { staff: true }`) porque `staff` es
+      // un User y traer el registro completo expone passwordHash y otros
+      // campos sensibles a la pantalla de Caja, que solo necesita el nombre.
+      staff: { select: { id: true, name: true } },
+    },
   });
 }
 

@@ -32,7 +32,10 @@ export async function listUpcomingBookings(businessId: string, limit = 50) {
     include: {
       client: true,
       service: true,
-      staff: true,
+      // select explícito (no `include: { staff: true }`) porque `staff` es
+      // un User y traer el registro completo expone passwordHash y otros
+      // campos sensibles; la agenda solo necesita el nombre.
+      staff: { select: { id: true, name: true } },
       productRequests: { include: { product: true } },
     },
   });
@@ -202,7 +205,11 @@ export async function createBooking(
           include: {
             client: true,
             service: true,
-            staff: true,
+            // select explícito (no `include: { staff: true }`) porque
+            // `staff` es un User y traer el registro completo expone
+            // passwordHash y otros campos sensibles; los llamadores solo
+            // usan el nombre (para notificaciones y mensajes).
+            staff: { select: { id: true, name: true } },
             productRequests: { include: { product: true } },
           },
         });

@@ -81,7 +81,10 @@ export async function getClientDetail(businessId: string, id: string) {
     include: {
       bookings: {
         orderBy: { startTime: "desc" },
-        include: { service: true, staff: true },
+        // select explícito (no `include: { staff: true }`) porque `staff` es
+        // un User y traer el registro completo expone passwordHash y otros
+        // campos sensibles; la ficha de cliente solo necesita el nombre.
+        include: { service: true, staff: { select: { id: true, name: true } } },
       },
       sales: {
         orderBy: { createdAt: "desc" },
