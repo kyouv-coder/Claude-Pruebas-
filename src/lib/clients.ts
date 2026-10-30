@@ -72,15 +72,27 @@ export async function countClients(businessId: string) {
   return prisma.client.count({ where: { businessId } });
 }
 
+const CLIENT_DETAIL_HISTORY_LIMIT = 20;
+
 // findFirst (no findFirstOrThrow): un id que no existe o de otro negocio
 // debe poder mostrarse como "no encontrado" (ver notFound() en la página),
 // no tumbar la pantalla con el error genérico de Next.
+//
+// Antes `bookings` y `sales` se traían completas, sin límite — un cliente
+// viejo con cientos de turnos/ventas acumuladas hace que esta página traiga
+// y renderice todo ese historial entero cada vez que alguien la abre, aunque
+// la pantalla solo necesita mostrar los más recientes. Ahora el historial
+// mostrado se limita a los últimos 20 de cada uno, pero los contadores de
+// las tarjetas de arriba ("Reservas totales", "Gastado total") siguen
+// siendo el total real (agregado en la base, no el largo del array
+// truncado) para no mostrar una cifra menor a la real.
 export async function getClientDetail(businessId: string, id: string) {
-  return prisma.client.findFirst({
+  const client = await prisma.client.findFirst({
     where: { id, businessId },
     include: {
       bookings: {
         orderBy: { startTime: "desc" },
+        take: CLIENT_DETAIL_HISTORY_LIMIT,
         // select explícito (no `include: { staff: true }`) porque `staff` es
         // un User y traer el registro completo expone passwordHash y otros
         // campos sensibles; la ficha de cliente solo necesita el nombre.
@@ -88,11 +100,29 @@ export async function getClientDetail(businessId: string, id: string) {
       },
       sales: {
         orderBy: { createdAt: "desc" },
+        take: CLIENT_DETAIL_HISTORY_LIMIT,
         include: { items: true },
       },
       giftCards: true,
     },
   });
+  if (!client) return null;
+
+  const [bookingsCount, salesAgg] = await Promise.all([
+    prisma.booking.count({ where: { clientId: id, businessId } }),
+    prisma.sale.aggregate({
+      where: { clientId: id, businessId },
+      _sum: { total: true },
+      _count: { _all: true },
+    }),
+  ]);
+
+  return {
+    ...client,
+    bookingsCount,
+    salesCount: salesAgg._count._all,
+    totalSpent: salesAgg._sum.total ? Number(salesAgg._sum.total) : 0,
+  };
 }
 
 // El conteo por cliente lo hace Postgres (GROUP BY + HAVING) en vez de traer

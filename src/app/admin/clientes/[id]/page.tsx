@@ -25,7 +25,7 @@ export default async function ClienteDetailPage({
   const client = await getClientDetail(businessId, id);
   if (!client) notFound();
 
-  const totalSpent = client.sales.reduce((sum, s) => sum + Number(s.total), 0);
+  const totalSpent = client.totalSpent;
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,7 +42,7 @@ export default async function ClienteDetailPage({
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-xs text-muted">Reservas totales</div>
-          <div className="font-display text-2xl text-ink mt-1">{client.bookings.length}</div>
+          <div className="font-display text-2xl text-ink mt-1">{client.bookingsCount}</div>
         </div>
         <div className="bg-surface border border-border rounded-lg p-4">
           <div className="text-xs text-muted">Gastado total</div>
@@ -63,12 +63,17 @@ export default async function ClienteDetailPage({
 
       <section className="bg-surface border border-border rounded-lg p-5">
         <h2 className="font-display text-lg text-ink mb-4">
-          Historial de reservas ({client.bookings.length})
+          Historial de reservas ({client.bookingsCount})
         </h2>
-        {client.bookings.length === 0 ? (
+        {client.bookingsCount === 0 ? (
           <p className="text-sm text-muted">Todavía no reservó ningún turno.</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
+            {client.bookingsCount > client.bookings.length && (
+              <p className="pb-3 text-xs text-muted">
+                Mostrando las {client.bookings.length} reservas más recientes.
+              </p>
+            )}
             {client.bookings.map((b) => (
               <div key={b.id} className="py-3 flex items-center justify-between gap-4 text-sm">
                 <div>
@@ -87,12 +92,17 @@ export default async function ClienteDetailPage({
 
       <section className="bg-surface border border-border rounded-lg p-5">
         <h2 className="font-display text-lg text-ink mb-4">
-          Historial de compras ({client.sales.length})
+          Historial de compras ({client.salesCount})
         </h2>
-        {client.sales.length === 0 ? (
+        {client.salesCount === 0 ? (
           <p className="text-sm text-muted">Todavía no hay ventas registradas.</p>
         ) : (
           <div className="flex flex-col divide-y divide-border">
+            {client.salesCount > client.sales.length && (
+              <p className="pb-3 text-xs text-muted">
+                Mostrando las {client.sales.length} compras más recientes.
+              </p>
+            )}
             {client.sales.map((s) => (
               <div key={s.id} className="py-3 flex items-center justify-between gap-4 text-sm">
                 <div>

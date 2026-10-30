@@ -366,6 +366,7 @@ describeIfDb("getClientDetail", () => {
   let businessId: string;
   let otherBusinessId: string;
   let clientId: string;
+  let adminId: string;
 
   beforeAll(async () => {
     const business = await prisma.business.create({
@@ -381,10 +382,25 @@ describeIfDb("getClientDetail", () => {
       data: { businessId, name: "Cliente Detalle" },
     });
     clientId = client.id;
+
+    adminId = (
+      await prisma.user.create({
+        data: {
+          businessId,
+          email: `admin-client-detail-${Date.now()}@test.local`,
+          passwordHash: "x",
+          name: "Admin Test",
+          role: "ADMIN",
+        },
+      })
+    ).id;
   });
 
   afterAll(async () => {
+    await prisma.sale.deleteMany({ where: { businessId } });
+    await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
     await prisma.client.deleteMany({ where: { businessId } });
+    await prisma.user.deleteMany({ where: { businessId } });
     await prisma.business.delete({ where: { id: businessId } });
     await prisma.business.delete({ where: { id: otherBusinessId } });
     await prisma.$disconnect();
@@ -407,5 +423,32 @@ describeIfDb("getClientDetail", () => {
     expect(client?.bookings).toEqual([]);
     expect(client?.sales).toEqual([]);
     expect(client?.giftCards).toEqual([]);
+    expect(client?.bookingsCount).toBe(0);
+    expect(client?.salesCount).toBe(0);
+    expect(client?.totalSpent).toBe(0);
+  });
+
+  it("caps the returned sales history but reports the real total and sum", async () => {
+    // Antes `sales` se traía completa (sin límite) y la tarjeta "Gastado
+    // total" se calculaba sumando ese array en JS — con muchas ventas
+    // acumuladas eso es cada vez más memoria/CPU por cada visita a la
+    // ficha. Ahora el historial mostrado se recorta, pero el total real
+    // (conteo y suma) viene de una agregación en la base, no del array
+    // recortado.
+    const cashSession = await prisma.cashRegisterSession.create({
+      data: { businessId, openingAmount: 0, openedById: adminId },
+    });
+    for (let i = 0; i < 22; i++) {
+      await prisma.sale.create({
+        data: { businessId, clientId, total: 100, paymentMethod: "CASH", cashSessionId: cashSession.id },
+      });
+    }
+
+    const client = await getClientDetail(businessId, clientId);
+    expect(client?.sales.length).toBe(20);
+    expect(client?.salesCount).toBe(22);
+    expect(client?.totalSpent).toBe(2200);
+
+    await prisma.sale.deleteMany({ where: { businessId, clientId } });
   });
 });
