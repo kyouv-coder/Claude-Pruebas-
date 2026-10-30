@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import { getCurrentUser, requireBusinessId } from "@/lib/auth";
 import { PasswordForm } from "./PasswordForm";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Mi cuenta · Sistema de gestión",
+};
 
 export default async function CuentaPage() {
   // A diferencia del resto de las páginas de /admin, esta llamaba solo a

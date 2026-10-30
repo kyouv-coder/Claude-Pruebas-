@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getClientDetail } from "@/lib/clients";
@@ -6,6 +7,10 @@ import { NotesForm } from "./NotesForm";
 import { formatCurrency as money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Ficha de cliente · Sistema de gestión",
+};
 
 const statusLabel: Record<string, string> = {
   PENDING: "Pendiente",

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   listExpensesForMonth,
@@ -12,6 +13,10 @@ import { InvoiceUploadForm } from "./InvoiceUploadForm";
 import { formatCurrency as money, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Finanzas · Sistema de gestión",
+};
 
 function monthLabel(year: number, month: number) {
   return new Date(year, month - 1, 1).toLocaleDateString("es-AR", {

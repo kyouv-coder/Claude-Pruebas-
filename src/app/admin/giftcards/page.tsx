@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   listGiftCards,
@@ -9,6 +10,10 @@ import { requireBusinessId } from "@/lib/auth";
 import { formatCurrency as money, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Giftcards · Sistema de gestión",
+};
 
 function statusOf(giftCard: {
   active: boolean;

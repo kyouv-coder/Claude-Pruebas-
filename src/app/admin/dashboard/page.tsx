@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getDashboardStats } from "@/lib/dashboard";
 import {
@@ -22,6 +23,10 @@ import { RevenueTrendPanel } from "@/components/RevenueTrendPanel";
 import { formatCurrency as money } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Dashboard · Sistema de gestión",
+};
 
 function pct(n: number) {
   return `${(n * 100).toFixed(0)}%`;

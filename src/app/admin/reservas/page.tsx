@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { listServices, listStaff, listUpcomingBookings } from "@/lib/bookings";
 import { requireBusinessId, getCurrentUser } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
@@ -6,6 +7,10 @@ import { CancelBookingButton } from "./CancelBookingButton";
 import { MarkNoShowButton } from "./MarkNoShowButton";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Reservas · Sistema de gestión",
+};
 
 const statusLabel: Record<string, string> = {
   PENDING: "Pendiente",

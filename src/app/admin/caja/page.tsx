@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import {
   getOpenCashSession,
   getCashSessionSummary,
@@ -17,6 +18,10 @@ import {
 import { formatCurrency as money, formatTime, formatDateTime } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Caja · Sistema de gestión",
+};
 
 export default async function CajaPage() {
   const businessId = await requireBusinessId();

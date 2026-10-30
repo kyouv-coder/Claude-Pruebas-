@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getRecommendations } from "@/lib/insights";
 import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Recomendaciones · Sistema de gestión",
+};
 
 const severityStyles = {
   alta: "border-danger/30 bg-danger-soft",

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { listClients, countClients, CLIENTS_PAGE_SIZE } from "@/lib/clients";
 import { requireBusinessId, getCurrentUser } from "@/lib/auth";
@@ -5,6 +6,10 @@ import { getVerticalCopy } from "@/lib/verticals";
 import { formatCurrency as money, formatDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Clientes · Sistema de gestión",
+};
 
 export default async function ClientesPage({
   searchParams,

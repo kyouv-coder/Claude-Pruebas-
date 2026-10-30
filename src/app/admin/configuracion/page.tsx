@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { listAllServices, listAllProducts, listAllStaff } from "@/lib/settings";
 import { getBusinessHours, hasConfiguredHours } from "@/lib/business-hours";
@@ -13,6 +14,10 @@ import { CancellationPolicyForm } from "./CancellationPolicyForm";
 import { BusinessProfileForm } from "./BusinessProfileForm";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Configuración · Sistema de gestión",
+};
 
 export default async function ConfiguracionPage() {
   const businessId = await requireAdmin();

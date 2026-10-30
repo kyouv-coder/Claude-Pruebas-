@@ -1,8 +1,13 @@
+import type { Metadata } from "next";
 import { getCurrentUser, requireBusinessId } from "@/lib/auth";
 import { getVerticalCopy } from "@/lib/verticals";
 import { SUPPORT_EMAIL, SUPPORT_WHATSAPP } from "@/lib/support";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Soporte · Sistema de gestión",
+};
 
 const FAQ = [
   {
