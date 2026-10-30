@@ -80,6 +80,10 @@ function ServiceForm({
           required
           maxLength={150}
           className={inputClass}
+          // Al editar, este formulario se monta recién cuando se abre con
+          // "Editar"; sin esto el foco quedaba perdido en el body porque el
+          // botón que lo disparó desaparece del DOM.
+          autoFocus={!!service}
         />
       </FormField>
       <FormField label="Descripción" htmlFor={`svc-desc-${idSuffix}`}>
@@ -143,11 +147,20 @@ function ServiceForm({
 function ServiceRow({ service }: { service: Service }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Al cerrar el formulario de edición (guardar o cancelar) el foco queda
+  // perdido en el body porque el formulario se desmonta; lo devolvemos al
+  // botón "Editar" que lo había abierto.
+  const closeEditing = () => {
+    setEditing(false);
+    requestAnimationFrame(() => editButtonRef.current?.focus());
+  };
 
   if (editing) {
     return (
       <div className="p-4">
-        <ServiceForm service={service} onDone={() => setEditing(false)} />
+        <ServiceForm service={service} onDone={closeEditing} />
       </div>
     );
   }
@@ -181,6 +194,7 @@ function ServiceRow({ service }: { service: Service }) {
       <div className="flex items-center gap-3">
         <ServiceImageUpload serviceId={service.id} />
         <button
+          ref={editButtonRef}
           type="button"
           onClick={() => setEditing(true)}
           className="text-xs text-accent hover:underline"

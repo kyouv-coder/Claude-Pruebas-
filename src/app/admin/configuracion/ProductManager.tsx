@@ -78,6 +78,10 @@ function ProductForm({
           required
           maxLength={150}
           className={inputClass}
+          // Al editar, este formulario se monta recién cuando se abre con
+          // "Editar"; sin esto el foco quedaba perdido en el body porque el
+          // botón que lo disparó desaparece del DOM.
+          autoFocus={!!product}
         />
       </FormField>
       <FormField label="Descripción" htmlFor={`prod-desc-${idSuffix}`}>
@@ -142,11 +146,20 @@ function ProductForm({
 function ProductRow({ product }: { product: Product }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Al cerrar el formulario de edición (guardar o cancelar) el foco queda
+  // perdido en el body porque el formulario se desmonta; lo devolvemos al
+  // botón "Editar" que lo había abierto.
+  const closeEditing = () => {
+    setEditing(false);
+    requestAnimationFrame(() => editButtonRef.current?.focus());
+  };
 
   if (editing) {
     return (
       <div className="p-4">
-        <ProductForm product={product} onDone={() => setEditing(false)} />
+        <ProductForm product={product} onDone={closeEditing} />
       </div>
     );
   }
@@ -180,6 +193,7 @@ function ProductRow({ product }: { product: Product }) {
       <div className="flex items-center gap-3">
         <ProductImageUpload productId={product.id} />
         <button
+          ref={editButtonRef}
           type="button"
           onClick={() => setEditing(true)}
           className="text-xs text-accent hover:underline"

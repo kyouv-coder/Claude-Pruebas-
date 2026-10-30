@@ -66,6 +66,10 @@ function StaffForm({ staff, onDone }: { staff?: Staff; onDone?: () => void }) {
           required
           maxLength={150}
           className={inputClass}
+          // Al editar, este formulario se monta recién cuando se abre con
+          // "Editar"; sin esto el foco quedaba perdido en el body porque el
+          // botón que lo disparó desaparece del DOM.
+          autoFocus={!!staff}
         />
       </FormField>
       <FormField label="Email" htmlFor={`staff-email-${idSuffix}`} required>
@@ -118,11 +122,20 @@ function StaffForm({ staff, onDone }: { staff?: Staff; onDone?: () => void }) {
 function StaffRow({ staff }: { staff: Staff }) {
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Al cerrar el formulario de edición (guardar o cancelar) el foco queda
+  // perdido en el body porque el formulario se desmonta; lo devolvemos al
+  // botón "Editar" que lo había abierto.
+  const closeEditing = () => {
+    setEditing(false);
+    requestAnimationFrame(() => editButtonRef.current?.focus());
+  };
 
   if (editing) {
     return (
       <div className="p-4">
-        <StaffForm staff={staff} onDone={() => setEditing(false)} />
+        <StaffForm staff={staff} onDone={closeEditing} />
       </div>
     );
   }
@@ -141,6 +154,7 @@ function StaffRow({ staff }: { staff: Staff }) {
       </div>
       <div className="flex items-center gap-3">
         <button
+          ref={editButtonRef}
           type="button"
           onClick={() => setEditing(true)}
           className="text-xs text-accent hover:underline"
