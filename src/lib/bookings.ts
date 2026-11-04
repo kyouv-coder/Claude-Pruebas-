@@ -146,7 +146,16 @@ export async function createBooking(
     email: input.clientEmail,
   });
 
-  const validRequests = (input.productRequests || []).filter((r) => r.quantity > 0);
+  // La reserva pública ya filtra con Number.isInteger antes de llegar acá,
+  // pero createBooking no debería depender de que ese sea el único
+  // caller — mismo motivo que el resto de las validaciones de este
+  // archivo. `quantity` termina en una columna Int; sin este chequeo acá
+  // también, una cantidad no entera (ej. 1.5) llegada por otro camino
+  // pasaba el filtro de abajo y recién explotaba con un error crudo de
+  // Prisma al insertar, en vez de simplemente descartarse como inválida.
+  const validRequests = (input.productRequests || []).filter(
+    (r) => Number.isInteger(r.quantity) && r.quantity > 0
+  );
   if (validRequests.length > 0) {
     const products = await prisma.product.findMany({
       where: { businessId, active: true, id: { in: validRequests.map((r) => r.productId) } },

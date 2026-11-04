@@ -76,6 +76,7 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
         { productId, quantity: 2 },
         { productId: "no-existe", quantity: 1 },
         { productId, quantity: 0 },
+        { productId, quantity: 1.5 },
       ],
     });
 
