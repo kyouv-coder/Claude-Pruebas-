@@ -162,6 +162,14 @@ model User {
   active              Boolean   @default(true)
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
+  // Se incrementa en cada cambio de contraseña (propio o vía reset por
+  // email) y se compara contra el valor embebido en el token de sesión en
+  // getCurrentUser — sin esto, una cookie de sesión ya filtrada (XSS,
+  // dispositivo desatendido, backup de navegador) seguía siendo válida
+  // hasta sus 7 días de vencimiento aun después de que la víctima cambiara
+  // su contraseña, porque el token solo codifica el id de usuario y una
+  // fecha de expiración, nunca algo ligado a la contraseña vigente.
+  sessionVersion      Int       @default(0)
   createdAt           DateTime  @default(now())
 
   bookings           Booking[]             @relation("StaffBookings")

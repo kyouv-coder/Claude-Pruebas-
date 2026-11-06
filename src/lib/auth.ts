@@ -161,7 +161,12 @@ export async function resetPasswordWithToken(token: string, newPassword: string)
       }
       await tx.user.update({
         where: { id: resetToken.userId },
-        data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+        data: {
+          passwordHash,
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+          sessionVersion: { increment: 1 },
+        },
       });
     });
   } catch (e) {
@@ -284,7 +289,16 @@ export async function createSession(userId: string) {
   if (!secret) {
     throw new Error("AUTH_SECRET no está configurado en el servidor.");
   }
-  const token = await createSessionToken(userId, secret, SESSION_MAX_AGE_SECONDS);
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { sessionVersion: true },
+  });
+  const token = await createSessionToken(
+    userId,
+    secret,
+    SESSION_MAX_AGE_SECONDS,
+    user.sessionVersion
+  );
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, token, {
     httpOnly: true,
@@ -332,9 +346,20 @@ export async function changePassword(
   }
 
   const passwordHash = await hashPassword(newPassword);
+  // sessionVersion++ invalida cualquier otra sesión ya emitida (otro
+  // dispositivo, una cookie filtrada) — getCurrentUser compara esto contra
+  // el valor codificado en el token y rechaza el que quedó desactualizado.
+  // El caller es responsable de reemitir la cookie actual con createSession
+  // si quiere que el propio dispositivo que cambió la contraseña siga
+  // logueado (ver changePasswordAction).
   await prisma.user.update({
     where: { id: userId },
-    data: { passwordHash, failedLoginAttempts: 0, lockedUntil: null },
+    data: {
+      passwordHash,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+      sessionVersion: { increment: 1 },
+    },
   });
   return { error: null };
 }
@@ -382,8 +407,17 @@ export const getCurrentUser = cache(async function getCurrentUser() {
   // a alguien del staff (toggleStaffActiveAction) no cortaba nada: su
   // sesión ya emitida (JWT, válido hasta 7 días) seguía funcionando en
   // toda la app, solo bloqueaba intentos de login nuevos.
-  return prisma.user.findFirst({
+  const user = await prisma.user.findFirst({
     where: { id: session.sub, active: true },
     include: { business: { omit: { coverImageData: true } } },
   });
+  if (!user) return null;
+
+  // Mismo motivo que el chequeo de `active`: un token emitido antes de un
+  // cambio de contraseña (el propio o vía "olvidé mi contraseña") queda
+  // desactualizado en cuanto sessionVersion avanza, así una cookie filtrada
+  // en otro dispositivo deja de servir apenas la víctima cambia su clave.
+  if (session.sessionVersion !== user.sessionVersion) return null;
+
+  return user;
 });

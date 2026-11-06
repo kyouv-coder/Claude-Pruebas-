@@ -238,7 +238,7 @@ describeIfDb("openCashSession — no permite dos cajas abiertas a la vez", () =>
     const secret = process.env.AUTH_SECRET!;
     const { createSessionToken } = await import("./session");
     const { SESSION_COOKIE } = await import("./session");
-    const token = await createSessionToken(operator.id, secret, 3600);
+    const token = await createSessionToken(operator.id, secret, 3600, 0);
 
     vi.resetModules();
     vi.doMock("next/headers", () => ({

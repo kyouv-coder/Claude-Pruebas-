@@ -222,6 +222,22 @@ describeIfDb("changePassword — bloqueo tras intentos fallidos con la contrase�
       data: { passwordHash: await hashPassword(realPassword) },
     });
   });
+
+  it("bumps sessionVersion on a successful change, invalidating any session token issued before it", async () => {
+    const before = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    const result = await changePassword(userId, realPassword, "nueva-contrasena-session-1");
+    expect(result.error).toBeNull();
+
+    const after = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    expect(after.sessionVersion).toBe(before.sessionVersion + 1);
+
+    // Dejar la contraseña como estaba para no afectar otros tests de este bloque.
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash: await hashPassword(realPassword) },
+    });
+  });
 });
 
 describeIfDb("requestPasswordReset / resetPasswordWithToken", () => {
@@ -271,6 +287,9 @@ describeIfDb("requestPasswordReset / resetPasswordWithToken", () => {
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
     const matchesNew = await bcrypt.compare("una-contrasena-nueva-456", user.passwordHash);
     expect(matchesNew).toBe(true);
+    // Invalida cualquier sesión ya emitida en otro dispositivo, igual que
+    // un cambio de contraseña autogestionado desde "Mi cuenta".
+    expect(user.sessionVersion).toBeGreaterThan(0);
 
     // El mismo token no puede volver a usarse (un solo uso).
     const reused = await resetPasswordWithToken(issued!.token, "otra-contrasena-789");

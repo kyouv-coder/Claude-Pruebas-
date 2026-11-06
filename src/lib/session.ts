@@ -30,10 +30,13 @@ function fromBase64Url(str: string) {
 export async function createSessionToken(
   userId: string,
   secret: string,
-  maxAgeSeconds: number
+  maxAgeSeconds: number,
+  sessionVersion: number
 ) {
   const exp = Date.now() + maxAgeSeconds * 1000;
-  const payloadBytes = new TextEncoder().encode(JSON.stringify({ sub: userId, exp }));
+  const payloadBytes = new TextEncoder().encode(
+    JSON.stringify({ sub: userId, exp, sv: sessionVersion })
+  );
   const payload = toBase64Url(payloadBytes);
   const key = await getKey(secret);
   const sigBuf = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload));
@@ -44,7 +47,7 @@ export async function createSessionToken(
 export async function verifySessionToken(
   token: string,
   secret: string
-): Promise<{ sub: string } | null> {
+): Promise<{ sub: string; sessionVersion: number } | null> {
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return null;
 
@@ -61,7 +64,12 @@ export async function verifySessionToken(
     const data = JSON.parse(new TextDecoder().decode(fromBase64Url(payload)));
     if (typeof data.exp !== "number" || Date.now() > data.exp) return null;
     if (typeof data.sub !== "string") return null;
-    return { sub: data.sub };
+    // Tokens emitidos antes de este campo no traen `sv` — se tratan como
+    // versión 0 (igual al default de User.sessionVersion en usuarios ya
+    // existentes) para no deslogear a todo el mundo con el deploy de este
+    // cambio.
+    const sessionVersion = typeof data.sv === "number" ? data.sv : 0;
+    return { sub: data.sub, sessionVersion };
   } catch {
     return null;
   }

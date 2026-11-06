@@ -1,6 +1,6 @@
 "use server";
 
-import { getCurrentUser, changePassword } from "@/lib/auth";
+import { getCurrentUser, changePassword, createSession } from "@/lib/auth";
 import { logUnexpectedError, getSafeErrorMessage } from "@/lib/log";
 
 export type ActionState = { error?: string; success?: string };
@@ -53,6 +53,12 @@ export async function changePasswordAction(
   if (result.error) {
     return { error: result.error };
   }
+
+  // changePassword invalida todas las sesiones existentes (sessionVersion++,
+  // ver comentario en auth.ts) para cerrarle la puerta a una cookie filtrada
+  // en otro dispositivo — sin reemitir acá, esa misma invalidación te
+  // desloguearía a vos también en el siguiente request de esta pestaña.
+  await createSession(user.id);
 
   return { success: "Contraseña actualizada." };
 }
