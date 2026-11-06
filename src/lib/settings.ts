@@ -346,5 +346,15 @@ export async function updateStaff(
 }
 
 export async function setStaffActive(businessId: string, id: string, active: boolean) {
-  return prisma.user.update({ where: { id, businessId }, data: { active } });
+  // sessionVersion++ en cada cambio de estado (no solo al desactivar): una
+  // sesión robada antes de desactivar a alguien queda bloqueada de inmediato
+  // por el chequeo de `active` en getCurrentUser, pero sin esto, reactivar
+  // a esa persona más adelante (ej. vuelve a trabajar ahí) revivía esa misma
+  // cookie vieja —y cualquier otra filtrada durante la ventana en que estuvo
+  // activa antes— en vez de exigir un login nuevo, mismo motivo que ya
+  // justifica el bump en changePassword/resetPasswordWithToken.
+  return prisma.user.update({
+    where: { id, businessId },
+    data: { active, sessionVersion: { increment: 1 } },
+  });
 }

@@ -436,6 +436,17 @@ describeIfDb("setServiceActive / setProductActive / setStaffActive / listAllServ
     await expect(setStaffActive(otherBusinessId, staffId, false)).rejects.toThrow();
   });
 
+  it("setStaffActive sube sessionVersion tanto al desactivar como al reactivar, para que una sesión robada antes del cambio no revida sola", async () => {
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: staffId },
+      select: { sessionVersion: true },
+    });
+    const deactivated = await setStaffActive(businessId, staffId, false);
+    expect(deactivated.sessionVersion).toBe(before.sessionVersion + 1);
+    const reactivated = await setStaffActive(businessId, staffId, true);
+    expect(reactivated.sessionVersion).toBe(before.sessionVersion + 2);
+  });
+
   it("updateBusinessProfile actualiza descripción y dirección, y los vacíos se guardan como null", async () => {
     const updated = await updateBusinessProfile(businessId, {
       description: "Un spa de prueba",
