@@ -2,7 +2,7 @@ import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import type { BookingStatus } from "@/generated/prisma";
 import { checkWithinBusinessHours } from "@/lib/business-hours";
-import { assertMaxLength, assertValidDate } from "@/lib/validation";
+import { assertMaxLength, assertValidDate, normalizeText } from "@/lib/validation";
 
 export async function listServices(businessId: string) {
   return prisma.service.findMany({
@@ -70,7 +70,7 @@ export async function findOrCreateClient(
     return await prisma.client.create({
       data: {
         businessId,
-        name: input.name,
+        name: normalizeText(input.name),
         phone: input.phone || null,
         email: email || null,
       },
@@ -200,7 +200,7 @@ export async function createBooking(
             staffId: input.staffId,
             startTime: input.startTime,
             endTime,
-            notes: input.notes || null,
+            notes: input.notes ? normalizeText(input.notes) : null,
             productRequests:
               validRequests.length > 0
                 ? {

@@ -113,6 +113,23 @@ export function sanitizeFileNameForHeader(fileName: string) {
   return fileName.replace(/[\r\n"]/g, "");
 }
 
+// Unicode permite representar el mismo texto visible con distintas
+// secuencias de code points — ej. "é" como un solo carácter precompuesto
+// (U+00E9) o como "e" + acento combinante (U+0065 U+0301). Ambas formas se
+// ven y se leen igual, pero son strings distintos byte a byte: dos personas
+// escribiendo el mismo nombre de servicio/cliente desde teclados o
+// dispositivos distintos (algunos teclados virtuales y copiar/pegar desde
+// ciertas apps producen la forma descompuesta) pueden terminar guardando
+// "valores distintos" para lo que en pantalla es idéntico, lo que rompería
+// en silencio cualquier comparación exacta o agrupación por ese texto que
+// se agregue más adelante (ej. una búsqueda o un futuro chequeo de nombre
+// duplicado). Normalizar a NFC (la forma precompuesta, la más común) antes
+// de persistir evita ese problema de raíz en el dato guardado, no solo en
+// la comparación.
+export function normalizeText(value: string): string {
+  return value.normalize("NFC");
+}
+
 // `/reservar/[slug]` embebe un bloque `<script type="application/ld+json">`
 // armado con `JSON.stringify` de datos que carga la dueña del negocio (nombre,
 // descripción, dirección) desde Configuración — no el formulario público sin

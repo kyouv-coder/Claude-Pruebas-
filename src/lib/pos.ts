@@ -3,7 +3,7 @@ import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import type { PaymentMethod } from "@/generated/prisma";
-import { assertFiniteAmount, assertMaxLength } from "@/lib/validation";
+import { assertFiniteAmount, assertMaxLength, normalizeText } from "@/lib/validation";
 
 async function getOperator() {
   const user = await getCurrentUser();
@@ -355,7 +355,7 @@ export async function sellGiftCard(
       const client = await tx.client.create({
         data: {
           businessId,
-          name: input.clientName,
+          name: normalizeText(input.clientName),
           phone: input.clientPhone || null,
           // Mismo motivo que findOrCreateClient (bookings.ts): sin normalizar,
           // esta giftcard podía quedar en un cliente "Juan@Gmail.com" que

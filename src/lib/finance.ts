@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { ExpenseCategory } from "@/generated/prisma";
-import { assertFiniteAmount, assertMaxLength, assertValidDate } from "@/lib/validation";
+import { assertFiniteAmount, assertMaxLength, assertValidDate, normalizeText } from "@/lib/validation";
 
 // Re-exportado desde validation.ts (donde vive ahora, compartido con
 // csv.ts) para no romper a quien ya la importaba desde acá.
@@ -104,7 +104,7 @@ export async function createExpense(
       businessId,
       date: input.date,
       category: input.category,
-      description: input.description || null,
+      description: input.description ? normalizeText(input.description) : null,
       amount: input.amount,
     },
   });

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
-import { assertFiniteAmount, assertMaxLength } from "@/lib/validation";
+import { assertFiniteAmount, assertMaxLength, normalizeText } from "@/lib/validation";
 
 // Mismo motivo que en pos.ts/finance.ts (sellProduct, redeemGiftCard,
 // createExpense): la acción del formulario ya valida esto, pero estas
@@ -64,8 +64,8 @@ export async function createService(
   return prisma.service.create({
     data: {
       businessId,
-      name: input.name,
-      description: input.description || null,
+      name: normalizeText(input.name),
+      description: input.description ? normalizeText(input.description) : null,
       durationMinutes: input.durationMinutes,
       price: input.price,
     },
@@ -89,8 +89,8 @@ export async function updateService(
   return prisma.service.update({
     where: { id, businessId },
     data: {
-      name: input.name,
-      description: input.description || null,
+      name: normalizeText(input.name),
+      description: input.description ? normalizeText(input.description) : null,
       durationMinutes: input.durationMinutes,
       price: input.price,
     },
@@ -173,8 +173,8 @@ export async function updateBusinessProfile(
   return prisma.business.update({
     where: { id: businessId },
     data: {
-      description: input.description || null,
-      address: input.address || null,
+      description: input.description ? normalizeText(input.description) : null,
+      address: input.address ? normalizeText(input.address) : null,
     },
   });
 }
@@ -222,8 +222,8 @@ export async function createProduct(
   return prisma.product.create({
     data: {
       businessId,
-      name: input.name,
-      description: input.description || null,
+      name: normalizeText(input.name),
+      description: input.description ? normalizeText(input.description) : null,
       price: input.price,
       stock: input.stock,
     },
@@ -242,8 +242,8 @@ export async function updateProduct(
   return prisma.product.update({
     where: { id, businessId },
     data: {
-      name: input.name,
-      description: input.description || null,
+      name: normalizeText(input.name),
+      description: input.description ? normalizeText(input.description) : null,
       price: input.price,
       stock: input.stock,
     },
@@ -319,7 +319,7 @@ export async function createStaff(
   return prisma.user.create({
     data: {
       businessId,
-      name: input.name,
+      name: normalizeText(input.name),
       // El email es @unique en el modelo y el login busca por coincidencia
       // exacta (case-sensitive en Postgres) — sin normalizar acá, cargar
       // "Maria@Spa.com" no choca con un duplicado real "maria@spa.com" (la
@@ -341,7 +341,7 @@ export async function updateStaff(
   assertValidEmail(input.email);
   return prisma.user.update({
     where: { id, businessId },
-    data: { name: input.name, email: input.email.toLowerCase() },
+    data: { name: normalizeText(input.name), email: input.email.toLowerCase() },
   });
 }
 

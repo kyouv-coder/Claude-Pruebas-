@@ -4,6 +4,7 @@ import {
   assertMaxLength,
   assertMinPasswordLength,
   assertPasswordByteLength,
+  normalizeText,
   safeJsonLdScript,
   sanitizeFileNameForHeader,
   timingSafeEqualStrings,
@@ -157,6 +158,29 @@ describe("safeJsonLdScript", () => {
   it("leaves plain data without angle brackets unchanged in shape", () => {
     const original = { name: "Spa Normal", address: { streetAddress: "Calle 123" } };
     expect(JSON.parse(safeJsonLdScript(original))).toEqual(original);
+  });
+});
+
+describe("normalizeText", () => {
+  it("convierte una secuencia NFD (letra + acento combinante) a su forma NFC precompuesta", () => {
+    const nfd = "José"; // "José" como "e" + acento combinante (U+0301)
+    const nfc = "José"; // "José" precompuesto (una sola "é", U+00E9)
+    expect(nfd).not.toBe(nfc);
+    expect(normalizeText(nfd)).toBe(nfc);
+  });
+
+  it("dos representaciones distintas del mismo texto visible quedan iguales tras normalizar", () => {
+    const decomposed = "café"; // "café" en NFD
+    const precomposed = "café"; // "café" en NFC
+    expect(normalizeText(decomposed)).toBe(normalizeText(precomposed));
+  });
+
+  it("deja un texto ya en NFC sin cambios", () => {
+    expect(normalizeText("Corte de pelo")).toBe("Corte de pelo");
+  });
+
+  it("deja un string vacío sin cambios", () => {
+    expect(normalizeText("")).toBe("");
   });
 });
 

@@ -1,6 +1,6 @@
 import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
-import { assertMaxLength } from "@/lib/validation";
+import { assertMaxLength, normalizeText } from "@/lib/validation";
 
 export const CLIENTS_PAGE_SIZE = 25;
 
@@ -157,6 +157,6 @@ export async function updateClientNotes(businessId: string, id: string, notes: s
   assertMaxLength(notes, 1000, "Las notas");
   return prisma.client.update({
     where: { id, businessId },
-    data: { notes: notes || null },
+    data: { notes: notes ? normalizeText(notes) : null },
   });
 }
