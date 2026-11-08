@@ -41,13 +41,20 @@ export async function listUpcomingBookings(businessId: string, limit = 50) {
   });
 }
 
+// Acepta tanto el cliente global de Prisma como un `tx` de
+// `$transaction`, para que `sellGiftCard` (pos.ts) pueda reusar esta misma
+// búsqueda dentro de su propia transacción en vez de crear un cliente
+// nuevo a ciegas.
+type Db = typeof prisma | Prisma.TransactionClient;
+
 export async function findOrCreateClient(
   businessId: string,
   input: {
     name: string;
     phone?: string;
     email?: string;
-  }
+  },
+  db: Db = prisma
 ) {
   // email es @@unique([businessId, email]) y Postgres compara case-sensitive
   // por default — sin normalizar, reservar una vez como "juan@gmail.com" y
@@ -55,7 +62,7 @@ export async function findOrCreateClient(
   // clientes distintos para la misma persona en vez de encontrar al mismo.
   const email = input.email ? input.email.toLowerCase() : undefined;
 
-  const existing = await prisma.client.findFirst({
+  const existing = await db.client.findFirst({
     where: {
       businessId,
       OR: [
@@ -67,7 +74,7 @@ export async function findOrCreateClient(
   if (existing) return existing;
 
   try {
-    return await prisma.client.create({
+    return await db.client.create({
       data: {
         businessId,
         name: normalizeText(input.name),
@@ -87,7 +94,7 @@ export async function findOrCreateClient(
       e instanceof Prisma.PrismaClientKnownRequestError &&
       e.code === "P2002";
     if (!isUniqueEmailConflict) throw e;
-    return prisma.client.findFirstOrThrow({ where: { businessId, email } });
+    return db.client.findFirstOrThrow({ where: { businessId, email } });
   }
 }
 

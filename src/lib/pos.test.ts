@@ -502,6 +502,41 @@ describeIfDb("sellGiftCard — no deja un cliente huérfano si falla la venta", 
     const client = await prisma.client.findUniqueOrThrow({ where: { id: giftCard.clientId! } });
     expect(client.email).toBe("cliente.mixto@example.com");
   });
+
+  it("reuses the existing client by email instead of creating a duplicate", async () => {
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test Giftcard Reuse",
+        email: `admin-giftcard-reuse-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    const existingClient = await prisma.client.create({
+      data: { businessId, name: "Cliente Ya Existente", email: "ya.existe@example.com" },
+    });
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 0 },
+    });
+
+    const giftCard = await sellGiftCard(businessId, {
+      // Nombre tipeado distinto a propósito: antes esto creaba un Client
+      // nuevo sin chequear el email, duplicando a la persona en vez de
+      // reusar su ficha existente (con su historial de gasto/visitas).
+      clientName: "Ya Existente (nombre distinto)",
+      clientEmail: "Ya.Existe@Example.com",
+      amount: 2000,
+      paymentMethod: "CASH",
+      cashSessionId: session.id,
+    });
+
+    expect(giftCard.clientId).toBe(existingClient.id);
+    const matches = await prisma.client.findMany({
+      where: { businessId, email: "ya.existe@example.com" },
+    });
+    expect(matches).toHaveLength(1);
+  });
 });
 
 describeIfDb("chargeBooking — no permite cobrar dos veces el mismo turno", () => {

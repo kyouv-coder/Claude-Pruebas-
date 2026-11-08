@@ -3,7 +3,8 @@ import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import type { PaymentMethod } from "@/generated/prisma";
-import { assertFiniteAmount, assertMaxLength, normalizeText } from "@/lib/validation";
+import { assertFiniteAmount, assertMaxLength } from "@/lib/validation";
+import { findOrCreateClient } from "@/lib/bookings";
 
 async function getOperator() {
   const user = await getCurrentUser();
@@ -348,22 +349,29 @@ export async function sellGiftCard(
 
   const runAttempt = () =>
     prisma.$transaction(async (tx) => {
-      // El cliente se crea en la misma transacción que la venta y la
+      // El cliente se busca/crea en la misma transacción que la venta y la
       // giftcard: si algo después falla (ej. cashSessionId inválido), todo
       // se revierte junto — antes quedaba un cliente fantasma sin giftcard
       // ni venta, creado aparte y nunca limpiado.
-      const client = await tx.client.create({
-        data: {
-          businessId,
-          name: normalizeText(input.clientName),
-          phone: input.clientPhone || null,
-          // Mismo motivo que findOrCreateClient (bookings.ts): sin normalizar,
-          // esta giftcard podía quedar en un cliente "Juan@Gmail.com" que
-          // findOrCreateClient nunca reconoce como el mismo "juan@gmail.com"
-          // de una reserva futura, duplicando a la persona.
-          email: input.clientEmail ? input.clientEmail.toLowerCase() : null,
+      //
+      // Antes esto creaba un Client nuevo sin chequear si ya existía uno
+      // con el mismo email/teléfono — a diferencia de `createBooking`, que
+      // desde siempre usa `findOrCreateClient` para no duplicar a la
+      // persona. Vender una giftcard a alguien que ya era cliente (por una
+      // reserva previa) generaba un segundo registro con el mismo
+      // email/teléfono, partiendo en dos su historial de gasto/visitas en
+      // `/admin/clientes`. Ahora reusa la misma búsqueda, dentro de esta
+      // transacción (`tx`) para no dejar una carrera entre dos ventas
+      // simultáneas a la misma persona nueva.
+      const client = await findOrCreateClient(
+        businessId,
+        {
+          name: input.clientName,
+          phone: input.clientPhone,
+          email: input.clientEmail,
         },
-      });
+        tx
+      );
 
       const sale = await tx.sale.create({
         data: {
