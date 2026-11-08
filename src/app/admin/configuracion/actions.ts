@@ -94,6 +94,10 @@ export async function createServiceAction(
   // nuevo tiene que poder elegirse de inmediato en el desplegable de
   // "Nueva reserva" sin necesitar otra navegación que revalide esa página.
   revalidatePath("/admin/reservas");
+  // getOnboardingStatus (checklist del dashboard) depende de si hay al
+  // menos un servicio activo — sin esto, crear el primer servicio no
+  // tachaba ese paso hasta otra navegación que revalidara el dashboard.
+  revalidatePath("/admin/dashboard");
   return { success: "Servicio creado." };
 }
 
@@ -154,6 +158,9 @@ export async function toggleServiceActiveAction(id: string, active: boolean) {
   }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
+  // Desactivar el último servicio activo (o reactivar el primero) cambia
+  // hasServices en getOnboardingStatus — mismo motivo que createServiceAction.
+  revalidatePath("/admin/dashboard");
 }
 
 export async function uploadServiceImageAction(
@@ -333,6 +340,9 @@ export async function updateSlackWebhookAction(
     return { error: "No se pudo guardar la URL de Slack." };
   }
   revalidatePath("/admin/configuracion");
+  // getOnboardingStatus (checklist del dashboard) depende de si hay un
+  // webhook de Slack configurado.
+  revalidatePath("/admin/dashboard");
   return { success: url ? "Notificaciones de Slack activadas." : "Notificaciones de Slack desactivadas." };
 }
 
@@ -377,6 +387,9 @@ export async function createStaffAction(
   // Igual que toggleStaffActiveAction: la persona nueva tiene que poder
   // elegirse de inmediato como profesional en "Nueva reserva".
   revalidatePath("/admin/reservas");
+  // getOnboardingStatus (checklist del dashboard) depende de si hay al
+  // menos una persona de staff activa — mismo motivo que createServiceAction.
+  revalidatePath("/admin/dashboard");
   return {
     success: `Persona agregada. Compartile en privado el email y la contraseña — no queda guardada en ningún lado para volver a verla.`,
   };
@@ -426,6 +439,9 @@ export async function toggleStaffActiveAction(id: string, active: boolean) {
   }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
+  // Desactivar a la última persona activa (o reactivar la primera) cambia
+  // hasStaff en getOnboardingStatus — mismo motivo que createStaffAction.
+  revalidatePath("/admin/dashboard");
 }
 
 export async function updateCancellationPolicyAction(
@@ -487,6 +503,8 @@ export async function updateBusinessHoursAction(
   }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/reservas");
+  // getOnboardingStatus (checklist del dashboard) depende de hasConfiguredHours.
+  revalidatePath("/admin/dashboard");
   return { success: "Horario de atención guardado." };
 }
 
