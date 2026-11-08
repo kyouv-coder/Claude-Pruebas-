@@ -486,6 +486,7 @@ export async function updateBusinessHoursAction(
     return { error: "No se pudo guardar el horario de atención." };
   }
   revalidatePath("/admin/configuracion");
+  revalidatePath("/admin/reservas");
   return { success: "Horario de atención guardado." };
 }
 
