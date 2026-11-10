@@ -230,6 +230,12 @@ export async function createProductAction(
   }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/caja");
+  // getRecommendations (alerta de "stock bajo" del dashboard) depende del
+  // stock/activo de cada producto — sellProductAction (Caja) ya revalida
+  // esta página al vender, pero crear un producto directo con poco stock
+  // podía no disparar la alerta hasta otra navegación que refrescara el
+  // dashboard por otro lado.
+  revalidatePath("/admin/dashboard");
   return { success: "Producto creado." };
 }
 
@@ -264,6 +270,9 @@ export async function updateProductAction(
   }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/caja");
+  // Mismo motivo que createProductAction: editar el stock a mano también
+  // puede disparar o despejar la alerta de "stock bajo" del dashboard.
+  revalidatePath("/admin/dashboard");
   return { success: "Producto actualizado." };
 }
 
@@ -279,6 +288,10 @@ export async function toggleProductActiveAction(id: string, active: boolean) {
   }
   revalidatePath("/admin/configuracion");
   revalidatePath("/admin/caja");
+  // Desactivar un producto con poco stock lo saca de la alerta de "stock
+  // bajo" del dashboard (solo cuenta productos activos); reactivarlo puede
+  // volver a dispararla.
+  revalidatePath("/admin/dashboard");
 }
 
 export async function uploadProductImageAction(
