@@ -79,6 +79,11 @@ export async function closeCashSessionAction(
     };
   }
   revalidatePath("/admin/caja");
+  // getRecommendations (alerta de "diferencia de caja sin explicar" del
+  // dashboard) depende del último cierre — sin esto, un faltante/sobrante
+  // recién cerrado no aparecía ahí hasta otra navegación que revalidara el
+  // dashboard por otro lado.
+  revalidatePath("/admin/dashboard");
 
   if (result.difference === 0) {
     return { success: `Caja cerrada. Cuadra exacto: ${money(result.countedCash)}.` };
