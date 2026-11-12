@@ -28,6 +28,16 @@ describe("sendSlackNotification", () => {
     expect(options.signal).toBeInstanceOf(AbortSignal);
   });
 
+  it("refuses to post to a URL that isn't a Slack Incoming Webhook (SSRF guard)", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendSlackNotification("https://attacker.example.com/steal", "hola");
+    await sendSlackNotification("http://169.254.169.254/latest/meta-data", "hola");
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("never throws even if the webhook request fails", async () => {
     vi.stubGlobal(
       "fetch",
