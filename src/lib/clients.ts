@@ -72,6 +72,44 @@ export async function countClients(businessId: string) {
   return prisma.client.count({ where: { businessId } });
 }
 
+type InactiveClientRow = { id: string; name: string; lastVisit: Date };
+
+// getRecommendations (dashboard) usaba listClients(businessId) SIN take para
+// detectar inactivos — eso trae TODOS los clientes del negocio, calculando
+// SUM(total) de ventas y COUNT de reservas para cada uno (dos joins
+// agregados), solo para después filtrar en JS por `lastVisit` y descartar
+// tanto el total gastado como el conteo de reservas, que esta alerta nunca
+// usa. Con un negocio con mucho historial de ventas/reservas, cada carga del
+// dashboard paga ese cálculo completo (igual al de /admin/clientes) para un
+// resultado que casi siempre son pocos o ningún cliente. Esta función hace
+// solo lo que la alerta necesita: el último movimiento de cada cliente y el
+// filtro por antigüedad, directamente en la base.
+export async function listInactiveClients(businessId: string, thresholdDays: number) {
+  const cutoff = new Date(Date.now() - thresholdDays * 24 * 60 * 60 * 1000);
+  const rows = await prisma.$queryRaw<InactiveClientRow[]>`
+    SELECT c.id, c.name, last_visit."lastVisit"
+    FROM "Client" c
+    JOIN (
+      SELECT "clientId", GREATEST(sale."lastSale", booking."lastBooking") AS "lastVisit"
+      FROM (
+        SELECT "clientId", MAX("createdAt") AS "lastSale"
+        FROM "Sale"
+        WHERE "businessId" = ${businessId} AND "clientId" IS NOT NULL
+        GROUP BY "clientId"
+      ) sale
+      FULL OUTER JOIN (
+        SELECT "clientId", MAX("startTime") AS "lastBooking"
+        FROM "Booking"
+        WHERE "businessId" = ${businessId} AND status = 'COMPLETED'
+        GROUP BY "clientId"
+      ) booking USING ("clientId")
+    ) last_visit ON last_visit."clientId" = c.id
+    WHERE c."businessId" = ${businessId} AND last_visit."lastVisit" < ${cutoff}
+    ORDER BY last_visit."lastVisit" ASC
+  `;
+  return rows;
+}
+
 const CLIENT_DETAIL_HISTORY_LIMIT = 20;
 
 // findFirst (no findFirstOrThrow): un id que no existe o de otro negocio

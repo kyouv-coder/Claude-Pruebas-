@@ -154,6 +154,15 @@ async function getFinancialsForRange(businessId: string, start: Date, end: Date)
   };
 }
 
+// El motor de recomendaciones solo necesita saber si hubo ventas este mes
+// (para avisar que la facturación electrónica no está integrada), no la
+// lista completa con cliente e items incluidos — pedir eso solo para leer
+// `.length` trae y arma de más en cada carga del dashboard.
+export async function countSalesForMonth(businessId: string, year: number, month: number) {
+  const { start, end } = monthRange(year, month);
+  return prisma.sale.count({ where: { businessId, createdAt: { gte: start, lt: end } } });
+}
+
 export async function listSalesForMonth(businessId: string, year: number, month: number) {
   const { start, end } = monthRange(year, month);
   return prisma.sale.findMany({

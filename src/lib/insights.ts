@@ -1,7 +1,7 @@
-import { listClients, listFrequentNoShowClients } from "@/lib/clients";
+import { listInactiveClients, listFrequentNoShowClients } from "@/lib/clients";
 import { listAllProducts } from "@/lib/settings";
 import { listExpiringGiftCards } from "@/lib/giftcards";
-import { getMonthlyFinancials, currentYearMonth, listSalesForMonth } from "@/lib/finance";
+import { getMonthlyFinancials, currentYearMonth, countSalesForMonth } from "@/lib/finance";
 import { getLastClosedCashSession } from "@/lib/pos";
 import { formatCurrency as money, formatDate } from "@/lib/format";
 
@@ -17,38 +17,30 @@ const INACTIVE_DAYS_THRESHOLD = 60;
 const GIFTCARD_EXPIRY_WARNING_DAYS = 30;
 const LOW_STOCK_THRESHOLD = 3;
 
-function daysBetween(a: Date, b: Date) {
-  return Math.floor((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
-}
-
 export async function getRecommendations(businessId: string): Promise<Recommendation[]> {
-  const now = new Date();
   const { year, month } = currentYearMonth();
 
   const [
-    clients,
+    inactiveClients,
     products,
     expiringSoon,
     financials,
     lastClosedSession,
-    salesThisMonth,
+    salesCountThisMonth,
     frequentNoShows,
   ] = await Promise.all([
-    listClients(businessId),
+    listInactiveClients(businessId, INACTIVE_DAYS_THRESHOLD),
     listAllProducts(businessId),
     listExpiringGiftCards(businessId, GIFTCARD_EXPIRY_WARNING_DAYS),
     getMonthlyFinancials(businessId, year, month),
     getLastClosedCashSession(businessId),
-    listSalesForMonth(businessId, year, month),
+    countSalesForMonth(businessId, year, month),
     listFrequentNoShowClients(businessId),
   ]);
 
   const recommendations: Recommendation[] = [];
 
   // Clientes que dejaron de venir
-  const inactiveClients = clients.filter(
-    (c) => c.lastVisit && daysBetween(now, c.lastVisit) >= INACTIVE_DAYS_THRESHOLD
-  );
   if (inactiveClients.length > 0) {
     recommendations.push({
       severity: "media",
@@ -132,11 +124,11 @@ export async function getRecommendations(businessId: string): Promise<Recommenda
   }
 
   // Facturación electrónica pendiente
-  if (salesThisMonth.length > 0) {
+  if (salesCountThisMonth > 0) {
     recommendations.push({
       severity: "info",
       title: "Facturación electrónica todavía no está integrada",
-      description: `Este mes se registraron ${salesThisMonth.length} ventas acá, pero el sistema no emite comprobante fiscal — seguís necesitando otro sistema en paralelo para eso. Es la brecha más grande para dejar de usar herramientas separadas.`,
+      description: `Este mes se registraron ${salesCountThisMonth} ventas acá, pero el sistema no emite comprobante fiscal — seguís necesitando otro sistema en paralelo para eso. Es la brecha más grande para dejar de usar herramientas separadas.`,
     });
   }
 
