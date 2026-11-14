@@ -1,6 +1,10 @@
+import { Prisma } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
 
 const WORK_MINUTES_PER_STAFF_DAY = 8 * 60;
+
+type DailySalesRow = { day: Date; revenue: Prisma.Decimal };
+type ServiceCountRow = { serviceId: string; name: string; count: bigint };
 
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -21,19 +25,38 @@ export async function getDashboardStats(businessId: string) {
   const [
     activeStaffCount,
     todaysBookings,
-    last30Sales,
+    salesLast30Agg,
+    salesLast7Agg,
+    dailySalesRows,
     outstandingGiftCards,
     bookingsLast30,
+    topServiceRows,
   ] = await Promise.all([
     prisma.user.count({ where: { businessId, role: "STAFF", active: true } }),
+    // Solo se usa el estado y la duración del servicio de cada turno de hoy
+    // (para la ocupación) — antes se traía el turno y el servicio completos.
     prisma.booking.findMany({
       where: { businessId, startTime: { gte: today, lt: tomorrow } },
-      include: { service: true },
+      select: { status: true, service: { select: { durationMinutes: true } } },
     }),
-    prisma.sale.findMany({
+    prisma.sale.aggregate({
       where: { businessId, createdAt: { gte: last30 } },
-      select: { total: true, createdAt: true },
+      _sum: { total: true },
+      _count: { _all: true },
     }),
+    prisma.sale.aggregate({
+      where: { businessId, createdAt: { gte: last7 } },
+      _sum: { total: true },
+    }),
+    // Tendencia diaria de ingresos: la suma por día la hace Postgres
+    // (date_trunc + GROUP BY) en vez de recorrer en JS cada venta de los
+    // últimos 30 días para acumularla en un mapa por fecha.
+    prisma.$queryRaw<DailySalesRow[]>`
+      SELECT date_trunc('day', "createdAt") AS day, SUM(total) AS revenue
+      FROM "Sale"
+      WHERE "businessId" = ${businessId} AND "createdAt" >= ${last30}
+      GROUP BY day
+    `,
     prisma.giftCard.aggregate({
       // Igual que getGiftCardStats (giftcards.ts): una giftcard vencida
       // sigue "active" en la base (nada la desactiva sola al pasar la
@@ -47,32 +70,44 @@ export async function getDashboardStats(businessId: string) {
       },
       _sum: { balance: true },
     }),
+    // Solo se usa el estado de cada turno (ratios de cancelación/no-show) —
+    // el ranking de servicios se calcula aparte con su propio GROUP BY.
     prisma.booking.findMany({
       where: { businessId, startTime: { gte: last30 } },
-      select: { status: true, service: { select: { name: true } } },
+      select: { status: true },
     }),
+    // El ranking de servicios más solicitados lo agrupa y ordena Postgres,
+    // y solo se traen los 5 primeros — antes se traía un turno por fila de
+    // los últimos 30 días (con el nombre del servicio incluido) solo para
+    // contarlos y ordenarlos en JS.
+    prisma.$queryRaw<ServiceCountRow[]>`
+      SELECT b."serviceId", s.name, COUNT(*) AS count
+      FROM "Booking" b
+      JOIN "Service" s ON s.id = b."serviceId"
+      WHERE b."businessId" = ${businessId} AND b."startTime" >= ${last30}
+      GROUP BY b."serviceId", s.name
+      ORDER BY count DESC
+      LIMIT 5
+    `,
   ]);
 
   // Ingresos y ticket promedio
-  const revenueLast30 = last30Sales.reduce((sum, s) => sum + Number(s.total), 0);
-  const revenueLast7 = last30Sales
-    .filter((s) => s.createdAt >= last7)
-    .reduce((sum, s) => sum + Number(s.total), 0);
-  const ticketPromedio =
-    last30Sales.length > 0 ? revenueLast30 / last30Sales.length : 0;
+  const revenueLast30 = Number(salesLast30Agg._sum.total ?? 0);
+  const salesLast30Count = salesLast30Agg._count._all;
+  const revenueLast7 = Number(salesLast7Agg._sum.total ?? 0);
+  const ticketPromedio = salesLast30Count > 0 ? revenueLast30 / salesLast30Count : 0;
 
   // Tendencia diaria de ingresos, en dos ventanas (14 y 30 días) para que el
   // selector de período del dashboard pueda alternar sin otra consulta.
+  const revenueByDay = new Map<string, number>();
+  for (const row of dailySalesRows) {
+    revenueByDay.set(startOfDay(row.day).toISOString().slice(0, 10), Number(row.revenue));
+  }
   function dailyTrend(days: number) {
     const map = new Map<string, number>();
     for (let i = days - 1; i >= 0; i--) {
-      map.set(daysAgo(i).toISOString().slice(0, 10), 0);
-    }
-    for (const sale of last30Sales) {
-      const key = startOfDay(sale.createdAt).toISOString().slice(0, 10);
-      if (map.has(key)) {
-        map.set(key, (map.get(key) ?? 0) + Number(sale.total));
-      }
+      const key = daysAgo(i).toISOString().slice(0, 10);
+      map.set(key, revenueByDay.get(key) ?? 0);
     }
     return Array.from(map.entries()).map(([date, revenue]) => ({ date, revenue }));
   }
@@ -109,20 +144,13 @@ export async function getDashboardStats(businessId: string) {
   const noShowRate = noShowCount / total30;
 
   // Servicios más solicitados (últimos 30 días)
-  const serviceCounts = new Map<string, number>();
-  for (const b of bookingsLast30) {
-    serviceCounts.set(
-      b.service.name,
-      (serviceCounts.get(b.service.name) ?? 0) + 1
-    );
-  }
-  const topServices = Array.from(serviceCounts.entries())
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+  const topServices = topServiceRows.map((r) => ({
+    name: r.name,
+    count: Number(r.count),
+  }));
 
   return {
-    hasActivity: bookingsLast30.length > 0 || last30Sales.length > 0,
+    hasActivity: bookingsLast30.length > 0 || salesLast30Count > 0,
     todaysBookingsCount: todaysBookings.filter((b) => b.status !== "CANCELLED")
       .length,
     revenueLast7,
