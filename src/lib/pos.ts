@@ -100,11 +100,16 @@ export async function closeCashSession(
     where: { id: sessionId, businessId, closedAt: null },
   });
 
-  const cashSales = await prisma.sale.findMany({
+  // Antes se traían todas las filas (`findMany` + `select: { total: true }`)
+  // solo para sumarlas en JS — con muchas ventas en efectivo en una misma
+  // caja, eso es texto de más viajando de Postgres a Node para un único
+  // número. `aggregate` suma directamente en la base y devuelve un solo
+  // valor.
+  const cashSalesAgg = await prisma.sale.aggregate({
     where: { businessId, cashSessionId: sessionId, paymentMethod: "CASH" },
-    select: { total: true },
+    _sum: { total: true },
   });
-  const cashSalesTotal = cashSales.reduce((sum, s) => sum + Number(s.total), 0);
+  const cashSalesTotal = Number(cashSalesAgg._sum.total ?? 0);
   const expectedCash = Number(session.openingAmount) + cashSalesTotal;
   const difference = closingAmount - expectedCash;
 
@@ -132,16 +137,24 @@ export async function getLastClosedCashSession(businessId: string) {
 }
 
 export async function getCashSessionSummary(businessId: string, sessionId: string) {
-  const sales = await prisma.sale.findMany({
+  // Mismo caso que closeCashSession: antes se traían todas las ventas de
+  // la caja completas (`total`/`paymentMethod` de cada una) solo para
+  // sumarlas y agruparlas por método de pago en JS. `groupBy` hace esa
+  // agregación en Postgres y devuelve solo una fila por método de pago,
+  // en vez de una por venta.
+  const groups = await prisma.sale.groupBy({
+    by: ["paymentMethod"],
     where: { businessId, cashSessionId: sessionId },
-    select: { total: true, paymentMethod: true },
+    _sum: { total: true },
+    _count: { _all: true },
   });
-  const total = sales.reduce((sum, s) => sum + Number(s.total), 0);
-  const byMethod = sales.reduce<Record<string, number>>((acc, s) => {
-    acc[s.paymentMethod] = (acc[s.paymentMethod] ?? 0) + Number(s.total);
+  const total = groups.reduce((sum, g) => sum + Number(g._sum.total ?? 0), 0);
+  const salesCount = groups.reduce((sum, g) => sum + g._count._all, 0);
+  const byMethod = groups.reduce<Record<string, number>>((acc, g) => {
+    acc[g.paymentMethod] = Number(g._sum.total ?? 0);
     return acc;
   }, {});
-  return { salesCount: sales.length, total, byMethod };
+  return { salesCount, total, byMethod };
 }
 
 export async function getTodaysUnpaidBookings(businessId: string) {
