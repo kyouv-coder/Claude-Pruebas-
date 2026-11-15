@@ -85,4 +85,32 @@ describe("RevenueTrendPanel", () => {
 
     expect(screen.getByTestId("point")).toHaveTextContent("10-01:2000");
   });
+
+  it("navega entre pestañas con las flechas del teclado y mueve el foco", () => {
+    renderPanel();
+
+    const first = screen.getByRole("tab", { name: "2 semanas" });
+    expect(first).toHaveAttribute("tabIndex", "0");
+    expect(screen.getByRole("tab", { name: "Mensual" })).toHaveAttribute("tabIndex", "-1");
+
+    fireEvent.keyDown(first, { key: "ArrowRight" });
+
+    const second = screen.getByRole("tab", { name: "Diario (30 días)" });
+    expect(second).toHaveAttribute("aria-selected", "true");
+    expect(second).toHaveFocus();
+    expect(first).toHaveAttribute("tabIndex", "-1");
+
+    fireEvent.keyDown(second, { key: "End" });
+    const last = screen.getByRole("tab", { name: "Anual" });
+    expect(last).toHaveAttribute("aria-selected", "true");
+    expect(last).toHaveFocus();
+
+    fireEvent.keyDown(last, { key: "Home" });
+    expect(first).toHaveAttribute("aria-selected", "true");
+    expect(first).toHaveFocus();
+
+    fireEvent.keyDown(first, { key: "ArrowLeft" });
+    expect(last).toHaveAttribute("aria-selected", "true");
+    expect(last).toHaveFocus();
+  });
 });

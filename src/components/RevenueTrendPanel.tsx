@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { RevenueTrendChart } from "./DashboardCharts";
 import { formatCurrency as money } from "@/lib/format";
 
@@ -27,6 +27,7 @@ export function RevenueTrendPanel({
   projectedRevenueNext30: number;
 }) {
   const [period, setPeriod] = useState<Period>("14d");
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const dataset =
     period === "14d" ? daily14 : period === "30d" ? daily30 : period === "12m" ? monthly : yearly;
@@ -45,13 +46,45 @@ export function RevenueTrendPanel({
           Proyección próximos 30 días: {money(projectedRevenueNext30)}
         </span>
       </div>
-      <div className="flex flex-wrap gap-1 mb-3" role="tablist" aria-label="Período del gráfico de ingresos">
-        {PERIODS.map((p) => (
+      <div
+        className="flex flex-wrap gap-1 mb-3"
+        role="tablist"
+        aria-label="Período del gráfico de ingresos"
+        onKeyDown={(e) => {
+          // Patrón ARIA de tabs (WAI-ARIA Authoring Practices): las flechas
+          // izquierda/derecha y Home/End mueven el foco entre pestañas y las
+          // activan, en vez de depender solo de Tab — sin esto, marcar estos
+          // botones con role="tab" prometía (vía aria-selected/role) un
+          // comportamiento de teclado que en los hechos no estaba implementado,
+          // confuso para quien navega con lector de pantalla y espera ese patrón.
+          const currentIndex = PERIODS.findIndex((p) => p.key === period);
+          let nextIndex: number | null = null;
+          if (e.key === "ArrowRight") {
+            nextIndex = (currentIndex + 1) % PERIODS.length;
+          } else if (e.key === "ArrowLeft") {
+            nextIndex = (currentIndex - 1 + PERIODS.length) % PERIODS.length;
+          } else if (e.key === "Home") {
+            nextIndex = 0;
+          } else if (e.key === "End") {
+            nextIndex = PERIODS.length - 1;
+          }
+          if (nextIndex !== null) {
+            e.preventDefault();
+            setPeriod(PERIODS[nextIndex].key);
+            tabRefs.current[nextIndex]?.focus();
+          }
+        }}
+      >
+        {PERIODS.map((p, i) => (
           <button
             key={p.key}
+            ref={(el) => {
+              tabRefs.current[i] = el;
+            }}
             type="button"
             role="tab"
             aria-selected={period === p.key}
+            tabIndex={period === p.key ? 0 : -1}
             onClick={() => setPeriod(p.key)}
             className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
               period === p.key
