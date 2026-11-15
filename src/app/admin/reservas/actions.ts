@@ -99,10 +99,16 @@ export async function cancelBookingAction(bookingId: string) {
   const businessId = await requireBusinessId();
   try {
     await updateBookingStatus(businessId, bookingId, "CANCELLED");
-  } catch {
+  } catch (e) {
     // Turno ya cobrado: no hay nada para deshacer acá, el botón no debería
-    // ni mostrarse en ese caso (ver page.tsx), así que solo evitamos que
-    // reviente la acción ante un reintento con datos viejos en pantalla.
+    // ni mostrarse en ese caso (ver page.tsx), así que no hace falta
+    // mostrarle nada a la usuaria ante un reintento con datos viejos en
+    // pantalla. Pero a diferencia del resto de las acciones de este archivo,
+    // este catch no llamaba a logUnexpectedError — un error realmente
+    // inesperado acá (ej. problema transitorio de conexión, o un bookingId
+    // manipulado que no existe) quedaba invisible, sin registro ni en la
+    // consola ni en Sentry, a diferencia de cualquier otro catch de la app.
+    logUnexpectedError(e);
     return;
   }
   revalidatePath("/admin/reservas");
@@ -121,7 +127,10 @@ export async function markNoShowAction(bookingId: string) {
   const businessId = await requireBusinessId();
   try {
     await updateBookingStatus(businessId, bookingId, "NO_SHOW");
-  } catch {
+  } catch (e) {
+    // Mismo motivo que cancelBookingAction: no había ningún registro de un
+    // error inesperado acá.
+    logUnexpectedError(e);
     return;
   }
   revalidatePath("/admin/reservas");
