@@ -15,7 +15,7 @@ export default function GlobalError({
   return (
     <html lang="es">
       <body className="min-h-screen flex items-center justify-center bg-paper px-4">
-        <div className="max-w-sm text-center">
+        <div className="max-w-sm text-center" role="alert" aria-live="assertive">
           <h1 className="font-display text-xl text-ink mb-2">Algo salió mal</h1>
           <p className="text-sm text-muted">
             Ya nos enteramos del error. Probá recargar la página en un

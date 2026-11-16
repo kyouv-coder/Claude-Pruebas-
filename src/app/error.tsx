@@ -25,7 +25,11 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-paper px-4">
+    <div
+      className="min-h-screen flex items-center justify-center bg-paper px-4"
+      role="alert"
+      aria-live="assertive"
+    >
       <div className="w-full max-w-sm text-center">
         <h1 className="font-display text-2xl text-ink mb-2">
           Algo salió mal
