@@ -85,6 +85,9 @@ export default async function GiftCardsPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
+              <caption className="sr-only">
+                Listado de giftcards vendidas: código, cliente, saldo, valor inicial y vencimiento
+              </caption>
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
                   <th scope="col" className="px-4 py-3 font-medium">Código</th>

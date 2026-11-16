@@ -53,6 +53,9 @@ export default async function ClientesPage({
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
+              <caption className="sr-only">
+                Listado de {copy.clientLabel.toLowerCase()}: nombre, contacto, visitas, gastado total y última visita
+              </caption>
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted">
                   <th scope="col" className="px-4 py-3 font-medium">Nombre</th>
