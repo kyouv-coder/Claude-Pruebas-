@@ -36,11 +36,9 @@ export default async function GiftCardsPage({
 }) {
   const businessId = await requireBusinessId();
   const { page: pageParam } = await searchParams;
-  const requestedPage = Number(pageParam ?? "1");
+  const requestedPage = Math.floor(Number(pageParam ?? "1"));
   const page =
-    Number.isFinite(requestedPage) && requestedPage > 0
-      ? Math.floor(requestedPage)
-      : 1;
+    Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const [giftCards, stats, total] = await Promise.all([
     listGiftCards(businessId, {
       skip: (page - 1) * GIFT_CARDS_PAGE_SIZE,

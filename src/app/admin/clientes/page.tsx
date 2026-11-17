@@ -18,11 +18,9 @@ export default async function ClientesPage({
 }) {
   const businessId = await requireBusinessId();
   const { page: pageParam } = await searchParams;
-  const requestedPage = Number(pageParam ?? "1");
+  const requestedPage = Math.floor(Number(pageParam ?? "1"));
   const page =
-    Number.isFinite(requestedPage) && requestedPage > 0
-      ? Math.floor(requestedPage)
-      : 1;
+    Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const [clients, user, total] = await Promise.all([
     listClients(businessId, {
       skip: (page - 1) * CLIENTS_PAGE_SIZE,
