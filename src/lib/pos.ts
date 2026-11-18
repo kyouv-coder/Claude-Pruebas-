@@ -111,7 +111,14 @@ export async function closeCashSession(
   });
   const cashSalesTotal = Number(cashSalesAgg._sum.total ?? 0);
   const expectedCash = Number(session.openingAmount) + cashSalesTotal;
-  const difference = closingAmount - expectedCash;
+  // Redondeado a centavos: sumar varios Decimal ya convertidos a Number de
+  // JS (ej. apertura $100.10 + ventas de $10.20/$15.30/$0.10) puede dar un
+  // resultado con ruido de binario de punto flotante (125.69999999999999 en
+  // vez de 125.70). Sin este redondeo, una caja que en los centavos cerraba
+  // exacta igual mostraba "sobrante/faltante de $0.00" en vez de "cuadra
+  // exacto" — el monto mostrado ya se ve bien redondeado por `money()`, pero
+  // el `=== 0` de más abajo comparaba el valor crudo sin redondear.
+  const difference = Math.round((closingAmount - expectedCash) * 100) / 100;
 
   // Update condicionado (mismo patrón que sellProduct/redeemGiftCard): si
   // dos pestañas cierran la misma caja casi al mismo tiempo, solo una debe

@@ -289,6 +289,8 @@ describeIfDb("closeCashSession — no deja cerrar dos veces la misma caja", () =
   });
 
   afterAll(async () => {
+    await prisma.saleItem.deleteMany({ where: { sale: { businessId } } });
+    await prisma.sale.deleteMany({ where: { businessId } });
     await prisma.cashRegisterSession.deleteMany({ where: { businessId } });
     await prisma.user.deleteMany({ where: { businessId } });
     await prisma.business.delete({ where: { id: businessId } });
@@ -314,6 +316,39 @@ describeIfDb("closeCashSession — no deja cerrar dos veces la misma caja", () =
 
     const unchanged = await prisma.cashRegisterSession.findUniqueOrThrow({ where: { id: session.id } });
     expect(unchanged.closedAt).toBeNull();
+  });
+
+  it("no reporta una diferencia falsa por ruido de punto flotante cuando la caja cuadra exacto", async () => {
+    const operator = await prisma.user.create({
+      data: {
+        businessId,
+        name: "Admin Test Flotantes",
+        email: `admin-close-float-${Date.now()}@example.com`,
+        passwordHash: "unused",
+        role: "ADMIN",
+      },
+    });
+    // Apertura + ventas en efectivo elegidas para que la suma en punto
+    // flotante de JS (100.10 + 10.20 + 15.30 + 0.10) dé 125.69999999999999
+    // en vez de 125.70 — reproduce el caso real que mostraba "sobrante de
+    // $0.00" en vez de "cuadra exacto" al contar justo ese monto.
+    const session = await prisma.cashRegisterSession.create({
+      data: { businessId, openedById: operator.id, openingAmount: 100.1 },
+    });
+    for (const total of [10.2, 15.3, 0.1]) {
+      await prisma.sale.create({
+        data: {
+          businessId,
+          cashSessionId: session.id,
+          total,
+          paymentMethod: "CASH",
+          items: { create: [{ description: "Item", quantity: 1, unitPrice: total }] },
+        },
+      });
+    }
+
+    const result = await closeCashSession(businessId, session.id, 125.7);
+    expect(result.difference).toBe(0);
   });
 
   it("rejects closing a session that's already closed", async () => {
