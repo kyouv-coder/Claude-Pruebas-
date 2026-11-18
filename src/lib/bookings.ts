@@ -47,20 +47,29 @@ export async function listUpcomingBookings(businessId: string, limit = 50) {
 // nuevo a ciegas.
 type Db = typeof prisma | Prisma.TransactionClient;
 
-export async function findOrCreateClient(
+async function findOrCreateClientLocked(
+  db: Db,
   businessId: string,
-  input: {
-    name: string;
-    phone?: string;
-    email?: string;
-  },
-  db: Db = prisma
+  input: { name: string; phone?: string; email?: string },
+  email: string | undefined
 ) {
-  // email es @@unique([businessId, email]) y Postgres compara case-sensitive
-  // por default — sin normalizar, reservar una vez como "juan@gmail.com" y
-  // otra como "Juan@Gmail.com" (ej. autocompletado del navegador) creaba dos
-  // clientes distintos para la misma persona en vez de encontrar al mismo.
-  const email = input.email ? input.email.toLowerCase() : undefined;
+  // Client solo tiene @@unique([businessId, email]) — nada en la base evita
+  // dos filas con el mismo teléfono. Sin email (el caso más común en la
+  // reserva pública, donde el teléfono alcanza), dos reservas casi
+  // simultáneas con el mismo teléfono nuevo podían pasar ambas el findFirst
+  // de abajo antes de que ninguna hubiera insertado todavía — a diferencia
+  // del caso con email, acá no hay ningún índice único que frene a la
+  // segunda, así que terminaba creando dos clientes para la misma persona
+  // (historial de gasto/visitas partido en dos en /admin/clientes) en vez de
+  // solo fallar. El advisory lock de Postgres, tomado por el resto de esta
+  // transacción (`pg_advisory_xact_lock`, liberado solo al terminar), sirve
+  // de mutex para esta combinación de negocio+contacto: la segunda llamada
+  // espera a que la primera termine de crear (o encontrar) al cliente antes
+  // de hacer su propio `findFirst`, así que ya lo encuentra creado.
+  const lockKey = email ?? input.phone;
+  if (lockKey) {
+    await db.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`${businessId}:${lockKey}`}))`;
+  }
 
   const existing = await db.client.findFirst({
     where: {
@@ -83,12 +92,11 @@ export async function findOrCreateClient(
       },
     });
   } catch (e) {
-    // Dos reservas casi simultáneas con el mismo email nuevo (ej. dos
-    // pestañas, o un doble click en /reservar) pueden pasar ambas el
-    // findFirst de arriba antes de que ninguna haya insertado todavía, y
-    // chocar contra el @@unique([businessId, email]) de Client: la segunda
-    // en llegar explotaba con un P2002 crudo en vez de simplemente usar al
-    // cliente que la primera ya creó.
+    // El advisory lock ya cierra la carrera cuando hay teléfono o email, pero
+    // se mantiene este fallback (mismo motivo que antes): sin ningún dato de
+    // contacto (`lockKey` vacío) no hay lock que tomar, y si el email sí
+    // choca contra el `@@unique` por cualquier otro motivo, reusamos al
+    // cliente ya creado en vez de propagar un P2002 crudo.
     const isUniqueEmailConflict =
       email != null &&
       e instanceof Prisma.PrismaClientKnownRequestError &&
@@ -96,6 +104,34 @@ export async function findOrCreateClient(
     if (!isUniqueEmailConflict) throw e;
     return db.client.findFirstOrThrow({ where: { businessId, email } });
   }
+}
+
+export async function findOrCreateClient(
+  businessId: string,
+  input: {
+    name: string;
+    phone?: string;
+    email?: string;
+  },
+  db: Db = prisma
+) {
+  // email es @@unique([businessId, email]) y Postgres compara case-sensitive
+  // por default — sin normalizar, reservar una vez como "juan@gmail.com" y
+  // otra como "Juan@Gmail.com" (ej. autocompletado del navegador) creaba dos
+  // clientes distintos para la misma persona en vez de encontrar al mismo.
+  const email = input.email ? input.email.toLowerCase() : undefined;
+
+  // `pg_advisory_xact_lock` solo sirve adentro de una transacción (se libera
+  // al terminarla) — si no nos pasaron una (`db === prisma`, el caso de
+  // `createBooking`), abrimos una acá nomás para este chequeo+creación; si
+  // ya estamos dentro de una (el caso de `sellGiftCard`), el lock se toma
+  // sobre esa misma transacción y se libera cuando esa termine.
+  if (db === prisma) {
+    return prisma.$transaction((tx) =>
+      findOrCreateClientLocked(tx, businessId, input, email)
+    );
+  }
+  return findOrCreateClientLocked(db, businessId, input, email);
 }
 
 export async function createBooking(

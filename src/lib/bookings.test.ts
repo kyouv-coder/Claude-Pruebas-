@@ -299,6 +299,37 @@ describeIfDb("createBooking — prevención de doble reserva", () => {
     const clients = await prisma.client.findMany({ where: { businessId, email } });
     expect(clients).toHaveLength(1);
   });
+
+  it("never creates two clients for the same new phone reserved in parallel without email", async () => {
+    // Mismo riesgo que el test de arriba, pero sin email: Client solo tiene
+    // @@unique([businessId, email]), nada en la base evita dos filas con el
+    // mismo teléfono, así que sin el advisory lock esto creaba dos clientes
+    // para la misma persona en vez de reusar uno.
+    const phone = `+54911${Date.now()}`;
+    const results = await Promise.allSettled([
+      createBooking(businessId, {
+        clientName: "Cliente Telefono Concurrente A",
+        clientPhone: phone,
+        serviceId,
+        staffId,
+        startTime: new Date("2027-01-23T10:00:00Z"),
+      }),
+      createBooking(businessId, {
+        clientName: "Cliente Telefono Concurrente B",
+        clientPhone: phone,
+        serviceId,
+        staffId,
+        startTime: new Date("2027-01-23T13:00:00Z"),
+      }),
+    ]);
+
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+    const fulfilled = results as PromiseFulfilledResult<Awaited<ReturnType<typeof createBooking>>>[];
+    expect(fulfilled[0].value.clientId).toBe(fulfilled[1].value.clientId);
+
+    const clients = await prisma.client.findMany({ where: { businessId, phone } });
+    expect(clients).toHaveLength(1);
+  });
 });
 
 describeIfDb("updateBookingStatus — no permite cambiar el estado de un turno ya cobrado", () => {
