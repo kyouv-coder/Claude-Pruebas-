@@ -9,7 +9,6 @@ import {
   createExpense,
   getMonthlyFinancials,
   getExpensesByCategory,
-  getYearlyFinancials,
   getMonthlyTrend,
   getYearlyTrend,
 } from "./finance";
@@ -231,15 +230,15 @@ describeIfDb("getMonthlyFinancials / getExpensesByCategory", () => {
   });
 });
 
-describeIfDb("getYearlyFinancials / getMonthlyTrend", () => {
+describeIfDb("getMonthlyTrend / getYearlyTrend", () => {
   let businessId: string;
 
   beforeAll(async () => {
     const business = await prisma.business.create({
       data: {
-        name: "Test Yearly Financials Business",
+        name: "Test Trend Business",
         businessType: "SPA",
-        slug: `test-yearly-financials-${Date.now()}`,
+        slug: `test-trend-${Date.now()}`,
       },
     });
     businessId = business.id;
@@ -253,50 +252,6 @@ describeIfDb("getYearlyFinancials / getMonthlyTrend", () => {
     await prisma.user.deleteMany({ where: { businessId } });
     await prisma.business.delete({ where: { id: businessId } });
     await prisma.$disconnect();
-  });
-
-  it("sums only the sales/expenses of the requested year, not adjacent years", async () => {
-    const operator = await prisma.user.create({
-      data: {
-        businessId,
-        name: "Admin Test",
-        email: `admin-yearly-${Date.now()}@example.com`,
-        passwordHash: "unused",
-        role: "ADMIN",
-      },
-    });
-    const session = await prisma.cashRegisterSession.create({
-      data: { businessId, openedById: operator.id, openingAmount: 0 },
-    });
-
-    await prisma.sale.create({
-      data: {
-        businessId,
-        cashSessionId: session.id,
-        total: 10000,
-        paymentMethod: "CASH",
-        createdAt: new Date(2027, 5, 1),
-        items: { create: [{ description: "Venta 2027", quantity: 1, unitPrice: 10000 }] },
-      },
-    });
-    // Fuera de la ventana del año 2027 (31 de diciembre de 2026): no debe sumar.
-    await prisma.sale.create({
-      data: {
-        businessId,
-        cashSessionId: session.id,
-        total: 7777,
-        paymentMethod: "CASH",
-        createdAt: new Date(2026, 11, 31),
-        items: { create: [{ description: "Venta 2026", quantity: 1, unitPrice: 7777 }] },
-      },
-    });
-    await createExpense(businessId, { date: new Date(2027, 2, 1), category: "OTRO", amount: 2000 });
-
-    const financials = await getYearlyFinancials(businessId, 2027);
-    expect(financials.revenue).toBe(10000);
-    expect(financials.expenses).toBe(2000);
-    expect(financials.net).toBe(8000);
-    expect(financials.salesCount).toBe(1);
   });
 
   it("returns one entry per requested month, including the current month's actual revenue", async () => {

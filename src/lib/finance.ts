@@ -123,8 +123,8 @@ export async function getMonthlyFinancials(
   return getFinancialsForRange(businessId, start, end);
 }
 
-// Antes, tanto getMonthlyFinancials como getYearlyFinancials traían todas las
-// filas del período (findMany) solo para sumarlas en JS. Para un negocio con
+// Antes, getMonthlyFinancials traía todas las filas del período (findMany)
+// solo para sumarlas en JS. Para un negocio con
 // muchas ventas/gastos acumulados eso es transferir y recorrer filas enteras
 // cuando lo único que se necesita es un total y un conteo — algo que Postgres
 // puede calcular directamente con aggregate(), sin traer ninguna fila.
@@ -243,15 +243,6 @@ export async function getSaleInvoiceFile(businessId: string, saleId: string) {
     mimeType: sale.invoiceMimeType,
     data: sale.invoiceFileData,
   };
-}
-
-function yearRange(year: number) {
-  return { start: new Date(year, 0, 1), end: new Date(year + 1, 0, 1) };
-}
-
-export async function getYearlyFinancials(businessId: string, year: number) {
-  const { start, end } = yearRange(year);
-  return getFinancialsForRange(businessId, start, end);
 }
 
 // getYearlyTrend/getMonthlyTrend se llaman desde el dashboard (este último
