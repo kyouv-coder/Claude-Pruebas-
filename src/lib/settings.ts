@@ -36,7 +36,7 @@ function assertValidDescription(description: string) {
   assertMaxLength(description, 800, "La descripción");
 }
 
-function assertValidEmail(email: string) {
+function assertEmailLength(email: string) {
   assertMaxLength(email, 255, "El email");
 }
 
@@ -314,7 +314,7 @@ export async function createStaff(
   input: { name: string; email: string; password: string }
 ) {
   assertValidName(input.name);
-  assertValidEmail(input.email);
+  assertEmailLength(input.email);
   const passwordHash = await hashPassword(input.password);
   return prisma.user.create({
     data: {
@@ -338,7 +338,7 @@ export async function updateStaff(
   input: { name: string; email: string }
 ) {
   assertValidName(input.name);
-  assertValidEmail(input.email);
+  assertEmailLength(input.email);
   return prisma.user.update({
     where: { id, businessId },
     data: { name: normalizeText(input.name), email: input.email.toLowerCase() },
