@@ -130,6 +130,22 @@ export function normalizeText(value: string): string {
   return value.normalize("NFC");
 }
 
+// La misma validación de email (formato básico + tope de 255 caracteres)
+// estaba duplicada idéntica en signupAction, createStaffAction y
+// updateStaffAction — cada una con su propio `!email.includes("@")` y su
+// propio chequeo de largo, mismo patrón que el resto de este archivo.
+// Centralizarla evita que un cambio futuro en la regla (ej. endurecer el
+// formato) se aplique en dos de las tres y no en la tercera.
+export function assertValidEmail(email: string, maxLength = 255): string | null {
+  if (!email || !email.includes("@")) {
+    return "Ingresá un email válido.";
+  }
+  if (email.length > maxLength) {
+    return `El email es demasiado largo (máximo ${maxLength} caracteres).`;
+  }
+  return null;
+}
+
 // `/reservar/[slug]` embebe un bloque `<script type="application/ld+json">`
 // armado con `JSON.stringify` de datos que carga la dueña del negocio (nombre,
 // descripción, dirección) desde Configuración — no el formulario público sin

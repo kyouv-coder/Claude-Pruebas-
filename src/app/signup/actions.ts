@@ -6,6 +6,7 @@ import { signUp, createSession, checkSignupRateLimit, recordSignupAttempt } from
 import { logUnexpectedError } from "@/lib/log";
 import { BUSINESS_TYPE_OPTIONS } from "@/lib/verticals";
 import { getClientIp } from "@/lib/request";
+import { assertValidEmail } from "@/lib/validation";
 
 export type ActionState = { error?: string };
 
@@ -44,12 +45,9 @@ export async function signupAction(
   if (name.length > 150) {
     return { error: "Tu nombre es demasiado largo (máximo 150 caracteres)." };
   }
-  if (!email || !email.includes("@")) {
-    return { error: "Ingresá un email válido." };
-  }
-  // Mismo tope que el email del cliente (255) — este no lo tenía.
-  if (email.length > 255) {
-    return { error: "El email es demasiado largo (máximo 255 caracteres)." };
+  const emailError = assertValidEmail(email);
+  if (emailError) {
+    return { error: emailError };
   }
   if (password.length < 8) {
     return { error: "La contraseña debe tener al menos 8 caracteres." };
