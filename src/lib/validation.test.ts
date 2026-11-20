@@ -4,6 +4,7 @@ import {
   assertMaxLength,
   assertMinPasswordLength,
   assertPasswordByteLength,
+  assertValidEmail,
   normalizeText,
   safeJsonLdScript,
   sanitizeFileNameForHeader,
@@ -158,6 +159,38 @@ describe("safeJsonLdScript", () => {
   it("leaves plain data without angle brackets unchanged in shape", () => {
     const original = { name: "Spa Normal", address: { streetAddress: "Calle 123" } };
     expect(JSON.parse(safeJsonLdScript(original))).toEqual(original);
+  });
+});
+
+describe("assertValidEmail", () => {
+  it("acepta un email válido y no devuelve error", () => {
+    expect(assertValidEmail("persona@ejemplo.com")).toBeNull();
+  });
+
+  it("rechaza un string vacío", () => {
+    expect(assertValidEmail("")).toBe("Ingresá un email válido.");
+  });
+
+  it("rechaza un valor sin '@'", () => {
+    expect(assertValidEmail("sin-arroba.com")).toBe("Ingresá un email válido.");
+  });
+
+  it("rechaza un email que supera el máximo de largo default (255)", () => {
+    const longEmail = "a".repeat(250) + "@x.com";
+    expect(longEmail.length).toBeGreaterThan(255);
+    expect(assertValidEmail(longEmail)).toBe(
+      "El email es demasiado largo (máximo 255 caracteres)."
+    );
+  });
+
+  it("acepta un email que respeta un maxLength custom más chico", () => {
+    expect(assertValidEmail("a@b.com", 10)).toBeNull();
+  });
+
+  it("rechaza un email que supera un maxLength custom más chico", () => {
+    expect(assertValidEmail("persona@ejemplo.com", 10)).toBe(
+      "El email es demasiado largo (máximo 10 caracteres)."
+    );
   });
 });
 
