@@ -480,13 +480,13 @@ export async function redeemGiftCard(
     where: { code, businessId },
   });
 
-  if (!giftCard.active) throw new Error("La giftcard no está activa");
+  if (!giftCard.active) throw new Error("La giftcard no está activa.");
   // El vencimiento se puede cargar al vender la giftcard, pero nada la
   // desactiva sola cuando llega esa fecha — sin este chequeo, quedaba
   // mostrada como "vencida" en la lista pero se seguía pudiendo canjear
   // igual, vaciando el mensaje de la fecha de vencimiento.
   if (giftCard.expiresAt && giftCard.expiresAt < new Date()) {
-    throw new Error("La giftcard está vencida");
+    throw new Error("La giftcard está vencida.");
   }
   await assertOpenCashSession(businessId, input.cashSessionId);
 
@@ -500,7 +500,7 @@ export async function redeemGiftCard(
       data: { balance: { decrement: input.amount } },
     });
     if (decremented.count === 0) {
-      throw new Error("Saldo insuficiente en la giftcard");
+      throw new Error("Saldo insuficiente en la giftcard.");
     }
 
     const updated = await tx.giftCard.findUniqueOrThrow({ where: { id: giftCard.id } });
